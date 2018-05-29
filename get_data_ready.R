@@ -215,6 +215,18 @@ chem_info$Class[is.na(chem_info$Class)] <- chem_info$generic_class[is.na(chem_in
 
 exclude <- read.csv("data/exclude.csv", stringsAsFactors = FALSE)
 
+############################################
+# Remove blanks:
+blanks <- which(grepl(pattern = "Blank",sites$`Short Name`))
+sites <- sites[-blanks,]
+chem_data <- chem_data[chem_data$SiteID %in% sites$SiteID,]
+
+# Remove replicates?
+resampled <- which(grepl(pattern = "resampled",sites$`Short Name`))
+sites <- sites[-resampled,]
+chem_data <- chem_data[chem_data$SiteID %in% sites$SiteID,]
+
+
 dir.create("cleanedData",showWarnings = FALSE)
 
 list_of_datasets <- list("Data" = chem_data, 

@@ -23,58 +23,56 @@ library(readxl)
 library(tidyr)
 library(dplyr)
 
-
 file_2014 <- "rawData/GLRI passive sampler data update 3-17-16.xlsx"
 pharm_file <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
 file_2010 <- "rawData/Copy of Great Lakes passive sampler data update 10-25-13.xlsx"
 
+generic_file_opener <- function(file_name, n_max, sheet, year){
+  
+  data_wide <- read_excel(file_name,
+                         sheet = sheet,
+                         skip = 6, n_max = n_max)
+  names_wide <- read_excel(file_name,
+                         sheet = sheet,
+                         skip = 3, n_max = 1)                       
+  
+  names(data_wide)[4:length(names(names_wide))] <- names(names_wide)[4:length(names(names_wide))]
+  names(data_wide)[1] <- "chnm"
+  names(data_wide)[2] <- "MDL"
+  names(data_wide)[3] <- "MQL"
+
+  data_long <- data_wide %>%
+    gather(SiteID, Value, -chnm, -MDL, -MQL) 
+  
+  data_long$comment <- ""
+  data_long$comment[grep("<",data_long$Value)] <- "<"
+  data_long$Value <- gsub("<","",data_long$Value)
+  data_long$Value <- gsub("a","",data_long$Value)
+  data_long$Value <- gsub("b","",data_long$Value)
+  data_long$Value <- gsub("c","",data_long$Value)
+  data_long$Value <- as.numeric(data_long$Value) 
+  data_long$`Sample Date` <- year
+  
+  data_long <- filter(data_long, 
+                      !(is.na(Value) & comment == ""))
+  
+  return(data_long)
+}
+
 #####################################################
 # OC-PCB-PBDE 2014
-data_2014_OC <- read_excel(file_2014,
-                        sheet = "OC-PCB-PBDE",
-                        skip = 6, n_max = 45)
-names_OC <- read_excel(file_2014,
-                       sheet = "OC-PCB-PBDE",
-                       skip = 3, n_max = 1)                       
+data_2014_OC <- generic_file_opener(file_2014, 
+                                         n_max = 45, 
+                                         sheet = "OC-PCB-PBDE",
+                                         year = 2014)
 
-names(data_2014_OC)[4:length(names(names_OC))] <- names(names_OC)[4:length(names(names_OC))]
-names(data_2014_OC)[1] <- "chnm"
-names(data_2014_OC)[2] <- "MDL"
-names(data_2014_OC)[3] <- "MQL"
-rm(names_OC)
-
-
-data_2014_OC_long <- data_2014_OC %>%
-  gather(SiteID, Value, -chnm, -MDL, -MQL) 
-
-data_2014_OC_long$comment <- ""
-data_2014_OC_long$comment[grep("<",data_2014_OC_long$Value)] <- "<"
-data_2014_OC_long$Value <- gsub("<","",data_2014_OC_long$Value)
-data_2014_OC_long$Value <- as.numeric(data_2014_OC_long$Value) 
-data_2014_OC_long$`Sample Date` <- 2014
 #####################################################
-# PAHs
-data_2014_PAHs <- read_excel(file_2014,
-                           sheet = "PAHs",
-                           skip = 6, n_max = 33)
-names_PAHs <- read_excel(file_2014,
-                       sheet = "PAHs",
-                       skip = 3, n_max = 1)                       
+# PAHs 2014:
+data_2014_PAHs <- generic_file_opener(file_2014, 
+                                         n_max = 33, 
+                                         sheet = "PAHs",
+                                         year = 2014)
 
-names(data_2014_PAHs)[4:length(names(names_PAHs))] <- names(names_PAHs)[4:length(names(names_PAHs))]
-names(data_2014_PAHs)[1] <- "chnm"
-names(data_2014_PAHs)[2] <- "MDL"
-names(data_2014_PAHs)[3] <- "MQL"
-rm(names_PAHs)
-
-data_2014_PAHs_long <- data_2014_PAHs %>%
-  gather(SiteID, Value, -chnm, -MDL, -MQL) 
-
-data_2014_PAHs_long$comment <- ""
-data_2014_PAHs_long$comment[grep("<",data_2014_PAHs_long$Value)] <- "<"
-data_2014_PAHs_long$Value <- gsub("<","",data_2014_PAHs_long$Value)
-data_2014_PAHs_long$Value <- as.numeric(data_2014_PAHs_long$Value) 
-data_2014_PAHs_long$`Sample Date` <- 2014
 #####################################################
 # Sites:
 sites <- read_excel(file_2014,
@@ -94,4 +92,12 @@ full_sites <- dataRetrieval::readNWISsite(sites$STAID[1:49])
 sites <- sites %>%
   left_join(select(full_sites, STAID=site_no, station_nm, 
                    dec_lat=dec_lat_va, dec_lon = dec_long_va), by="STAID")
+
+
+#####################################################
+# PAHs 2010:
+data_2010_PAHs <- generic_file_opener(file_2010,
+                                      n_max = 33,
+                                      sheet = "PAHs",
+                                      year = 2010)
 

@@ -35,19 +35,19 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
                          skip = 6, n_max = n_max)
   
   if(sheet == "pharms"){
-    
+    cas_data_1 <- read_excel(file_cas, sheet = "LC8240", skip = 3)
+    cas_data_2 <- read_excel(file_cas, sheet = "LC8069", skip = 3)
+    cas_data <- bind_rows(cas_data_1, cas_data_2)
   } else {
     cas_sheet <- switch(sheet,
                         "OC-PCB-PBDE" = "OC-PCB-PBDE",
                         "PAHs" = "PAHs",
                         "WW" = "CERC WW")
     cas_data <- read_excel(file_cas, sheet = cas_sheet, skip = 3)  
-    cas_data <- cas_data[!is.na(cas_data$Analyte),]
-    
-    cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`)
-    
   }
-
+  cas_data <- cas_data[!is.na(cas_data$Analyte),]
+  
+  cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`)
   
   units <- names(data_wide)[-1:-2]
   if(all(grep("pg/L", units) %in% 1:length(units))){

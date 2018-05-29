@@ -15,6 +15,10 @@ lakes_ordered <- c("Lake Superior",
 
 tox_list$chem_site$site_grouping <- factor(tox_list$chem_site$site_grouping,
                                            levels=lakes_ordered)
+
+# Get rid of censored data:
+tox_list$chem_data$Value[!is.na(tox_list$chem_data$comment)] <- 0
+
 chemicalSummary <- get_chemical_summary(tox_list, ACClong, filtered_ep)
 
 plot_tox_boxplots(chemicalSummary, category = "Chemical")

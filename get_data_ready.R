@@ -29,13 +29,13 @@ pharm_file <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
 file_2010 <- "rawData/Copy of Great Lakes passive sampler data update 10-25-13.xlsx"
 file_cas <- "rawData/Analyte Kow and CAS numbers.xlsx"
 
-generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas){
+generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas, skip = 6){
   
   data_wide <- read_excel(file_name,
                          sheet = sheet,
-                         skip = 6, n_max = n_max)
+                         skip = skip, n_max = n_max)
   
-  if(sheet == "pharms"){
+  if(sheet %in% c("pharms","est water concentrations")){
     cas_data_1 <- read_excel(file_cas, sheet = "LC8240", skip = 3)
     cas_data_2 <- read_excel(file_cas, sheet = "LC8069", skip = 3)
     cas_data <- bind_rows(cas_data_1, cas_data_2)
@@ -48,7 +48,8 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
   }
   cas_data <- cas_data[!is.na(cas_data$Analyte),]
   
-  cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`)
+  cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`) %>%
+    mutate(chnm = tolower(chnm))
   
   units <- names(data_wide)[-1:-2]
   if(all(grep("pg/L", units) %in% 1:length(units))){
@@ -61,20 +62,33 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
     stop("Check units!")
   }
   
-  names_wide <- read_excel(file_name,
-                         sheet = sheet,
-                         skip = 3, n_max = 1)                       
-  
-  names(data_wide)[4:length(names(names_wide))] <- names(names_wide)[4:length(names(names_wide))]
-  names(data_wide)[1] <- "chnm"
-  names(data_wide)[2] <- "MDL"
-  names(data_wide)[3] <- "MQL"
-
-  data_long <- data_wide %>%
-    gather(SiteID, Value, -chnm, -MDL, -MQL) 
+  if(sheet != "est water concentrations"){
+    names_wide <- read_excel(file_name,
+                             sheet = sheet,
+                             skip = 3, n_max = 1) 
+    names(data_wide)[4:length(names(names_wide))] <- names(names_wide)[4:length(names(names_wide))]
+    names(data_wide)[1] <- "chnm"
+    names(data_wide)[2] <- "MDL"
+    names(data_wide)[3] <- "MQL"
+    data_long <- data_wide %>%
+      gather(SiteID, Value, -chnm, -MDL, -MQL) 
+  } else {
+    names_wide <- read_excel(file_name,
+                             sheet = sheet,
+                             skip = 6, n_max = 1)   
+    names(data_wide)[3:length(names(names_wide))] <- names(names_wide)[3:length(names(names_wide))]
+    names(data_wide)[1] <- "chnm"
+    names(data_wide)[2] <- "Blank"
+    data_long <- data_wide %>%
+      gather(SiteID, Value, -chnm, -Blank)
+    data_long$SiteID <- tools::toTitleCase(data_long$SiteID)
+    sheet <- "pharms"
+  }
   
   data_long$comment <- ""
   data_long$comment[grep("<",data_long$Value)] <- "<"
+  data_long$comment[grep("DNQ",data_long$Value)] <- "DNQ"
+  data_long$Value <- gsub("DNQ","",data_long$Value)
   data_long$Value <- gsub("<","",data_long$Value)
   data_long$Value <- gsub("a","",data_long$Value)
   data_long$Value <- gsub("b","",data_long$Value)
@@ -89,7 +103,9 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
                       !(is.na(Value) & comment == ""))
   
   data_long <- data_long %>%
-    left_join(cas_data, by="chnm")
+    mutate(chnm = tolower(chnm)) %>%
+    left_join(cas_data, by="chnm") %>%
+    mutate(chnm = tools::toTitleCase(chnm))
   
   if(any(is.na(data_long$CAS))){
     message("Some CAS didn't match up")
@@ -114,7 +130,24 @@ data_2014_PAHs <- generic_file_opener(file_2014,
                                      sheet = "PAHs",
                                      year = 2014,
                                      file_cas = file_cas)
-
+data_2014_PAHs <- distinct(data_2014_PAHs)
+#####################################################
+# Pharm 2014:
+data_2014_pharm <- generic_file_opener(pharm_file, 
+                                      n_max = 38, 
+                                      sheet = "est water concentrations",
+                                      year = 2014,
+                                      file_cas = file_cas,
+                                      skip = 10)
+# "Nadolol"
+# "Buproprion"
+data_2014_pharm <- data_2014_pharm[data_2014_pharm$CAS != "-",]
+data_2014_pharm$chnm[data_2014_pharm$chnm == "Nadolol"] <- "Nadalol"
+data_2014_pharm$CAS[data_2014_pharm$chnm == "Nadalol"] <- "42200-33-9"
+data_2014_pharm$chnm[data_2014_pharm$chnm == "Buproprion"] <- "Bupropion"
+data_2014_pharm$CAS[data_2014_pharm$chnm == "Bupropion"] <- "34911-55-2"
+data_2014_pharm <- data_2014_pharm[!is.na(data_2014_pharm$chnm),]
+data_2014_pharm <- distinct(data_2014_pharm)
 #####################################################
 # PAHs 2010:
 data_2010_PAHs <- generic_file_opener(file_2010,
@@ -146,7 +179,7 @@ data_2010_WW <- generic_file_opener(file_2010,
 # "Tris(1,3-dichloro-2-propyl)phosphate (T" didn't match up
 # looks to be a typo in the data:
 
-data_2010_WW$chnm[data_2010_WW$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (T"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
+data_2010_WW$chnm[data_2010_WW$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
 data_2010_WW$CAS[data_2010_WW$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
 
 data_2010_WW <- data_2010_WW[data_2010_WW$CAS != "---",]
@@ -203,7 +236,7 @@ all_data <- bind_rows(data_2010_Pharm,
                       data_2014_PAHs)
 
 chem_data <- all_data %>%
-  select(SiteID, `Sample Date`, CAS, Value)
+  select(SiteID, `Sample Date`, CAS, Value, comment)
 
 chem_info_old <- read.csv("data/chem_classes.csv", stringsAsFactors = FALSE)
 

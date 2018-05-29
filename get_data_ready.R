@@ -259,6 +259,9 @@ resampled <- which(grepl(pattern = "resampled",sites$`Short Name`))
 sites <- sites[-resampled,]
 chem_data <- chem_data[chem_data$SiteID %in% sites$SiteID,]
 
+# Get rid of censored data:
+chem_data$Value[chem_data$comment != ""] <- 0
+
 
 dir.create("cleanedData",showWarnings = FALSE)
 

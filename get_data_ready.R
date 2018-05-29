@@ -26,12 +26,28 @@ library(dplyr)
 file_2014 <- "rawData/GLRI passive sampler data update 3-17-16.xlsx"
 pharm_file <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
 file_2010 <- "rawData/Copy of Great Lakes passive sampler data update 10-25-13.xlsx"
+file_cas <- "rawData/Analyte Kow and CAS numbers.xlsx"
 
-generic_file_opener <- function(file_name, n_max, sheet, year){
+generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas){
   
   data_wide <- read_excel(file_name,
                          sheet = sheet,
                          skip = 6, n_max = n_max)
+  
+  if(sheet == "pharms"){
+    
+  } else {
+    cas_sheet <- switch(sheet,
+                        "OC-PCB-PBDE" = "OC-PCB-PBDE",
+                        "PAHs" = "PAHs",
+                        "WW" = "CERC WW")
+    cas_data <- read_excel(file_cas, sheet = cas_sheet, skip = 3)  
+    cas_data <- cas_data[!is.na(cas_data$Analyte),]
+    
+    cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`)
+    
+  }
+
   
   units <- names(data_wide)[-1:-2]
   if(all(grep("pg/L", units) %in% 1:length(units))){
@@ -71,6 +87,14 @@ generic_file_opener <- function(file_name, n_max, sheet, year){
   data_long <- filter(data_long, 
                       !(is.na(Value) & comment == ""))
   
+  data_long <- data_long %>%
+    left_join(cas_data, by="chnm")
+  
+  if(any(is.na(data_long$CAS))){
+    message("Some CAS didn't match up")
+  }
+  
+  
   return(data_long)
 }
 
@@ -79,28 +103,33 @@ generic_file_opener <- function(file_name, n_max, sheet, year){
 data_2014_OC <- generic_file_opener(file_2014, 
                                    n_max = 45, 
                                    sheet = "OC-PCB-PBDE",
-                                   year = 2014)
+                                   year = 2014,
+                                   file_cas = file_cas)
 
 #####################################################
 # PAHs 2014:
 data_2014_PAHs <- generic_file_opener(file_2014, 
                                      n_max = 33, 
                                      sheet = "PAHs",
-                                     year = 2014)
+                                     year = 2014,
+                                     file_cas = file_cas)
 
 #####################################################
 # PAHs 2010:
 data_2010_PAHs <- generic_file_opener(file_2010,
                                       n_max = 33,
                                       sheet = "PAHs",
-                                      year = 2010)
+                                      year = 2010,
+                                      file_cas = file_cas)
+# "Benzo[g,h,i]perylene" didn't get a CAS
 
 #####################################################
 # OC-PCB-PBDE 2010
 data_2010_OC <- generic_file_opener(file_2010, 
                                     n_max = 40, 
                                     sheet = "OC-PCB-PBDE",
-                                    year = 2010)
+                                    year = 2010,
+                                    file_cas = file_cas)
 ignore_totals <- c("Total PCBs","Total PCBs in mg/L","Total OC Pesticides")
 data_2010_OC <- data_2010_OC[!(data_2010_OC$chnm %in% ignore_totals),]
 
@@ -109,14 +138,22 @@ data_2010_OC <- data_2010_OC[!(data_2010_OC$chnm %in% ignore_totals),]
 data_2010_WW <- generic_file_opener(file_2010, 
                                     n_max = 53, 
                                     sheet = "WW",
-                                    year = 2010)
+                                    year = 2010,
+                                    file_cas = file_cas)
+# "Tris(1,3-dichloro-2-propyl)phosphate (T" didn't match up
+# looks to be a typo in the data:
 
+data_2010_WW$chnm[data_2010_WW$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (T"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
+data_2010_WW$CAS[data_2010_WW$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
+
+data_2010_WW <- data_2010_WW[data_2010_WW$CAS != "---",]
 #####################################################
 # Pharm 2010
 data_2010_Pharm <- generic_file_opener(file_2010, 
                                     n_max = 44, 
                                     sheet = "pharms",
-                                    year = 2010)
+                                    year = 2010,
+                                    file_cas = file_cas)
 
 
 #####################################################

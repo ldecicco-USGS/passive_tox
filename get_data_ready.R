@@ -32,6 +32,18 @@ generic_file_opener <- function(file_name, n_max, sheet, year){
   data_wide <- read_excel(file_name,
                          sheet = sheet,
                          skip = 6, n_max = n_max)
+  
+  units <- names(data_wide)[-1:-2]
+  if(all(grep("pg/L", units) %in% 1:length(units))){
+    convert <- 1000000
+  } else if (all(grep("ng/L", units) %in% 1:length(units))){
+    convert <- 1000
+  } else if (all(grep("ug/L", units) %in% 1:length(units))){
+    convert <- 1
+  } else {
+    stop("Check units!")
+  }
+  
   names_wide <- read_excel(file_name,
                          sheet = sheet,
                          skip = 3, n_max = 1)                       
@@ -50,7 +62,10 @@ generic_file_opener <- function(file_name, n_max, sheet, year){
   data_long$Value <- gsub("a","",data_long$Value)
   data_long$Value <- gsub("b","",data_long$Value)
   data_long$Value <- gsub("c","",data_long$Value)
+  data_long$Value <- gsub(" ","",data_long$Value)
   data_long$Value <- as.numeric(data_long$Value) 
+  data_long$Value <- data_long$Value/convert
+  
   data_long$`Sample Date` <- year
   
   data_long <- filter(data_long, 
@@ -62,16 +77,47 @@ generic_file_opener <- function(file_name, n_max, sheet, year){
 #####################################################
 # OC-PCB-PBDE 2014
 data_2014_OC <- generic_file_opener(file_2014, 
-                                         n_max = 45, 
-                                         sheet = "OC-PCB-PBDE",
-                                         year = 2014)
+                                   n_max = 45, 
+                                   sheet = "OC-PCB-PBDE",
+                                   year = 2014)
 
 #####################################################
 # PAHs 2014:
 data_2014_PAHs <- generic_file_opener(file_2014, 
-                                         n_max = 33, 
-                                         sheet = "PAHs",
-                                         year = 2014)
+                                     n_max = 33, 
+                                     sheet = "PAHs",
+                                     year = 2014)
+
+#####################################################
+# PAHs 2010:
+data_2010_PAHs <- generic_file_opener(file_2010,
+                                      n_max = 33,
+                                      sheet = "PAHs",
+                                      year = 2010)
+
+#####################################################
+# OC-PCB-PBDE 2010
+data_2010_OC <- generic_file_opener(file_2010, 
+                                    n_max = 40, 
+                                    sheet = "OC-PCB-PBDE",
+                                    year = 2010)
+ignore_totals <- c("Total PCBs","Total PCBs in mg/L","Total OC Pesticides")
+data_2010_OC <- data_2010_OC[!(data_2010_OC$chnm %in% ignore_totals),]
+
+#####################################################
+# WW 2010
+data_2010_WW <- generic_file_opener(file_2010, 
+                                    n_max = 53, 
+                                    sheet = "WW",
+                                    year = 2010)
+
+#####################################################
+# Pharm 2010
+data_2010_Pharm <- generic_file_opener(file_2010, 
+                                    n_max = 44, 
+                                    sheet = "pharms",
+                                    year = 2010)
+
 
 #####################################################
 # Sites:
@@ -94,10 +140,4 @@ sites <- sites %>%
                    dec_lat=dec_lat_va, dec_lon = dec_long_va), by="STAID")
 
 
-#####################################################
-# PAHs 2010:
-data_2010_PAHs <- generic_file_opener(file_2010,
-                                      n_max = 33,
-                                      sheet = "PAHs",
-                                      year = 2010)
 

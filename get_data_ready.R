@@ -28,7 +28,7 @@ file_2014 <- "rawData/GLRI passive sampler data update 3-17-16.xlsx"
 # pharm_file <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
 file_2010 <- "rawData/Copy of Great Lakes passive sampler data update 10-25-13.xlsx"
 file_cas <- "rawData/Analyte Kow and CAS numbers.xlsx"
-file_pharm2014 <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
+file_pharm2014 <- "rawData/GLRI passive sampler pharmaceutical data UPDATED 8-13-18.xlsx"
 
 generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas, skip = 6){
   
@@ -53,11 +53,11 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
     mutate(chnm = tolower(chnm))
   
   units <- names(data_wide)[-1:-2]
-  if(all(grep("pg/L", units) %in% 1:length(units))){
+  if(isTRUE(sum(grepl("pg/L", units)) == length(units))){
     convert <- 1000000
-  } else if (all(grep("ng/L", units) %in% 1:length(units))){
+  } else if (isTRUE(sum(grepl("ng/L", units)) == length(units))){
     convert <- 1000
-  } else if (all(grep("ug/L", units) %in% 1:length(units))){
+  } else if (isTRUE(sum(grepl("ug/L", units)) == length(units))){
     convert <- 1
   } else {
     stop("Check units!")
@@ -76,7 +76,7 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
   } else {
     names_wide <- read_excel(file_name,
                              sheet = sheet,
-                             skip = 6, n_max = 1)   
+                             skip = 4, n_max = 1)   
     names(data_wide)[3:length(names(names_wide))] <- names(names_wide)[3:length(names(names_wide))]
     names(data_wide)[1] <- "chnm"
     names(data_wide)[2] <- "Blank"
@@ -135,11 +135,11 @@ data_2014_PAHs <- distinct(data_2014_PAHs)
 #####################################################
 # Pharm 2014:
 data_2014_pharm <- generic_file_opener(file_pharm2014, 
-                                      n_max = 38, 
+                                      n_max = 41, 
                                       sheet = "est water concentrations",
                                       year = 2014,
                                       file_cas = file_cas,
-                                      skip = 10)
+                                      skip = 7)
 # "Nadolol"
 # "Buproprion"
 data_2014_pharm <- data_2014_pharm[data_2014_pharm$CAS != "-",]

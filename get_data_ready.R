@@ -230,7 +230,8 @@ all_data <- bind_rows(data_2010_Pharm,
                       data_2010_OC,
                       data_2010_PAHs,
                       data_2014_OC,
-                      data_2014_PAHs)
+                      data_2014_PAHs,
+                      data_2014_pharm)
 
 chem_data <- all_data %>%
   select(SiteID, `Sample Date`, CAS, Value, comment)

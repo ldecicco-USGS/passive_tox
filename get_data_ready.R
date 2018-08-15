@@ -25,9 +25,10 @@ library(dplyr)
 library(openxlsx)
 
 file_2014 <- "rawData/GLRI passive sampler data update 3-17-16.xlsx"
-pharm_file <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
+# pharm_file <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
 file_2010 <- "rawData/Copy of Great Lakes passive sampler data update 10-25-13.xlsx"
 file_cas <- "rawData/Analyte Kow and CAS numbers.xlsx"
+file_pharm2014 <- "rawData/GLRI passive sampler pharmaceutical data 8-23-17.xlsx"
 
 generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas, skip = 6){
   
@@ -133,7 +134,7 @@ data_2014_PAHs <- generic_file_opener(file_2014,
 data_2014_PAHs <- distinct(data_2014_PAHs)
 #####################################################
 # Pharm 2014:
-data_2014_pharm <- generic_file_opener(pharm_file, 
+data_2014_pharm <- generic_file_opener(file_pharm2014, 
                                       n_max = 38, 
                                       sheet = "est water concentrations",
                                       year = 2014,
@@ -142,10 +143,6 @@ data_2014_pharm <- generic_file_opener(pharm_file,
 # "Nadolol"
 # "Buproprion"
 data_2014_pharm <- data_2014_pharm[data_2014_pharm$CAS != "-",]
-data_2014_pharm$chnm[data_2014_pharm$chnm == "Nadolol"] <- "Nadalol"
-data_2014_pharm$CAS[data_2014_pharm$chnm == "Nadalol"] <- "42200-33-9"
-data_2014_pharm$chnm[data_2014_pharm$chnm == "Buproprion"] <- "Bupropion"
-data_2014_pharm$CAS[data_2014_pharm$chnm == "Bupropion"] <- "34911-55-2"
 data_2014_pharm <- data_2014_pharm[!is.na(data_2014_pharm$chnm),]
 data_2014_pharm <- distinct(data_2014_pharm)
 #####################################################

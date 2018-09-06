@@ -29,28 +29,46 @@ file_2014 <- "rawData/GLRI passive sampler data update 3-17-16.xlsx"
 file_2010 <- "rawData/Copy of Great Lakes passive sampler data update 10-25-13.xlsx"
 file_cas <- "rawData/Analyte Kow and CAS numbers.xlsx"
 file_pharm2014 <- "rawData/GLRI passive sampler pharmaceutical data UPDATED 8-13-18.xlsx"
+file_WW_2014 <- "rawData/GLRI 2014 passive sampler waste indicator.xlsx"
 
-generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas, skip = 6){
+all_cas <- function(file_cas="rawData/Analyte Kow and CAS numbers.xlsx"){
+
+  cas_data <- data.frame()
+  
+  for(i in c("OC-PCB-PBDE","PAHs","CERC WW","LC8240","LC8069")){
+    tab_i <- read_excel(file_cas, sheet = i, skip = 3)
+    cas_data <- bind_rows(cas_data, tab_i)
+  }
+  
+  cas_data <- cas_data[!is.na(cas_data$Analyte),]
+  
+  cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`) %>%
+    mutate(chnm = tolower(chnm)) %>%
+    distinct()
+  
+  return(cas_data)
+}
+
+generic_file_opener <- function(file_name, n_max, sheet, site_sheet,
+                                year, skip = 6, skip_site = 3){
   
   data_wide <- read_excel(file_name,
                          sheet = sheet,
                          skip = skip, n_max = n_max)
   
-  if(sheet %in% c("pharms","est water concentrations")){
-    cas_data_1 <- read_excel(file_cas, sheet = "LC8240", skip = 3)
-    cas_data_2 <- read_excel(file_cas, sheet = "LC8069", skip = 3)
-    cas_data <- bind_rows(cas_data_1, cas_data_2)
-  } else {
-    cas_sheet <- switch(sheet,
-                        "OC-PCB-PBDE" = "OC-PCB-PBDE",
-                        "PAHs" = "PAHs",
-                        "WW" = "CERC WW")
-    cas_data <- read_excel(file_cas, sheet = cas_sheet, skip = 3)  
-  }
-  cas_data <- cas_data[!is.na(cas_data$Analyte),]
+  site_stuff <- read_excel(file_name,
+                          sheet = site_sheet,
+                          skip = skip_site)
   
-  cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`) %>%
-    mutate(chnm = tolower(chnm))
+  if("CERC Site #" %in% names(site_stuff)){
+    site_stuff <- rename(site_stuff, SiteID=`CERC Site #`)
+  } else {
+    site_stuff <- site_stuff %>%
+      rename(SiteID = `CERC ID`,
+             STAID = `USGS Station ID`)
+  }
+  
+  site_stuff$SiteID <- gsub("site ","",site_stuff$SiteID, ignore.case = TRUE)
   
   units <- names(data_wide)[-1:-2]
   if(isTRUE(sum(grepl("pg/L", units)) == length(units))){
@@ -76,14 +94,23 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
   } else {
     names_wide <- read_excel(file_name,
                              sheet = sheet,
-                             skip = 4, n_max = 1)   
-    names(data_wide)[3:length(names(names_wide))] <- names(names_wide)[3:length(names(names_wide))]
+                             skip = 4, n_max = 1)
+    sites_start <- which(names(names_wide) == "site 1")
+    names(data_wide)[sites_start:length(names(names_wide))] <- names(names_wide)[sites_start:length(names(names_wide))]
     names(data_wide)[1] <- "chnm"
-    names(data_wide)[2] <- "Blank"
-    data_long <- data_wide %>%
-      gather(SiteID, Value, -chnm, -Blank)
-    data_long$SiteID <- tools::toTitleCase(data_long$SiteID)
-    sheet <- "pharms"
+    
+    if(sites_start == 4){
+      names(data_wide)[2] <- "DL"
+      names(data_wide)[3] <- "RL"
+      data_long <- data_wide %>%
+        gather(SiteID, Value, -chnm, -DL,-RL)
+      sheet <- "WW"
+    } else {
+      names(data_wide)[2] <- "Blank"
+      data_long <- data_wide %>%
+        gather(SiteID, Value, -chnm, -Blank)
+      sheet <- "pharms"
+    }
   }
   
   data_long$comment <- ""
@@ -99,139 +126,158 @@ generic_file_opener <- function(file_name, n_max, sheet, year, file_cas=file_cas
   data_long$Value <- data_long$Value/convert
   data_long$generic_class <- sheet
   data_long$`Sample Date` <- year
+  data_long$SiteID <- gsub("site ","",data_long$SiteID, ignore.case = TRUE)
   
   data_long <- filter(data_long, 
                       !(is.na(Value) & comment == ""))
   
   data_long <- data_long %>%
     mutate(chnm = tolower(chnm)) %>%
-    left_join(cas_data, by="chnm") %>%
-    mutate(chnm = tools::toTitleCase(chnm))
-  
+    left_join(all_cas(), by="chnm") %>%
+    mutate(chnm = tools::toTitleCase(chnm)) %>%
+    left_join(select(site_stuff, SiteID, STAID), by="SiteID") %>%
+    mutate(SiteID = dataRetrieval::zeroPad(STAID, 8)) %>%
+    select(-STAID) %>%
+    distinct() %>%
+    filter(!is.na(chnm),
+           CAS != "---" | is.na(CAS),
+           CAS != "-" | is.na(CAS))
+
   if(any(is.na(data_long$CAS))){
     message("Some CAS didn't match up")
   }
-  
   
   return(data_long)
 }
 
 #####################################################
 # OC-PCB-PBDE 2014
-data_2014_OC <- generic_file_opener(file_2014, 
-                                   n_max = 45, 
-                                   sheet = "OC-PCB-PBDE",
-                                   year = 2014,
-                                   file_cas = file_cas)
+OC_2014 <- generic_file_opener(file_2014, 
+                               n_max = 45, 
+                               sheet = "OC-PCB-PBDE",
+                               site_sheet = "site info",
+                               year = 2014)
 
 #####################################################
 # PAHs 2014:
-data_2014_PAHs <- generic_file_opener(file_2014, 
-                                     n_max = 33, 
-                                     sheet = "PAHs",
-                                     year = 2014,
-                                     file_cas = file_cas)
-data_2014_PAHs <- distinct(data_2014_PAHs)
+PAHs_2014 <- generic_file_opener(file_2014, 
+                                 n_max = 33, 
+                                 sheet = "PAHs",
+                                 site_sheet = "site info",
+                                 year = 2014)
+
 #####################################################
 # Pharm 2014:
-data_2014_pharm <- generic_file_opener(file_pharm2014, 
-                                      n_max = 41, 
-                                      sheet = "est water concentrations",
-                                      year = 2014,
-                                      file_cas = file_cas,
-                                      skip = 7)
-# "Nadolol"
-# "Buproprion"
-data_2014_pharm <- data_2014_pharm[data_2014_pharm$CAS != "-",]
-data_2014_pharm <- data_2014_pharm[!is.na(data_2014_pharm$chnm),]
-data_2014_pharm <- distinct(data_2014_pharm)
+pharm_2014 <- generic_file_opener(file_pharm2014, 
+                                  n_max = 41, 
+                                  sheet = "est water concentrations",
+                                  site_sheet = "PrioritySiteInfo",
+                                  year = 2014,
+                                  skip = 7, skip_site = 2)
+pharm_2014$CAS[pharm_2014$chnm == "Buproprion"] <- "34841-39-9"
+pharm_2014$CAS[pharm_2014$chnm == "Nadolol"] <- "42200-33-9"
+
 #####################################################
 # PAHs 2010:
-data_2010_PAHs <- generic_file_opener(file_2010,
-                                      n_max = 33,
-                                      sheet = "PAHs",
-                                      year = 2010,
-                                      file_cas = file_cas)
-# "Benzo[g,h,i]perylene" didn't get a CAS
-data_2010_PAHs$chnm[data_2010_PAHs$chnm == "Benzo[g,h,i]perylene"] <- "Benzo[g,h,I]perylene"
-data_2010_PAHs$CAS[data_2010_PAHs$chnm == "Benzo[g,h,I]perylene"] <- "191-24-2"
+PAHs_2010 <- generic_file_opener(file_2010,
+                                 n_max = 33,
+                                 sheet = "PAHs",
+                                 site_sheet = "site info",
+                                 year = 2010,
+                                 skip_site = 2)
 
 #####################################################
 # OC-PCB-PBDE 2010
-data_2010_OC <- generic_file_opener(file_2010, 
-                                    n_max = 40, 
-                                    sheet = "OC-PCB-PBDE",
-                                    year = 2010,
-                                    file_cas = file_cas)
-ignore_totals <- c("Total PCBs","Total PCBs in mg/L","Total OC Pesticides")
-data_2010_OC <- data_2010_OC[!(data_2010_OC$chnm %in% ignore_totals),]
+OC_2010 <- generic_file_opener(file_2010, 
+                              n_max = 40, 
+                              sheet = "OC-PCB-PBDE",
+                              site_sheet = "site info",
+                              year = 2010,
+                              skip_site = 2)
+ignore_totals <- c("Total PCBs","Total Pcbs in Mg/l","Total Oc Pesticides")
+OC_2010 <- OC_2010[!(OC_2010$chnm %in% ignore_totals),]
 
 #####################################################
 # WW 2010
-data_2010_WW <- generic_file_opener(file_2010, 
-                                    n_max = 53, 
-                                    sheet = "WW",
-                                    year = 2010,
-                                    file_cas = file_cas)
+WW_2010 <- generic_file_opener(file_2010, 
+                              n_max = 53, 
+                              sheet = "WW",
+                              site_sheet = "site info",
+                              year = 2010,
+                              skip_site = 2)
 # "Tris(1,3-dichloro-2-propyl)phosphate (T" didn't match up
 # looks to be a typo in the data:
 
-data_2010_WW$chnm[data_2010_WW$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
-data_2010_WW$CAS[data_2010_WW$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
+WW_2010$chnm[WW_2010$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
+WW_2010$CAS[WW_2010$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
 
-data_2010_WW <- data_2010_WW[data_2010_WW$CAS != "---",]
+#####################################################
+# WW 2014
+WW_2014 <- generic_file_opener(file_WW_2014, 
+                               n_max = 46, 
+                               sheet = "est water concentrations",
+                               site_sheet = "PrioritySiteInfo",
+                               year = 2014,
+                               skip = 7,
+                               skip_site = 2)
+
 #####################################################
 # Pharm 2010
-data_2010_Pharm <- generic_file_opener(file_2010, 
-                                    n_max = 44, 
-                                    sheet = "pharms",
-                                    year = 2010,
-                                    file_cas = file_cas)
+pharm_2010 <- generic_file_opener(file_2010, 
+                                  n_max = 44, 
+                                  sheet = "pharms",
+                                  site_sheet = "site info",
+                                  year = 2010,
+                                  skip_site = 2)
 
 #####################################################
 # Sites:
-sites_orig <- read_excel(file_2014,
+sites_orig_2014 <- read_excel(file_2014,
                      sheet = "site info",
-                     skip = 3) 
-
-sites_orig <- sites_orig %>%
-  rename(SiteID = `CERC Site #`,
-         site_grouping = Lake,
+                     skip = 3) %>%
+  rename(site_grouping = Lake,
          `Short Name` = `Station shortname`) %>%
-  mutate(SiteID = paste("Site",SiteID),
-         STAID = dataRetrieval::zeroPad(STAID, 8)) %>%
-  select(SiteID, site_grouping, `Short Name`, STAID)
+  mutate(SiteID = dataRetrieval::zeroPad(STAID, 8)) %>%
+  select(SiteID, site_grouping, `Short Name`) %>%
+  filter(!is.na(SiteID))
 
-full_sites <- dataRetrieval::readNWISsite(sites_orig$STAID[1:49])
+sites_OWC <- data.table::fread("rawData/sites_from_OWC.txt", sep="\t", colClasses = c("SiteID"="character"))
+
+sites_OWC <- select(data.table::setDF(sites_OWC), SiteID, site_grouping, `Short Name`)
+
+sites_orig <- bind_rows(sites_orig_2014, sites_OWC)
+sites_orig <- sites_orig[sites_orig$SiteID != "000-----",]
+
+sites_orig_2010 <- read_excel(file_2010,
+                              sheet = "site info",
+                              skip = 2) %>%
+  select(SiteID = `USGS Station ID`) %>%
+  filter(!(SiteID %in% sites_orig$SiteID),
+         !is.na(SiteID))
+
+sites_orig <- bind_rows(sites_orig, sites_orig_2010)
+
+full_sites <- dataRetrieval::readNWISsite(sites_orig$SiteID)
 
 sites <- sites_orig %>%
-  left_join(select(full_sites, STAID=site_no, Fullname=station_nm, 
-                   dec_lat=dec_lat_va, dec_lon = dec_long_va), by="STAID")
+  left_join(select(full_sites, SiteID=site_no, Fullname=station_nm, map_nm,
+                   dec_lat=dec_lat_va, dec_lon = dec_long_va), by="SiteID")
 
-site_na <- dataRetrieval::zeroPad(sites$STAID[is.na(sites$dec_lon)],9)
-site_na <- site_na[substr(site_na, start = 1, stop = 2) != "00"]
-names(site_na) <- substr(site_na, start=2, stop = nchar(site_na))
-more_sites <- dataRetrieval::readNWISsite(site_na)
+sites$`Short Name`[is.na(sites$site_grouping)] <- "Pigeon"
+sites$site_grouping[is.na(sites$site_grouping)] <- "Lake Superior"
 
-sites_orig$STAID[sites_orig$STAID %in% names(site_na)] <- site_na
-
-sites <- sites_orig %>%
-  left_join(select(bind_rows(full_sites, more_sites), 
-                   STAID=site_no, Fullname=station_nm, 
-                   dec_lat=dec_lat_va, dec_lon = dec_long_va), by="STAID")
-
-sites <- filter(sites, STAID != "000-----")
-
+rm(sites_orig, sites_orig_2010, sites_orig_2014, sites_OWC)
 
 ##############################################
 # Bring it together:
-all_data <- bind_rows(data_2010_Pharm,
-                      data_2010_WW,
-                      data_2010_OC,
-                      data_2010_PAHs,
-                      data_2014_OC,
-                      data_2014_PAHs,
-                      data_2014_pharm)
+all_data <- bind_rows(pharm_2010,
+                      WW_2010,
+                      OC_2010,
+                      PAHs_2010,
+                      pharm_2014,
+                      WW_2014,
+                      OC_2014,
+                      PAHs_2014)
 
 chem_data <- all_data %>%
   select(SiteID, `Sample Date`, CAS, Value, comment)
@@ -243,6 +289,9 @@ chem_info <- select(all_data, CAS, generic_class) %>%
   left_join(chem_info_old, by="CAS")
 
 chem_info$Class[is.na(chem_info$Class)] <- chem_info$generic_class[is.na(chem_info$Class)]
+chem_info$Class[chem_info$Class == "pharms"] <- "Pharmaceuticals"
+
+chem_info <- chem_info[!duplicated(chem_info$CAS),]
 
 exclude <- read.csv("data/exclude.csv", stringsAsFactors = FALSE)
 

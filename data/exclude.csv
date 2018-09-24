@@ -3,10 +3,10 @@ CAS,endPoint,
 84-66-2,NVS_ENZ_rMAOBP,Diethyl phthalate
 486-56-6,TOX21_p53_BLA_p3_viability,Cotinene
 51218-45-2,TOX21_p53_BLA_p5_ratio ,Metolachlor
-86?74?8,TOX21_p53_BLA_p3_ratio,Carbazole
-115?86?6,TOX21_p53_BLA_p3_ratio,Triphenyl phosphate
-115?96?8,TOX21_p53_BLA_p3_ratio,Tris(2?chloroethyl) phosphate
-206?44?0,TOX21_p53_BLA_p3_ratio,Fluoranthene
+86-74-8,TOX21_p53_BLA_p3_ratio,Carbazole
+115-86-6,TOX21_p53_BLA_p3_ratio,Triphenyl phosphate
+115-96-8,TOX21_p53_BLA_p3_ratio,Tris(2-chloroethyl) phosphate
+206-44-0,TOX21_p53_BLA_p3_ratio,Fluoranthene
 115-86-6,NVS_NR_hPPARg,Triphenyl phosphate
 80-05-7,CLD_CYP1A1_6hr,BPA
 80-05-7,CLD_CYP1A2_6hr,BPA

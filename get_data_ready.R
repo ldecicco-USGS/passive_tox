@@ -35,7 +35,7 @@ all_cas <- function(file_cas="rawData/Analyte Kow and CAS numbers.xlsx"){
 
   cas_data <- data.frame()
   
-  for(i in c("OC-PCB-PBDE","PAHs","CERC WW","LC8240","LC8069")){
+  for(i in c("OC-PCB-PBDE","PAHs","CERC WW","LC8240","LC8069","More")){
     tab_i <- read_excel(file_cas, sheet = i, skip = 3)
     cas_data <- bind_rows(cas_data, tab_i)
   }

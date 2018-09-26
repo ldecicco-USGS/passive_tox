@@ -292,8 +292,11 @@ chem_info$Class[is.na(chem_info$Class)] <- chem_info$generic_class[is.na(chem_in
 chem_info$Class[chem_info$Class == "pharms"] <- "Pharmaceuticals"
 
 chem_info <- chem_info[!duplicated(chem_info$CAS),]
+chem_info <- left_join(chem_info, select(tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
 
 exclude <- read.csv("data/exclude.csv", stringsAsFactors = FALSE)
+exclude <- left_join(exclude, select(tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
+exclude <- select(exclude, CAS, endPoint, chnm, everything(), -X)
 
 ############################################
 # Remove blanks:

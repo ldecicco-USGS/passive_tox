@@ -65,3 +65,6 @@ for(i in levels(chemical_summary$Class)){
   #        filename = paste0("plots/",i,"_boxplots.pdf"))
 }
 dev.off()
+
+
+

@@ -42,7 +42,7 @@ sum_tots <- bind_rows(summary_data, summary_EAR)
 
 my_breaks <- c(10^-8, 10^-6, 10^-4, 10^-2, 10^0)
 
-ggplot(data = filter(sum_tots, !(Class %in% c("Sterol","PCBs","Fuel","Dye/Pigment",
+bubbles <- ggplot(data = filter(sum_tots, !(Class %in% c("Sterol","PCBs","Fuel","Dye/Pigment",
                                               "Human Drug, Non-prescription")))) +
   geom_point(aes(x = SiteID, y = Class, size = freq, color = rel_sum)) +
   facet_grid(. ~ what, scales = "free") +
@@ -54,5 +54,7 @@ ggplot(data = filter(sum_tots, !(Class %in% c("Sterol","PCBs","Fuel","Dye/Pigmen
         axis.ticks = element_blank(),
         panel.grid = element_blank()) +
   scale_size(range=c(2, 6)) +
-  scale_color_gradient(low = "ghostwhite", high = "red", 
+  scale_color_gradient(low = "white", high = "red", 
                        trans = "log", breaks = my_breaks)
+
+ggsave(bubbles, filename = "plots/bubbles.pdf", height = 9, width = 11)

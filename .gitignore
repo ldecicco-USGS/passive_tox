@@ -3,3 +3,8 @@
 rawData
 cleanedData
 plots
+probably_junk
+.drake
+.Rhistory
+data/*
+*.Rproj

@@ -6,6 +6,11 @@ library(data.table)
 library(toxEval)
 library(openxlsx)
 
+dir.create("data", showWarnings = FALSE)
+dir.create("plots", showWarnings = FALSE)
+dir.create("data\raw", showWarnings = FALSE)
+dir.create("data\clean", showWarnings = FALSE)
+
 # Set up Googledrive downloads:
 source("R/setup/check_googledrive.R")
 source("R/setup/file_config.R")

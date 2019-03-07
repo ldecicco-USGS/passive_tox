@@ -3,7 +3,9 @@ library(tidyverse)
 library(toxEval)
 
 source("R/report/combo_graph_function.R")
+source("R/report/plot_tox_endpoints_manuscript.R")
 source("passive_data_setup.R")
+
 loadd(cas_df)
 
 data_analysis_plan <- drake_plan(

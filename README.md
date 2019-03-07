@@ -2,7 +2,9 @@
 
 We're trying the `drake` R package for orchestrating the workflow. 
 
-To initially get the datasets and clean up the data, run the `passive_workflow.R` script. If there are any issues, you can try to diagnose the problems using `vis_drake_graph`.
+To initially get the datasets and clean up the data, run the `passive_data_setup.R` script. If there are any issues, you can try to diagnose the problems using `vis_drake_graph`.
+
+The next drake workplan is in "passive_analysis.R".
 
 Once that file is run sucessfully, there will be an Excel file: "data/clean/passive.xlsx". This file can be used for regular `toxEval` workflows.
 

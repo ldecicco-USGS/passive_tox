@@ -8,8 +8,8 @@ library(openxlsx)
 
 dir.create("data", showWarnings = FALSE)
 dir.create("plots", showWarnings = FALSE)
-dir.create("data\raw", showWarnings = FALSE)
-dir.create("data\clean", showWarnings = FALSE)
+dir.create(file.path("data","raw"), showWarnings = FALSE)
+dir.create(file.path("data","clean"), showWarnings = FALSE)
 
 # Set up Googledrive downloads:
 source("R/setup/check_googledrive.R")
@@ -21,6 +21,7 @@ source("R/analyze/get_chem_info.R")
 source("R/analyze/create_tox_file.R")
 
 pkgconfig::set_config("drake::strings_in_dots" = "literals")
+file_out_data <- file.path("data","clean","passive.xlsx")
 
 data_setup_plan <- drake_plan(
 
@@ -45,6 +46,10 @@ data_setup_plan <- drake_plan(
                                                           time_stamp = last_modified_cas_id),
                               trigger = trigger(change = last_modified_cas_id)),  
   cas_df = all_cas(cas_download),
+  AOP_crosswalk = target(command = drive_download_gd(AOP_update_id,
+                                                           path = file_out("data/raw/AOP_crosswalk.csv"),
+                                                           time_stamp = last_modified_AOP),
+                               trigger = trigger(change = last_modified_AOP)),
   site_download = target(command = drive_download_gd(site_id,
                                                     path = file_out("data/raw/sites_from_OWC.txt"),
                                                     time_stamp = last_modified_site_id),
@@ -121,7 +126,7 @@ data_setup_plan <- drake_plan(
                         PAHs_2014) ,
   sites = get_sites_ready(file_2014_download, file_2010_download, sites_OWC),
   tox_list = create_tox_object(all_data, chem_info, sites, exclude),
-  openxlsx::write.xlsx(tox_list, file = file_out("data/clean/passive.xlsx"), append=TRUE)
+  openxlsx::write.xlsx(tox_list, file = file_out(file_out_data), append=TRUE)
   
 )
 

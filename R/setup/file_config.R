@@ -1,4 +1,7 @@
-pharm_update_id = as_id("1XQAlkUCvzHjBBoIbxVY1E6bsXxG3wSJj")
+AOP_update_id <- as_id("1z8BBDCIpFQ_V0mmPUSHzBVtVjlLLd0q5")
+last_modified_AOP <- drive_get_datetime_modified(AOP_update_id)
+
+pharm_update_id <- as_id("1XQAlkUCvzHjBBoIbxVY1E6bsXxG3wSJj")
 last_modified_pharm <- drive_get_datetime_modified(pharm_update_id)
 
 ww_update_id <- as_id("1EIrUTd0SH4WwMFWfxSxLN4a9dBC6FWW0")

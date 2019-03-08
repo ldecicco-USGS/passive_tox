@@ -1,6 +1,7 @@
 library(drake)
 library(tidyverse)
 library(toxEval)
+library(cowplot)
 
 source("R/report/combo_graph_function.R")
 source("R/report/plot_tox_endpoints_manuscript.R")
@@ -10,7 +11,6 @@ loadd(cas_df)
 
 data_analysis_plan <- drake_plan(
   tox_list = create_toxEval(file_out_data),
-  
   ACC = get_ACC(tox_list$chem_info$CAS) %>%
     remove_flags(),
   cleaned_ep = clean_endPoint_info(end_point_info),
@@ -62,13 +62,20 @@ data_analysis_plan <- drake_plan(
                                         thres_2 = NA,
                                         drop = TRUE),
   ggsave(toxPlot_ear_conc_matches, 
-         filename = file_out("plots/EAR_Conc_only_detects_matches.pdf"),width = 9, height = 22)
-  
-  
+         filename = file_out("plots/EAR_Conc_only_detects_matches.pdf"),width = 9, height = 22),
+  AOP = readr::read_csv(file_in(readd(AOP_crosswalk))) %>%
+                          select(endPoint=`Component Endpoint Name`, ID=`AOP #`) %>%
+                          distinct(),
+  aop_graph = plot_tox_endpoints_manuscript(chemicalSummary, AOP,
+                                            category = "Chemical", 
+                                            font_size = 7,title = " ",
+                                            pallette = c("steelblue", "white")),
+  save_plot(filename = file_out("plots/AOPs.pdf"),
+            plot = aop_graph, base_width = 11)
+
 )
 
 config <- drake_config(data_analysis_plan)
 vis_drake_graph(config, build_times = "none")
 make(data_analysis_plan)
-loadd(toxPlot_ear_conc)
-toxPlot_ear_conc
+

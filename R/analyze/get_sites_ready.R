@@ -9,6 +9,9 @@ get_sites_ready <- function(file_2014_download, file_2010_download, sites_OWC){
     select(SiteID, site_grouping, `Short Name`) %>%
     filter(!is.na(SiteID))
   
+  sites_orig_2014$SiteID[sites_orig_2014$SiteID == "40860038"] <- "040860038"
+  sites_orig_2014$SiteID[sites_orig_2014$SiteID == "40851385"] <- "040851385"
+  
   sites_orig <- bind_rows(sites_orig_2014, sites_OWC)
   sites_orig <- sites_orig[sites_orig$SiteID != "000-----",]
   
@@ -18,8 +21,11 @@ get_sites_ready <- function(file_2014_download, file_2010_download, sites_OWC){
     select(SiteID = `USGS Station ID`) %>%
     filter(!(SiteID %in% sites_orig$SiteID),
            !is.na(SiteID))
+
+  sites_orig <- bind_rows(sites_orig, sites_orig_2010) %>%
+    filter(!duplicated(SiteID))
   
-  sites_orig <- bind_rows(sites_orig, sites_orig_2010)
+  sites_orig$SiteID[sites_orig$SiteID == "04085790"] <- "04085721"
   
   full_sites <- dataRetrieval::readNWISsite(sites_orig$SiteID)
   
@@ -30,12 +36,12 @@ get_sites_ready <- function(file_2014_download, file_2010_download, sites_OWC){
   sites$`Short Name`[is.na(sites$site_grouping)] <- "Pigeon"
   sites$site_grouping[is.na(sites$site_grouping)] <- "Lake Superior"
   
-  blanks <- which(grepl(pattern = "Blank",sites$`Short Name`))
-  sites <- sites[-blanks,]
+  # blanks <- which(grepl(pattern = "Blank",sites$`Short Name`))
+  # sites <- sites[-blanks,]
   
-  resampled <- which(grepl(pattern = "resampled",sites$`Short Name`))
-  sites <- sites[-resampled,]
-  
+  # resampled <- which(grepl(pattern = "resampled",sites$`Short Name`))
+  # sites <- sites[-resampled,]
+
   return(sites)
   
 }

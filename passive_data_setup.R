@@ -6,6 +6,8 @@ library(data.table)
 library(toxEval)
 library(openxlsx)
 
+options(drake_make_menu = FALSE)
+
 dir.create("data", showWarnings = FALSE)
 dir.create("plots", showWarnings = FALSE)
 dir.create(file.path("data","raw"), showWarnings = FALSE)
@@ -21,10 +23,8 @@ source("R/analyze/get_chem_info.R")
 source("R/analyze/create_tox_file.R")
 
 pkgconfig::set_config("drake::strings_in_dots" = "literals")
-file_out_data <- file.path("data","clean","passive.xlsx")
 
 data_setup_plan <- drake_plan(
-
   pharm_2014_download = target(command = drive_download_gd(pharm_update_id,
                                               path = file_out("data/raw/pharm_update.xlsx"),
                                               time_stamp = last_modified_pharm),
@@ -126,7 +126,7 @@ data_setup_plan <- drake_plan(
                         PAHs_2014) ,
   sites = get_sites_ready(file_2014_download, file_2010_download, sites_OWC),
   tox_list = create_tox_object(all_data, chem_info, sites, exclude),
-  openxlsx::write.xlsx(tox_list, file = file_out(file_out_data), append=TRUE)
+  saveOutput = openxlsx::write.xlsx(tox_list, file = file_out("data/clean/passive.xlsx"))
   
 )
 

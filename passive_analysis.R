@@ -3,14 +3,21 @@ library(tidyverse)
 library(toxEval)
 library(cowplot)
 
-source("R/report/combo_graph_function.R")
-source("R/report/plot_tox_endpoints_manuscript.R")
-source("passive_data_setup.R")
+options(drake_make_menu = FALSE)
 
+source(file = "passive_data_setup.R")
 loadd(cas_df)
 
+cas_final =  cas_df %>%
+  filter(!duplicated(CAS)) %>%
+  mutate(chnm = tools::toTitleCase(chnm))
+
 data_analysis_plan <- drake_plan(
-  tox_list = create_toxEval(file_out_data),
+  stack_functions = source(file = file_in("R/report/stack_plots.R")),
+  combo_function = source(file = file_in("R/report/combo_graph_function.R")),
+  graph_data_fun = source(file = file_in("R/analyze/graph_chem_data_CAS.R")),
+  endpoint_graph_fun = source(file = file_in("R/report/plot_tox_endpoints_manuscript.R")),
+  tox_list = create_toxEval(file_in("data/clean/passive.xlsx")),
   ACC = get_ACC(tox_list$chem_info$CAS) %>%
     remove_flags(),
   cleaned_ep = clean_endPoint_info(end_point_info),
@@ -29,19 +36,19 @@ data_analysis_plan <- drake_plan(
            groupCol = "Concentration") %>%
     data.frame(),
   tox_list_concentrations = as.toxEval(tox_list, benchmarks = benchmarks),
-  chemicalSummary_conc = get_chemical_summary(tox_list_concentrations),
+  chemicalSummary_conc = get_chemical_summary(tox_list_concentrations) %>%
+    distinct() %>%
+    filter(!is.na(CAS)),
   # Think about duplicate cas's here!
-  graphData_tox = graph_chem_data(chemicalSummary) %>%
+  graphData_tox = graph_chem_data_CAS(chemicalSummary) %>%
     mutate(guide_side = "ToxCast",
-           guide_up = "A") %>%
-    left_join(distinct(select(chemicalSummary, CAS, chnm)), by="chnm") %>%
-    select(-chnm) %>%
-    left_join(cas_df, by = "CAS"),
-  graphData_conc = graph_chem_data(chemicalSummary_conc) %>%
+           guide_up = "A"),
+  graphData_conc = graph_chem_data_CAS(chemicalSummary_conc) %>%
     mutate(guide_side = "Concentration",
            guide_up = "A"),
   toxPlot_ear_conc = combo_plot_matches(gd_1 = graphData_tox,
                                          gd_2 = graphData_conc,
+                                        cas_key = cas_final,
                                          thres_1 = NA,
                                          thres_2 = NA,
                                          drop = FALSE),
@@ -53,14 +60,17 @@ data_analysis_plan <- drake_plan(
                                                 gd_2 = graphData_conc_det,
                                                 thres_1 = NA,
                                                 thres_2 = NA,
-                                                drop = FALSE),
+                                                drop = FALSE,
+                                                cas_key = cas_final),
   ggsave(toxPlot_ear_conc_detects, 
          filename = file_out("plots/EAR_Conc_detects.pdf"),width = 9, height = 22),
+  graphData_conc_det_match = filter(graphData_conc_det, CAS %in% unique(graphData_tox_det$CAS)),
   toxPlot_ear_conc_matches = combo_plot_matches(gd_1 = graphData_tox_det,
-                                        gd_2 = graphData_conc_det,
+                                        gd_2 = graphData_conc_det_match,
                                         thres_1 = NA,
                                         thres_2 = NA,
-                                        drop = TRUE),
+                                        drop = FALSE,
+                                        cas_key = cas_final),
   ggsave(toxPlot_ear_conc_matches, 
          filename = file_out("plots/EAR_Conc_only_detects_matches.pdf"),width = 9, height = 22),
   AOP = readr::read_csv(file_in(readd(AOP_crosswalk))) %>%
@@ -71,11 +81,20 @@ data_analysis_plan <- drake_plan(
                                             font_size = 7,title = " ",
                                             pallette = c("steelblue", "white")),
   save_plot(filename = file_out("plots/AOPs.pdf"),
-            plot = aop_graph, base_width = 11)
+            plot = aop_graph, base_width = 11),
+  
+  site_info = prep_site_list(tox_list$chem_site),
+  stack_plot = plot_tox_stacks_manuscript(chemicalSummary, site_info, 
+                                           category = "Chemical Class"),
+  save_plot(filename = file_out("plots/stacks.png"),
+            plot = stack_plot, base_width = 11),
+  save_plot(filename = file_out("plots/stacks.pdf"),
+            plot = stack_plot, base_width = 11)
 
 )
 
+
+make(data_analysis_plan)
 config <- drake_config(data_analysis_plan)
 vis_drake_graph(config, build_times = "none")
-make(data_analysis_plan)
 

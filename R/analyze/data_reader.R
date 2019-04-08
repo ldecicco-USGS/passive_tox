@@ -121,9 +121,14 @@ all_cas <- function(file_cas="raw/cas.xlsx"){
   
   cas_data <- cas_data[!is.na(cas_data$Analyte),]
   
-  cas_data <- select(cas_data, chnm=Analyte, CAS=`CAS Number`) %>%
+  cas_data_cleaned <- select(cas_data, chnm=Analyte, CAS=`CAS Number`) %>%
     mutate(chnm = tolower(chnm)) %>%
-    distinct()
+    filter(!(CAS %in% c("-","---"))) %>%
+    filter(!duplicated(chnm)) %>%
+    arrange(chnm)
+    
+  last_row <- nrow(cas_data_cleaned)
+  cas_data_cleaned[last_row+1,] <- c("dl-menthol","89-78-1")
   
-  return(cas_data)
+  return(cas_data_cleaned)
 }

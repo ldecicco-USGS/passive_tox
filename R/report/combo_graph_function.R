@@ -3,46 +3,110 @@
 
 combo_plot_matches <- function(gd_1, gd_2,
                                thres_1, thres_2,
+                               cas_key,
                                drop = TRUE,
                                gd_3=NULL,thres_3=NA,
                                grid = FALSE){
   
+  guide_side_1 <- gd_1$guide_side[1]
+  guide_side_2 <- gd_2$guide_side[1]
+  
+  gd_1 <- gd_1 %>%
+    left_join(cas_key, by="CAS")
+  
+  gd_2 <- gd_2 %>%
+    left_join(cas_key, by="CAS")
+  
   if(all(is.null(gd_3))){
-    orderChem_1_2 <- bind_rows(gd_1,
-                               filter(gd_2, !(chnm %in% levels(gd_1$chnm)))) %>%
+    
+    combine_data <- gd_2 %>%
+      filter(!(CAS %in% unique(gd_1$CAS))) %>%
+      mutate(Class = as.character(Class),
+             chnm = as.character(chnm)) %>%
+      bind_rows(mutate(gd_1, 
+                       Class = as.character(Class),
+                       chnm = as.character(chnm)))
+    
+    orderChem_1_2 <- combine_data %>%
       group_by(chnm,Class) %>%
       summarise(median = quantile(meanEAR[meanEAR != 0],0.5)) %>%
-      data.frame()
-  } else {
-    orderChem_1_2 <- bind_rows(gd_1, 
-                               filter(gd_2, !(chnm %in% levels(gd_1$chnm))),
-                               filter(gd_3, !(chnm %in% c(levels(gd_1$chnm),levels(gd_2$chnm))))) %>%
-      group_by(chnm,Class) %>%
-      summarise(median = quantile(meanEAR[meanEAR != 0],0.5)) %>%
-      data.frame()      
-  }
-
-  if(all(is.null(gd_3))){
-
+      ungroup() 
+    
     if(all(levels(gd_1$Class) %in% levels(gd_2$Class))){
+      
       class_order <- levels(gd_1$Class)
+      
     } else {
-      class_order <- toxEval:::orderClass(bind_rows(gd_1, 
-                                                filter(gd_2, !(chnm %in% levels(gd_1$chnm))))) %>%
+      
+      class_order <- combine_data%>%
+        toxEval:::orderClass() %>%
         pull(Class)
     }
+    
+    graphData_1_2 <- bind_rows(mutate(gd_1,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)),
+                               mutate(gd_2,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)))
+    
+    countNonZero_1_2 <- graphData_1_2 %>%
+      group_by(site, chnm, Class, guide_side) %>%
+      summarise(meanEAR = mean(meanEAR, na.rm=TRUE)) %>%
+      group_by(chnm, Class, guide_side) %>%
+      summarise(nonZero = as.character(sum(meanEAR>0)),
+                hits = as.character(sum(meanEAR > ifelse(guide_side == guide_side_1, thres_1, thres_2)))) %>%
+      ungroup() 
+    
   } else {
+    
+    graphData_1_2 <- bind_rows(mutate(gd_1,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)),
+                               mutate(gd_2,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)))
+    
+    orderChem_1_2 <- bind_rows(mutate(gd_1,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)),
+                               filter(mutate(gd_2,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)),
+                               !(chnm %in% levels(gd_1$chnm)))) %>%
+      group_by(CAS,Class) %>%
+      summarise(median = quantile(meanEAR[meanEAR != 0],0.5)) %>%
+      ungroup() 
+    
     class_order <- toxEval:::orderClass(bind_rows(gd_1, 
                                                   filter(gd_2, !(chnm %in% levels(gd_1$chnm))),
                                                   filter(gd_3, !(chnm %in% c(levels(gd_1$chnm),levels(gd_2$chnm)))))) %>%
       pull(Class)
+    
+    graphData_1_2 <- bind_rows(mutate(gd_1,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)),
+                               mutate(gd_2,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)), 
+                               mutate(gd_3,
+                                      Class = as.character(Class),
+                                      chnm = as.character(chnm)))
+    guide_side_3 <- gd_3$guide_side[1]
+    
+    countNonZero_1_2 <- graphData_1_2 %>%
+      group_by(site, chnm, Class, guide_side, guide_up) %>%
+      summarise(meanEAR = mean(meanEAR, na.rm=TRUE)) %>%
+      group_by(chnm, Class, guide_side, guide_up) %>%
+      summarise(nonZero = as.character(sum(meanEAR>0)),
+                hits = as.character(sum(meanEAR > ifelse(guide_side == guide_side_1, thres_1, thres_2)))) %>%
+      ungroup() 
   }
-  
+
   orderChem_1_2 <- orderChem_1_2 %>%
     mutate(Class = factor(Class, levels=class_order)) %>%
     arrange(desc(Class), desc(!is.na(median)), median)
   
-  graphData_1_2 <- bind_rows(gd_1, gd_2, gd_3)
   graphData_1_2$Class <- factor(graphData_1_2$Class, levels = class_order)
   graphData_1_2$chnm <- factor(graphData_1_2$chnm, 
                                levels = unique(orderChem_1_2$chnm))
@@ -79,39 +143,18 @@ combo_plot_matches <- function(gd_1, gd_2,
       
     } else {
       chems_in_1_2 <- graphData_1_2 %>%
-        select(guide_side, chnm) %>%
+        select(guide_side, CAS) %>%
         distinct() 
       
-      chems_in_1_2 <- chems_in_1_2$chnm[duplicated(chems_in_1_2$chnm)]
+      chems_in_1_2 <- chems_in_1_2$CAS[duplicated(chems_in_1_2$CAS)]
       
-      graphData_1_2 <- filter(graphData_1_2, chnm %in% chems_in_1_2)
+      graphData_1_2 <- filter(graphData_1_2, CAS %in% chems_in_1_2)
+      graphData_1_2$chnm <- factor(graphData_1_2$chnm, lev)
     }
     
   }
   
-  guide_side_1 <- gd_1$guide_side[1]
-  guide_side_2 <- gd_2$guide_side[1]
-  
-  if(all(is.null(gd_3))){
-    countNonZero_1_2 <- graphData_1_2 %>%
-      group_by(site, chnm, Class, guide_side) %>%
-      summarise(meanEAR = mean(meanEAR, na.rm=TRUE)) %>%
-      group_by(chnm, Class, guide_side) %>%
-      summarise(nonZero = as.character(sum(meanEAR>0)),
-                hits = as.character(sum(meanEAR > ifelse(guide_side == guide_side_1, thres_1, thres_2)))) %>%
-      data.frame() 
-    
-  } else {
-    guide_side_3 <- gd_3$guide_side[1]
-    countNonZero_1_2 <- graphData_1_2 %>%
-      group_by(site, chnm, Class, guide_side, guide_up) %>%
-      summarise(meanEAR = mean(meanEAR, na.rm=TRUE)) %>%
-      group_by(chnm, Class, guide_side, guide_up) %>%
-      summarise(nonZero = as.character(sum(meanEAR>0)),
-                hits = as.character(sum(meanEAR > ifelse(guide_side == guide_side_1, thres_1, thres_2)))) %>%
-      data.frame()     
-  }
-  
+
   thresh_df <- data.frame(guide_side = c(guide_side_1,guide_side_2),
                           thres = c(thres_1, thres_2),
                           stringsAsFactors = FALSE)

@@ -6,7 +6,9 @@ combo_plot_matches <- function(gd_1, gd_2,
                                cas_key,
                                drop = TRUE,
                                gd_3=NULL,thres_3=NA,
-                               grid = FALSE){
+                               grid = FALSE,
+                               site_thresh = NA,
+                               counts_both_sites = TRUE){
   
   guide_side_1 <- gd_1$guide_side[1]
   guide_side_2 <- gd_2$guide_side[1]
@@ -16,6 +18,20 @@ combo_plot_matches <- function(gd_1, gd_2,
   
   gd_2 <- gd_2 %>%
     left_join(cas_key, by="CAS")
+  
+  if(!is.na(site_thresh)){
+    chem_count <- gd_2 %>%
+      select(CAS,site) %>%
+      group_by(CAS) %>%
+      summarise(count = n()) %>%
+      filter(count >= site_thresh) %>%
+      arrange(desc(count)) %>%
+      pull(CAS)
+    
+    gd_2 <- filter(gd_2, CAS %in% chem_count)
+    gd_1 <- filter(gd_1, CAS %in% chem_count)
+      
+  }
   
   if(all(is.null(gd_3))){
     
@@ -177,7 +193,7 @@ combo_plot_matches <- function(gd_1, gd_2,
     geom_boxplot(aes(x=chnm, y=meanEAR, fill=Class),
                  outlier.size=1) +
     theme_bw() +
-    coord_flip() 
+    coord_flip(clip = "off") 
   
   if(grid){
     toxPlot_1_2 <- toxPlot_1_2 +
@@ -304,6 +320,11 @@ combo_plot_matches <- function(gd_1, gd_2,
   }
   
   labels_1_2$guide_side <- factor(labels_1_2$guide_side, levels = c(guide_side_1, guide_side_2))
+  
+  if(!counts_both_sites){
+    countNonZero_1_2 <- filter(countNonZero_1_2, guide_side == guide_side_1)
+    labels_1_2 <- filter(labels_1_2, guide_side == guide_side_1)
+  }
   
   toxPlot_1_2 <- toxPlot_1_2 +
     geom_text(data=countNonZero_1_2, size=2.5, 

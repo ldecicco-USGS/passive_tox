@@ -17,6 +17,8 @@ cas_final =  cas_df %>%
   filter(!duplicated(CAS)) %>%
   mutate(chnm = tools::toTitleCase(chnm))
 
+cas_final$chnm[cas_final$chnm == "Deet"] <- "DEET"
+
 data_analysis_plan <- drake_plan(
 
   tox_list = create_toxEval(file_in("data/clean/passive.xlsx")),
@@ -43,10 +45,10 @@ data_analysis_plan <- drake_plan(
     filter(!is.na(CAS)),
   # Think about duplicate cas's here!
   graphData_tox = graph_chem_data_CAS(chemicalSummary) %>%
-    mutate(guide_side = "ToxCast",
+    mutate(guide_side = "ToxCast [EAR]",
            guide_up = "A"),
   graphData_conc = graph_chem_data_CAS(chemicalSummary_conc) %>%
-    mutate(guide_side = "Concentration",
+    mutate(guide_side = "Concentration [\U003BCg/L]",
            guide_up = "A"),
   toxPlot_ear_conc = combo_plot_matches(gd_1 = graphData_tox,
                                          gd_2 = graphData_conc,
@@ -72,9 +74,22 @@ data_analysis_plan <- drake_plan(
                                         thres_1 = NA,
                                         thres_2 = NA,
                                         drop = FALSE,
-                                        cas_key = cas_final),
+                                        cas_key = cas_final,
+                                        counts_both_sites = FALSE),
   ggsave(toxPlot_ear_conc_matches, 
          filename = file_out("plots/EAR_Conc_only_detects_matches.pdf"),width = 9, height = 22),
+  toxPlot_ear_conc_matches_filter = combo_plot_matches(gd_1 = graphData_tox_det,
+                                                gd_2 = graphData_conc_det_match,
+                                                thres_1 = NA,
+                                                thres_2 = NA,
+                                                drop = FALSE,
+                                                cas_key = cas_final,
+                                                site_thresh = 30,
+                                                counts_both_sites = FALSE),
+  ggsave(toxPlot_ear_conc_matches_filter, 
+         filename = file_out("plots/EAR_Conc_30sites.pdf"),width = 11, height = 9),
+  ggsave(toxPlot_ear_conc_matches_filter, 
+         filename = file_out("plots/EAR_Conc_30sites.png"),width = 11, height = 9),
   AOP = readr::read_csv(file_in(readd(AOP_crosswalk))) %>%
                           select(endPoint=`Component Endpoint Name`, ID=`AOP #`) %>%
                           distinct(),

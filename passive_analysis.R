@@ -6,6 +6,11 @@ library(cowplot)
 options(drake_make_menu = FALSE)
 
 source(file = "passive_data_setup.R")
+source(file = "R/report/stack_plots.R")
+source(file = "R/report/combo_graph_function.R")
+source(file = "R/analyze/graph_chem_data_CAS.R")
+source(file = "R/report/plot_tox_endpoints_manuscript.R")
+
 loadd(cas_df)
 
 cas_final =  cas_df %>%
@@ -13,10 +18,7 @@ cas_final =  cas_df %>%
   mutate(chnm = tools::toTitleCase(chnm))
 
 data_analysis_plan <- drake_plan(
-  stack_functions = source(file = file_in("R/report/stack_plots.R")),
-  combo_function = source(file = file_in("R/report/combo_graph_function.R")),
-  graph_data_fun = source(file = file_in("R/analyze/graph_chem_data_CAS.R")),
-  endpoint_graph_fun = source(file = file_in("R/report/plot_tox_endpoints_manuscript.R")),
+
   tox_list = create_toxEval(file_in("data/clean/passive.xlsx")),
   ACC = get_ACC(tox_list$chem_info$CAS) %>%
     remove_flags(),
@@ -82,19 +84,21 @@ data_analysis_plan <- drake_plan(
                                             pallette = c("steelblue", "white")),
   save_plot(filename = file_out("plots/AOPs.pdf"),
             plot = aop_graph, base_width = 11),
+  save_plot(filename = file_out("plots/AOPs.png"),
+            plot = aop_graph, base_width = 11),
   
   site_info = prep_site_list(tox_list$chem_site),
   stack_plot = plot_tox_stacks_manuscript(chemicalSummary, site_info, 
                                            category = "Chemical Class"),
   save_plot(filename = file_out("plots/stacks.png"),
-            plot = stack_plot, base_width = 11),
+            plot = stack_plot, base_width = 11, base_height = 7),
   save_plot(filename = file_out("plots/stacks.pdf"),
-            plot = stack_plot, base_width = 11)
+            plot = stack_plot, base_width = 11, base_height = 7)
 
 )
 
 
-make(data_analysis_plan)
-config <- drake_config(data_analysis_plan)
-vis_drake_graph(config, build_times = "none")
+drake_config(data_analysis_plan)
+# config <- drake_config(data_analysis_plan)
+# vis_drake_graph(config, build_times = "none")
 

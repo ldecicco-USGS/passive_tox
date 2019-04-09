@@ -125,8 +125,8 @@ data_setup_plan <- drake_plan(
                         OC_2014,
                         PAHs_2014) ,
   sites = get_sites_ready(file_2014_download, file_2010_download, sites_OWC),
-  tox_list = create_tox_object(all_data, chem_info, sites, exclude),
-  saveOutput = openxlsx::write.xlsx(tox_list, file = file_out("data/clean/passive.xlsx"))
+  tox_list_init = create_tox_object(all_data, chem_info, sites, exclude),
+  saveOutput = openxlsx::write.xlsx(tox_list_init, file = file_out("data/clean/passive.xlsx"))
   
 )
 

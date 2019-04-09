@@ -111,6 +111,9 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
            has_AOP = NA,
            meanEAR = NA)
   
+  #Horrible hack?
+  AOP_IDs$AOP_ID[AOP_IDs$AOP_ID == "3,26,34,48,77,78,79,80,87,130,144,178,187,200,205,207,238"] <- "3,26,34,48,77,78,79,80,87,130,\n144,178,187,200,205,207,238"
+  
   graphData <- bind_rows(graphData, counts_df, nChem_df, AOP_IDs)
   
   graphData$endPoint <- factor(graphData$endPoint, levels = orderedLevelsEP)

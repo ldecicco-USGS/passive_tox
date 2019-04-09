@@ -10,7 +10,7 @@ prep_site_list <- function(Sites){
   
   Sites$site_grouping <- factor(Sites$site_grouping,
                                 levels=lakes_ordered)
-  
+  Sites$`Short Name`[Sites$`Short Name` == "Genesee - resampled"] <- "GeneseeDock"
   sites_ordered <- c("StLouis","Nemadji","WhiteWI","Bad",
                      "Montreal","PresqueIsle","Pigeon","Ontonagon",
                      "Sturgeon","Tahquamenon",
@@ -27,7 +27,7 @@ prep_site_list <- function(Sites){
                      "Maumee","Portage","Sandusky","HuronOH",
                      "Vermilion","BlackOH","Rocky","Cuyahoga",
                      "GrandOH","Ashtabula","Cattaraugus","Buffalo",
-                     "Tonawanda","Genesee","Genesee - resampled","Oswego","BlackNY",
+                     "Tonawanda","Genesee","GeneseeDock","Oswego","BlackNY",
                      "Oswegatchie","Grass","Raquette","StRegis")
             
   Sites$`Short Name` <- factor(Sites$`Short Name`,
@@ -149,10 +149,10 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
       theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))+
       geom_text(data = counts, 
                 aes(label = count, x=`Short Name`,y = placement), 
-                size=ifelse(is.na(font_size),3,0.30*font_size),inherit.aes = FALSE) +
+                size=ifelse(is.na(font_size),2.5,0.20*font_size),inherit.aes = FALSE) +
       geom_text(data = label_samples,hjust=1,
                 aes(x=x,y=y,label=label),
-                size=ifelse(is.na(font_size),2,0.3*font_size),inherit.aes = FALSE) +
+                size=ifelse(is.na(font_size),1.75,0.3*font_size),inherit.aes = FALSE) +
       labs(caption = y_label[["caption"]])  
     
   } else {
@@ -206,7 +206,7 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
       xlab("Individual Samples") +
       ylab(y_label) 
   }
-  
+
   upperPlot <- upperPlot +
     geom_col()  +
     theme(plot.margin = unit(c(5.5,5.5,5.5,12), "pt"))
@@ -220,6 +220,10 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
   if(!include_legend){
     upperPlot <- upperPlot +
       theme(legend.position="none")
+  } else {
+    upperPlot <- upperPlot +
+      theme(legend.position = c(0.9, 0.6), # c(0,0) bottom left, c(1,1) top-right.
+      legend.background = element_rect(fill = "white", colour = "black"))
   }
   
   if(!is.na(font_size)){

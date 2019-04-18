@@ -1,7 +1,7 @@
 get_chem_info <- function(all_data, chem_info_old){
   
   chem_data <- all_data %>%
-    select(SiteID, `Sample Date`, CAS, Value, comment)
+    select(SiteID, Date=`Sample Date`, CAS, Value, comment)
   
   chem_info <- select(all_data, CAS, generic_class) %>%
     distinct() %>%

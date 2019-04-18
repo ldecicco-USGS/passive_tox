@@ -114,6 +114,8 @@ data_analysis_plan <- drake_plan(
 
 
 drake_config(data_analysis_plan)
+# In R console:
+# r_make("passive_data_setup.R")
 # config <- drake_config(data_analysis_plan)
 # vis_drake_graph(config, build_times = "none")
 

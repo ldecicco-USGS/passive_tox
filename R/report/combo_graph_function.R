@@ -14,10 +14,10 @@ combo_plot_matches <- function(gd_1, gd_2,
   guide_side_2 <- gd_2$guide_side[1]
   
   gd_1 <- gd_1 %>%
-    left_join(cas_key, by="CAS")
+    left_join(select(cas_key, CAS, chnm), by="CAS")
   
   gd_2 <- gd_2 %>%
-    left_join(cas_key, by="CAS")
+    left_join(select(cas_key, CAS, chnm), by="CAS")
   
   if(!is.na(site_thresh)){
     chem_count <- gd_2 %>%

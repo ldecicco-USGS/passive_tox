@@ -55,9 +55,9 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
         gather(SiteID, Value, -chnm, -DL,-RL)
       sheet <- "WW"
     } else {
-      names(data_wide)[2] <- "Blank"
+      names(data_wide)[2] <- "RL"
       data_long <- data_wide %>%
-        gather(SiteID, Value, -chnm, -Blank)
+        gather(SiteID, Value, -chnm, -RL)
       sheet <- "pharms"
     }
   }

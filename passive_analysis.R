@@ -18,6 +18,20 @@ cas_final =  cas_df %>%
   mutate(chnm = tools::toTitleCase(chnm))
 
 cas_final$chnm[cas_final$chnm == "Deet"] <- "DEET"
+cas_final$chnm[cas_final$chnm == "O,p'-Ddd"] <- "o,p'-DDD"
+cas_final$chnm[cas_final$chnm == "P,p'-Ddd"] <- "p,p'-DDD"
+cas_final$chnm[cas_final$chnm == "Pbde-47"] <- "PBDE-47"
+cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "Pentachloroanisole (PCA)"
+cas_final$chnm[cas_final$chnm == "Tributyl Phosphate (Tbp)"] <- "Tributyl Phosphate (TBP)"
+cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"]
+cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"]
+cas_final$chnm[cas_final$chnm == "O,p'−Ddt"] <- "o,p'−DDT"
+cas_final$chnm[cas_final$chnm == "P,p'−Dde"] <- "p,p'−DDE"
+cas_final$chnm[cas_final$chnm == "P,p'−Ddt"] <- "p,p'−DDT"
+cas_final$chnm[cas_final$chnm == "O,p'−Dde"] <- "o,p'−DDE"
+cas_final$chnm[cas_final$chnm == "Pbde−99"] <- "PBDE−99"
+cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"] <- "Tris(2−Chloroethyl)Phosphate (TCEP)"
+cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "Hydrochlorothiazide (HCTZ)"
 
 data_analysis_plan <- drake_plan(
 
@@ -118,4 +132,5 @@ drake_config(data_analysis_plan)
 # r_make("passive_data_setup.R")
 # config <- drake_config(data_analysis_plan)
 # vis_drake_graph(config, build_times = "none")
+# make(data_analysis_plan)
 

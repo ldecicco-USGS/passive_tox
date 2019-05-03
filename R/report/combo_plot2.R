@@ -337,13 +337,6 @@ fancy_combo <- function(graphData_tox, graphData_conc, tox_list, axis_size = 6){
   site_counts_df <- site_counts(tox_list$chem_data, no_axis$data)
   site_graph <- site_count_plot(site_counts_df)
     
-  dir.create(file.path("plots"), showWarnings = FALSE)
-  
-  plot_out <- ggarrange(
-    site_graph, no_axis,widths =  c(3/9, 6/9),
-    common.legend = TRUE, legend = "bottom"
-  )
-
-  return(plot_out)
+  return(list(no_axis=no_axis, site_graph=site_graph))
 }
 

@@ -1,13 +1,13 @@
 library(drake)
 library(tidyverse)
 library(toxEval)
-library(cowplot)
+library(ggpubr)
 
 options(drake_make_menu = FALSE)
 
 source(file = "passive_data_setup.R")
 source(file = "R/report/stack_plots.R")
-source(file = "R/report/combo_graph_function.R")
+source(file = "R/report/combo_plot2.R")
 source(file = "R/analyze/graph_chem_data_CAS.R")
 source(file = "R/report/plot_tox_endpoints_manuscript.R")
 
@@ -20,18 +20,29 @@ cas_final =  cas_df %>%
 cas_final$chnm[cas_final$chnm == "Deet"] <- "DEET"
 cas_final$chnm[cas_final$chnm == "O,p'-Ddd"] <- "o,p'-DDD"
 cas_final$chnm[cas_final$chnm == "P,p'-Ddd"] <- "p,p'-DDD"
-cas_final$chnm[cas_final$chnm == "Pbde-47"] <- "PBDE-47"
-cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "Pentachloroanisole (PCA)"
-cas_final$chnm[cas_final$chnm == "Tributyl Phosphate (Tbp)"] <- "Tributyl Phosphate (TBP)"
-cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"]
-cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"]
+cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "PCA"
+cas_final$chnm[cas_final$chnm == "Tributyl Phosphate (Tbp)"] <- "TBP"
+cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "HCTZ"
+cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"] <- "TCEP"
 cas_final$chnm[cas_final$chnm == "O,p'−Ddt"] <- "o,p'−DDT"
 cas_final$chnm[cas_final$chnm == "P,p'−Dde"] <- "p,p'−DDE"
 cas_final$chnm[cas_final$chnm == "P,p'−Ddt"] <- "p,p'−DDT"
 cas_final$chnm[cas_final$chnm == "O,p'−Dde"] <- "o,p'−DDE"
-cas_final$chnm[cas_final$chnm == "Pbde−99"] <- "PBDE−99"
-cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"] <- "Tris(2−Chloroethyl)Phosphate (TCEP)"
-cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "Hydrochlorothiazide (HCTZ)"
+cas_final$chnm[cas_final$chnm == "Tris(1-Chloro-2-Propyl)Phosphate (Tcpp)"] <- "TCPP"
+cas_final$chnm[cas_final$chnm == "Hexachlorobenzene (Hcb)"] <- "HCB"
+cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate "
+cas_final$chnm[cas_final$CAS == "30306-93-5"] <- "Ethyl Citrate"
+cas_final$chnm[grep("Pbde-", cas_final$chnm)] <- gsub(pattern = "Pbde-",
+                                                      replacement = "PBDE-",
+                                                      cas_final$chnm[grep("Pbde-", cas_final$chnm)])
+cas_final <- rbind(cas_final, data.frame(CAS="34841-39-9",
+                                         chnm="Bupropion",
+                                         stringsAsFactors = FALSE))
+cas_final$chnm[cas_final$CAS == "34911-55-2"] <- "Bupropion hydrochloride"
+
+cas_final$chnm[grep(pattern = "Delta-Benzenehexachloride",cas_final$chnm)] <- "delta-Bhc"
+cas_final$chnm[grep(pattern = "Beta-Benzenehexachloride",cas_final$chnm)] <- "beta-Bhc"
+cas_final$chnm[grep(pattern = "Alpha-Benzenehexachloride", cas_final$chnm)] <- "alpha-Bhc"
 
 data_analysis_plan <- drake_plan(
 
@@ -57,53 +68,43 @@ data_analysis_plan <- drake_plan(
   chemicalSummary_conc = get_chemical_summary(tox_list_concentrations) %>%
     distinct() %>%
     filter(!is.na(CAS)),
-  # Think about duplicate cas's here!
   graphData_tox = graph_chem_data_CAS(chemicalSummary) %>%
     mutate(guide_side = "ToxCast [EAR]",
-           guide_up = "A"),
+           guide_up = "A") %>%
+    left_join(cas_final, by="CAS"),
   graphData_conc = graph_chem_data_CAS(chemicalSummary_conc) %>%
     mutate(guide_side = "Concentration [\U003BCg/L]",
-           guide_up = "A"),
-  toxPlot_ear_conc = combo_plot_matches(gd_1 = graphData_tox,
-                                         gd_2 = graphData_conc,
-                                        cas_key = cas_final,
-                                         thres_1 = NA,
-                                         thres_2 = NA,
-                                         drop = FALSE),
-  ggsave(toxPlot_ear_conc, 
-         filename = file_out("plots/EAR_Conc_all.pdf"),width = 9, height = 22),
-  graphData_conc_det = filter(graphData_conc, meanEAR > 0),
-  graphData_tox_det = filter(graphData_tox, meanEAR > 0),
-  toxPlot_ear_conc_detects = combo_plot_matches(gd_1 = graphData_tox_det,
-                                                gd_2 = graphData_conc_det,
-                                                thres_1 = NA,
-                                                thres_2 = NA,
-                                                drop = FALSE,
-                                                cas_key = cas_final),
-  ggsave(toxPlot_ear_conc_detects, 
-         filename = file_out("plots/EAR_Conc_detects.pdf"),width = 9, height = 22),
-  graphData_conc_det_match = filter(graphData_conc_det, CAS %in% unique(graphData_tox_det$CAS)),
-  toxPlot_ear_conc_matches = combo_plot_matches(gd_1 = graphData_tox_det,
-                                        gd_2 = graphData_conc_det_match,
-                                        thres_1 = NA,
-                                        thres_2 = NA,
-                                        drop = FALSE,
-                                        cas_key = cas_final,
-                                        counts_both_sites = FALSE),
-  ggsave(toxPlot_ear_conc_matches, 
-         filename = file_out("plots/EAR_Conc_only_detects_matches.pdf"),width = 9, height = 22),
-  toxPlot_ear_conc_matches_filter = combo_plot_matches(gd_1 = graphData_tox_det,
-                                                gd_2 = graphData_conc_det_match,
-                                                thres_1 = NA,
-                                                thres_2 = NA,
-                                                drop = FALSE,
-                                                cas_key = cas_final,
-                                                site_thresh = 30,
-                                                counts_both_sites = FALSE),
-  ggsave(toxPlot_ear_conc_matches_filter, 
-         filename = file_out("plots/EAR_Conc_30sites.pdf"),width = 11, height = 9),
-  ggsave(toxPlot_ear_conc_matches_filter, 
-         filename = file_out("plots/EAR_Conc_30sites.png"),width = 11, height = 9),
+           guide_up = "A") %>%
+    left_join(cas_final, by="CAS"),
+  toxPlot_ear_conc = fancy_combo(graphData_tox,
+                                 graphData_conc,
+                                 tox_list),
+  chemicalSummary_conc_det = filter(chemicalSummary_conc, EAR > 0),
+  chemicalSummary_tox_det = filter(chemicalSummary, EAR > 0),
+  graphData_conc_det = graph_chem_data_CAS(chemicalSummary_conc_det) %>%
+    mutate(guide_side = "Concentration [\U003BCg/L]",
+           guide_up = "A") %>%
+    left_join(cas_final, by="CAS"),
+  graphData_tox_det = graph_chem_data_CAS(chemicalSummary_tox_det) %>%
+    mutate(guide_side = "ToxCast [EAR]",
+           guide_up = "A") %>%
+    left_join(cas_final, by="CAS"),
+  toxPlot_ear_conc_detects = fancy_combo(graphData_tox_det,
+                                         graphData_conc_det,
+                                         tox_list),
+  chemicalSummary_conc_det_match = filter(chemicalSummary_conc_det, CAS %in% unique(graphData_tox_det$CAS)),
+  graphData_conc_det_match = graph_chem_data_CAS(chemicalSummary_conc_det_match) %>%
+    mutate(guide_side = "Concentration [\U003BCg/L]",
+           guide_up = "A") %>%
+    left_join(cas_final, by="CAS"),
+  toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
+                                         graphData_conc_det_match,
+                                         tox_list),
+  graphData_conc_det_match_filter = graphData_conc_det_match,
+  graphData_tox_det_filter = graphData_tox_det,
+  toxPlot_ear_conc_matches_filter = fancy_combo(graphData_tox_det_filter,
+                                                graphData_conc_det_match_filter,
+                                                tox_list),
   AOP = readr::read_csv(file_in(readd(AOP_crosswalk))) %>%
                           select(endPoint=`Component Endpoint Name`, ID=`AOP #`) %>%
                           distinct(),
@@ -117,20 +118,54 @@ data_analysis_plan <- drake_plan(
             plot = aop_graph, base_width = 11),
   
   site_info = prep_site_list(tox_list$chem_site),
-  stack_plot = plot_tox_stacks_manuscript(chemicalSummary, site_info, 
-                                           category = "Chemical Class"),
+  stack_plot = plot_tox_stacks_manuscript(chemicalSummary, 
+                                          site_info, 
+                                          font_size = 6,
+                                          category = "Chemical Class"),
   save_plot(filename = file_out("plots/stacks.png"),
-            plot = stack_plot, base_width = 11, base_height = 7),
+            plot = stack_plot, base_width = 4, base_height = 7),
   save_plot(filename = file_out("plots/stacks.pdf"),
             plot = stack_plot, base_width = 11, base_height = 7)
 
 )
 
 
-drake_config(data_analysis_plan)
+# drake_config(data_analysis_plan)
 # In R console:
 # r_make("passive_data_setup.R")
 # config <- drake_config(data_analysis_plan)
 # vis_drake_graph(config, build_times = "none")
-# make(data_analysis_plan)
+make(data_analysis_plan)
 
+loadd(toxPlot_ear_conc)
+pdf("plots/EAR_Conc_all.pdf", width = 4.5, height = 22, onefile=FALSE)
+toxPlot_ear_conc
+dev.off()
+
+# png("plots/EAR_Conc_all.png", width = 1100, height = 2000, res = 220)
+# toxPlot_ear_conc
+# dev.off()
+
+loadd(toxPlot_ear_conc_detects)
+pdf("plots/EAR_Conc_detects.pdf", width = 4.5, height = 11, onefile=FALSE)
+toxPlot_ear_conc_detects
+dev.off()
+
+loadd(toxPlot_ear_conc_matches)
+pdf("plots/EAR_Conc_detects_match.pdf", width = 4.75, height = 9, onefile=FALSE)
+toxPlot_ear_conc_matches
+dev.off()
+
+
+###########################
+loadd(graphData_tox_det)
+loadd(graphData_conc_det_match)
+loadd(tox_list)
+source(file = "R/report/combo_plot2.R")
+toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
+                                       graphData_conc_det_match,
+                                       tox_list)
+
+pdf("plots/EAR_Conc_detects_match.pdf", width = 4.5, height = 9, onefile=FALSE)
+toxPlot_ear_conc_matches
+dev.off()

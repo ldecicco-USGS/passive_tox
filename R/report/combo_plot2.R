@@ -89,15 +89,16 @@ combo_plot_matches_2 <- function(graphData_1_2,
           strip.background = element_rect(fill = "transparent",colour = NA),
           strip.text.y = element_blank(),
           axis.ticks = element_line(colour = "black", size = 0.05)) +
-    guides(fill=guide_legend(ncol=5)) +
+    guides(fill=guide_legend(ncol=10)) +
     theme(legend.position="bottom",
           legend.justification = "left",
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
           legend.title=element_blank(),
-          legend.text = element_text(size=4),
+          legend.text = element_text(size=5),
           legend.key.height = unit(1,"line"),
           axis.ticks.y = element_blank(),
-          panel.grid.minor = element_blank()) +
+          panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(size = 0.1)) +
     scale_fill_manual(values = cbValues, drop=FALSE) +
     scale_color_manual(values = c("black","red"), 
                        na.value = "black", guide = "none") +
@@ -198,11 +199,11 @@ label_info <- function(gd1_2, labels_to_use = c("A","B")){
   return(textData)
 }
 
-add_label <- function(plot_full, label_info){
+add_label <- function(plot_full, label_info, label_size = 2){
   
   plot_full_w_label <- plot_full +
     geom_text(data = label_info, 
-              aes(label = textExplain, x = chnm, y=y),size = 2)
+              aes(label = textExplain, x = chnm, y=y),size = label_size)
   
   return(plot_full_w_label)
 }
@@ -240,7 +241,7 @@ site_count_plot <- function(site_counts, axis_size = 6){
   pretty_logs_new <- toxEval:::prettyLogs(c(10,100,1000))
   
   site_graph <- ggplot(data = site_counts) +
-    geom_text(aes(x=chnm, label = nSites, y=100), size = 2) +
+    geom_text(aes(x=chnm, label = nSites, y=100), size = axis_size*5/14) +
     facet_grid(. ~ guide_side, scales = "free", space = "free_y")+
     theme_bw() +
     coord_flip() +
@@ -271,14 +272,14 @@ fancy_combo <- function(gd1, gd2, tox_list, axis_size = 6){
   color_map <- class_colors(tox_list)
   
   toxPlot_wq <- combo_plot_matches_2(gd1_2,
-                                     axis_size = 6,
+                                     axis_size = axis_size,
                                      color_map)
   ast_plot <- add_astrict(toxPlot_wq, gd1_2)
   text_df <- label_info(gd1_2)
   toxPlot_wq_w_lab <- add_label(ast_plot, text_df)
   no_axis <- strip_graph(toxPlot_wq_w_lab)
   site_counts_df <- site_counts(tox_list$chem_data, no_axis$data)
-  site_graph <- site_count_plot(site_counts_df)
+  site_graph <- site_count_plot(site_counts_df, axis_size = axis_size)
     
   return(list(no_axis=no_axis, 
               site_graph=site_graph))

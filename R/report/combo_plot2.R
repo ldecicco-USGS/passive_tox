@@ -53,13 +53,25 @@ combine_gd <- function(gd_1, gd_2){
   return(graphData_1_2)
 }
 
-combo_plot_matches_2 <- function(graphData_1_2,
-                               axis_size = 6){
+class_colors <- function(tox_list){
   
   cbValues <- c("#E41A1C","#377EB8","#4DAF4A","#984EA3","#FF7F00","#FFFF33","#A65628",
                 "#DCDA4B","#999999","#00FFFF","#CEA226","#CC79A7","#4E26CE",
                 "#003366","#78C15A","#79AEAE","#FF0000","#00FF00","#B1611D",
                 "#FFA500","#F4426e", "#800000", "#808000")
+  
+  
+  classes <- unique(tox_list$chem_info$Class)
+  
+  names(cbValues) <- classes
+  
+  return(cbValues)
+  
+}
+
+combo_plot_matches_2 <- function(graphData_1_2,
+                               axis_size = 6,
+                               cbValues){
   
   pretty_logs_new <- toxEval:::prettyLogs(graphData_1_2$meanEAR)
   
@@ -256,8 +268,11 @@ fancy_combo <- function(gd1, gd2, tox_list, axis_size = 6){
   gd1_2 <- combine_gd(gd_1 = gd1, 
                       gd_2 = gd2)
   
+  color_map <- class_colors(tox_list)
+  
   toxPlot_wq <- combo_plot_matches_2(gd1_2,
-                                     axis_size = 6)
+                                     axis_size = 6,
+                                     color_map)
   ast_plot <- add_astrict(toxPlot_wq, gd1_2)
   text_df <- label_info(gd1_2)
   toxPlot_wq_w_lab <- add_label(ast_plot, text_df)

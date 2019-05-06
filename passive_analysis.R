@@ -69,12 +69,10 @@ data_analysis_plan <- drake_plan(
     distinct() %>%
     filter(!is.na(CAS)),
   graphData_tox = graph_chem_data_CAS(chemicalSummary) %>%
-    mutate(guide_side = "ToxCast [EAR]",
-           guide_up = "A") %>%
+    mutate(guide_side = "ToxCast [EAR]") %>%
     left_join(cas_final, by="CAS"),
   graphData_conc = graph_chem_data_CAS(chemicalSummary_conc) %>%
-    mutate(guide_side = "Concentration [\U003BCg/L]",
-           guide_up = "A") %>%
+    mutate(guide_side = "Concentration [\U003BCg/L]") %>%
     left_join(cas_final, by="CAS"),
   toxPlot_ear_conc = fancy_combo(graphData_tox,
                                  graphData_conc,
@@ -82,20 +80,17 @@ data_analysis_plan <- drake_plan(
   chemicalSummary_conc_det = filter(chemicalSummary_conc, EAR > 0),
   chemicalSummary_tox_det = filter(chemicalSummary, EAR > 0),
   graphData_conc_det = graph_chem_data_CAS(chemicalSummary_conc_det) %>%
-    mutate(guide_side = "Concentration [\U003BCg/L]",
-           guide_up = "A") %>%
+    mutate(guide_side = "Concentration [\U003BCg/L]") %>%
     left_join(cas_final, by="CAS"),
   graphData_tox_det = graph_chem_data_CAS(chemicalSummary_tox_det) %>%
-    mutate(guide_side = "ToxCast [EAR]",
-           guide_up = "A") %>%
+    mutate(guide_side = "ToxCast [EAR]") %>%
     left_join(cas_final, by="CAS"),
   toxPlot_ear_conc_detects = fancy_combo(graphData_tox_det,
                                          graphData_conc_det,
                                          tox_list),
   chemicalSummary_conc_det_match = filter(chemicalSummary_conc_det, CAS %in% unique(graphData_tox_det$CAS)),
   graphData_conc_det_match = graph_chem_data_CAS(chemicalSummary_conc_det_match) %>%
-    mutate(guide_side = "Concentration [\U003BCg/L]",
-           guide_up = "A") %>%
+    mutate(guide_side = "Concentration [\U003BCg/L]") %>%
     left_join(cas_final, by="CAS"),
   toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
                                          graphData_conc_det_match,
@@ -139,21 +134,32 @@ make(data_analysis_plan)
 
 loadd(toxPlot_ear_conc)
 pdf("plots/EAR_Conc_all.pdf", width = 4.5, height = 22, onefile=FALSE)
-toxPlot_ear_conc
+ggarrange(
+  toxPlot_ear_conc$site_graph, 
+  toxPlot_ear_conc$no_axis,
+  widths =  c(3.25/9, 5.75/9),
+  common.legend = TRUE, legend = "bottom"
+)
 dev.off()
-
-# png("plots/EAR_Conc_all.png", width = 1100, height = 2000, res = 220)
-# toxPlot_ear_conc
-# dev.off()
 
 loadd(toxPlot_ear_conc_detects)
 pdf("plots/EAR_Conc_detects.pdf", width = 4.5, height = 11, onefile=FALSE)
-toxPlot_ear_conc_detects
+ggarrange(
+  toxPlot_ear_conc_detects$site_graph, 
+  toxPlot_ear_conc_detects$no_axis,
+  widths =  c(3.25/9, 5.75/9),
+  common.legend = TRUE, legend = "bottom"
+)
 dev.off()
 
 loadd(toxPlot_ear_conc_matches)
 pdf("plots/EAR_Conc_detects_match.pdf", width = 4.75, height = 9, onefile=FALSE)
-toxPlot_ear_conc_matches
+ggarrange(
+  toxPlot_ear_conc_matches$site_graph, 
+  toxPlot_ear_conc_matches$no_axis,
+  widths =  c(3.25/9, 5.75/9),
+  common.legend = TRUE, legend = "bottom"
+)
 dev.off()
 
 
@@ -167,5 +173,10 @@ toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
                                        tox_list)
 
 pdf("plots/EAR_Conc_detects_match.pdf", width = 4.5, height = 9, onefile=FALSE)
-toxPlot_ear_conc_matches
+ggarrange(
+  toxPlot_ear_conc_matches$site_graph, 
+  toxPlot_ear_conc_matches$no_axis,
+  widths =  c(3.25/9, 5.75/9),
+  common.legend = TRUE, legend = "bottom"
+)
 dev.off()

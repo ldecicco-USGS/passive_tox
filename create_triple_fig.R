@@ -65,10 +65,10 @@ ggarrange(
     no_axis_no_match,
     NULL,
     nrow = 2, ncol = 2,
-    widths = c(0.7,1.4),
+    widths = c(1,1.4),
     heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
   ),
-  widths =  c(1,4,3.6),nrow=1,ncol=3,
+  widths =  c(1.5,4,4),nrow=1,ncol=3,
   common.legend = TRUE, legend = "bottom"
 )
 dev.off()
@@ -84,10 +84,10 @@ ggarrange(
     no_axis_no_match,
     NULL,
     nrow = 2, ncol = 2,
-    widths = c(0.7,1.4),
+    widths = c(1,1.4),
     heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
   ),
-  widths =  c(1,4,3.6),nrow=1,ncol=3,
+  widths =  c(1.5,4,4),nrow=1,ncol=3,
   common.legend = TRUE, legend = "bottom"
 )
 dev.off()

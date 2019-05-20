@@ -39,11 +39,11 @@ get_chem_info <- function(all_data, chem_info_old){
   dls$MQL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")] <- dls$MQL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")]/1000000
   
   x <- dls %>%
-    select(-DL, -RL) %>%
-    gather(variable, value, -Date, -CAS, -generic_class) %>%
-    unite(temp, Date, variable) %>%
-    spread(temp, value) %>%
-    select(-generic_class)
+    dplyr::select(-DL, -RL) %>%
+    tidyr::gather(variable, value, -Date, -CAS, -generic_class) %>%
+    tidyr::unite(temp, Date, variable) %>%
+    tidyr::spread(temp, value) %>%
+    dplyr::select(-generic_class)
   
   x$`2014_MQL`[x$CAS == "1912-24-9"] <- x$`2014_MQL`[x$CAS == "1912-24-9"][!is.na(x$`2014_MQL`[x$CAS == "1912-24-9"])]
   

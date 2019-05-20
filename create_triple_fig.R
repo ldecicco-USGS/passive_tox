@@ -2,7 +2,9 @@ loadd(graphData_conc_det_match)
 loadd(graphData_tox_det)
 loadd(chemicalSummary_conc)
 loadd(tox_list)
+loadd(cas_df)
 
+cas_final =  cas_df 
 axis_num <- 6
 
 source(file = "R/report/combo_plot2.R")

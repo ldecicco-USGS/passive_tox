@@ -5,47 +5,14 @@ library(ggpubr)
 
 options(drake_make_menu = FALSE)
 
-source(file = "passive_data_setup.R")
+# source(file = "passive_data_setup.R")
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
 source(file = "R/analyze/graph_chem_data_CAS.R")
 source(file = "R/report/plot_tox_endpoints_manuscript.R")
 
-loadd(cas_df)
-
-cas_final =  cas_df %>%
-  filter(!duplicated(CAS)) %>%
-  mutate(chnm = tools::toTitleCase(chnm))
-
-cas_final$chnm[cas_final$chnm == "Deet"] <- "DEET"
-cas_final$chnm[cas_final$chnm == "O,p'-Ddd"] <- "o,p'-DDD"
-cas_final$chnm[cas_final$chnm == "P,p'-Ddd"] <- "p,p'-DDD"
-cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "PCA"
-cas_final$chnm[cas_final$chnm == "Tributyl Phosphate (Tbp)"] <- "TBP"
-cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "HCTZ"
-cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"] <- "TCEP"
-cas_final$chnm[cas_final$chnm == "O,p'−Ddt"] <- "o,p'−DDT"
-cas_final$chnm[cas_final$chnm == "P,p'−Dde"] <- "p,p'−DDE"
-cas_final$chnm[cas_final$chnm == "P,p'−Ddt"] <- "p,p'−DDT"
-cas_final$chnm[cas_final$chnm == "O,p'−Dde"] <- "o,p'−DDE"
-cas_final$chnm[cas_final$chnm == "Tris(1-Chloro-2-Propyl)Phosphate (Tcpp)"] <- "TCPP"
-cas_final$chnm[cas_final$chnm == "Hexachlorobenzene (Hcb)"] <- "HCB"
-cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate "
-cas_final$chnm[cas_final$CAS == "30306-93-5"] <- "Ethyl Citrate"
-cas_final$chnm[grep("Pbde-", cas_final$chnm)] <- gsub(pattern = "Pbde-",
-                                                      replacement = "PBDE-",
-                                                      cas_final$chnm[grep("Pbde-", cas_final$chnm)])
-cas_final <- rbind(cas_final, data.frame(CAS="34841-39-9",
-                                         chnm="Bupropion",
-                                         stringsAsFactors = FALSE))
-cas_final$chnm[cas_final$CAS == "34911-55-2"] <- "Bupropion hydrochloride"
-
-cas_final$chnm[grep(pattern = "Delta-Benzenehexachloride",cas_final$chnm)] <- "delta-Bhc"
-cas_final$chnm[grep(pattern = "Beta-Benzenehexachloride",cas_final$chnm)] <- "beta-Bhc"
-cas_final$chnm[grep(pattern = "Alpha-Benzenehexachloride", cas_final$chnm)] <- "alpha-Bhc"
-
 data_analysis_plan <- drake_plan(
-
+  cas_final = readRDS(file_in("data/clean/cas_df.rds")),
   tox_list = create_toxEval(file_in("data/clean/passive.xlsx")),
   ACC = get_ACC(tox_list$chem_info$CAS) %>%
     remove_flags(),
@@ -59,7 +26,7 @@ data_analysis_plan <- drake_plan(
   benchmarks = tox_list$chem_data %>%
     select(CAS) %>%
     distinct() %>%
-    left_join(cas_df, by="CAS") %>%
+    left_join(cas_final, by="CAS") %>%
     mutate(endPoint = "Concentration",
            Value = 1,
            groupCol = "Concentration") %>%

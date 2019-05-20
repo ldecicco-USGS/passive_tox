@@ -46,6 +46,8 @@ data_setup_plan <- drake_plan(
                                                           time_stamp = last_modified_cas_id),
                               trigger = trigger(change = last_modified_cas_id)),  
   cas_df = all_cas(cas_download),
+  clean_cas_df = clean_cas(cas_df),
+  saveRDS(object = clean_cas_df, file = file_out("data/clean/cas_df.rds")),
   AOP_crosswalk = target(command = drive_download_gd(AOP_update_id,
                                                            path = file_out("data/raw/AOP_crosswalk.csv"),
                                                            time_stamp = last_modified_AOP),

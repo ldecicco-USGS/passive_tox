@@ -107,20 +107,11 @@ data_analysis_plan <- drake_plan(
                                             category = "Chemical", 
                                             font_size = 7,title = " ",
                                             pallette = c("steelblue", "white")),
-  save_plot(filename = file_out("plots/AOPs.pdf"),
-            plot = aop_graph, base_width = 11),
-  save_plot(filename = file_out("plots/AOPs.png"),
-            plot = aop_graph, base_width = 11),
-  
   site_info = prep_site_list(tox_list$chem_site),
   stack_plot = plot_tox_stacks_manuscript(chemicalSummary, 
                                           site_info, 
                                           font_size = 6,
-                                          category = "Chemical Class"),
-  save_plot(filename = file_out("plots/stacks.png"),
-            plot = stack_plot, base_width = 4, base_height = 7),
-  save_plot(filename = file_out("plots/stacks.pdf"),
-            plot = stack_plot, base_width = 11, base_height = 7)
+                                          category = "Chemical Class")
 
 )
 
@@ -131,6 +122,15 @@ data_analysis_plan <- drake_plan(
 # config <- drake_config(data_analysis_plan)
 # vis_drake_graph(config, build_times = "none")
 make(data_analysis_plan)
+
+loadd(aop_graph)
+pdf("plots/AOP.pdf", width = 4.5, height = 4.5)
+ggarrange(
+  aop_graph$count_plot, aop_graph$stackedPlot,
+  aop_graph$chem_plot, aop_graph$aop_plot,nrow = 1,ncol = 4,
+  widths =  c(2/10,6/10,1/10,1/10)
+)
+dev.off()
 
 loadd(toxPlot_ear_conc)
 pdf("plots/EAR_Conc_all.pdf", width = 4.5, height = 22, onefile=FALSE)

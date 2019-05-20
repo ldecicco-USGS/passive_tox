@@ -105,14 +105,11 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
   AOP_IDs <- AOP %>%
     filter(endPoint %in% nChem_df$endPoint) %>%
     group_by(endPoint) %>%
-    summarize(AOP_ID = paste(ID, collapse = ",")) %>%
-    mutate(column = "AOP IDs",
+    summarize(AOP_ID = length(unique(ID))) %>%
+    mutate(column = "# AOPs",
            site = NA,
            has_AOP = NA,
            meanEAR = NA)
-  
-  #Horrible hack?
-  AOP_IDs$AOP_ID[AOP_IDs$AOP_ID == "3,26,34,48,77,78,79,80,87,130,144,178,187,200,205,207,238"] <- "3,26,34,48,77,78,79,80,87,130,\n144,178,187,200,205,207,238"
   
   graphData <- bind_rows(graphData, counts_df, nChem_df, AOP_IDs)
   
@@ -121,16 +118,19 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
                              levels = c("# Sites",
                                         "",
                                         "# Chemicals",
-                                        "AOP IDs"))
+                                        "# AOPs"))
   
   stackedPlot <- ggplot()+
     scale_y_log10(expression(EAR[mixture]),labels=toxEval:::fancyNumbers,breaks=pretty_logs_new) +
     theme_minimal() +
     theme(axis.text.y = element_blank(),
           legend.position = "none",
-          axis.title.y = element_blank()) +
+          panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(size = 0.1),
+          axis.title = element_blank()) +
     geom_boxplot(aes(x=endPoint, y=meanEAR, fill = has_AOP),
-                 data = filter(graphData, column == "")) +
+                 data = filter(graphData, column == ""), 
+                 outlier.size=0.25, lwd=0.01, fatten=1) +
     coord_flip()
   
   if(!all(is.na(pallette))){
@@ -149,42 +149,40 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
   } 
   
   count_plot <- ggplot() +
-    geom_text(aes(x=endPoint, y=1, label = nonZero),
+    geom_text(aes(x=endPoint, y=1, label = nonZero),size=5*font_size/14,
                  data = filter(graphData, column == "# Sites")) +
     theme_minimal() +
-    xlab("ToxCast") +
     theme(axis.text.y = element_text(vjust = .25,hjust=1),
           legend.position = "none",
           axis.text.x = element_blank(),
-          axis.title.x = element_blank(),
+          axis.title = element_blank(),
           panel.grid = element_blank(),
-          plot.title = element_text(hjust = 0.5)) +
+          plot.title = element_text(hjust = 0.5, size = font_size)) +
     coord_flip() +
     ggtitle("# Sites")
   
   chem_plot <- ggplot() +
-    geom_text(aes(x=endPoint, y=1, label = nChems),
+    geom_text(aes(x=endPoint, y=1, label = nChems),size=5*font_size/14,
             data = filter(graphData, column == "# Chemicals")) +
     theme_minimal() +
     theme(axis.text = element_blank(),
           axis.title = element_blank(),
           panel.grid = element_blank(),
-          plot.title = element_text(hjust = 0.5)) +
+          plot.title = element_text(hjust = 0.5, size = font_size)) +
     coord_flip() +
     ggtitle("# Chemicals")
   
   aop_plot <- ggplot() +
-    geom_text(aes(x=endPoint, y=1, label = AOP_ID), hjust = 0,
-              data = filter(graphData, column == "AOP IDs")) +
+    geom_text(aes(x=endPoint, y=1, label = AOP_ID),size=5*font_size/14,
+              data = filter(graphData, column == "# AOPs")) +
     theme_minimal() +
-    ylim(c(1,1.5)) +
     theme(axis.text = element_blank(),
           axis.title = element_blank(),
           panel.grid = element_blank(),
-          plot.title = element_text(hjust = 0.5)) +
+          plot.title = element_text(hjust = 0.5, size = font_size)) +
     coord_flip() +
     scale_x_discrete(drop=FALSE) +
-    ggtitle("AOP IDs")
+    ggtitle("# AOPs")
   
   if(!is.na(font_size)){
     stackedPlot <- stackedPlot +
@@ -194,10 +192,8 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
       theme(axis.text = element_text(size = font_size))
   }
   
-  x <- cowplot::plot_grid(count_plot, stackedPlot, chem_plot,aop_plot,
-            nrow = 1,
-            align = "h", 
-            rel_widths = c(3,5,1,3))
-  
-  return(x)
+  return(list(count_plot=count_plot,
+              stackedPlot=stackedPlot,
+              chem_plot=chem_plot,
+              aop_plot=aop_plot))
 }

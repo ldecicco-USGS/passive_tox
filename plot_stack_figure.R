@@ -2,6 +2,7 @@ loadd(chemicalSummary)
 loadd(site_info)
 loadd(tox_list)
 source(file = "R/report/stack_plots.R")
+source(file = "R/report/combo_plot2.R")
 color_map <- class_colors(tox_list)
 axis_num <- 5
 plot_back <- plot_tox_stacks_manuscript(chemicalSummary,

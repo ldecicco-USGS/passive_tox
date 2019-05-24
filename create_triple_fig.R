@@ -2,9 +2,9 @@ loadd(graphData_conc_det_match)
 loadd(graphData_tox_det)
 loadd(chemicalSummary_conc)
 loadd(tox_list)
-loadd(cas_df)
+loadd(cas_final)
 
-cas_final =  cas_df 
+# cas_final =  cas_df 
 axis_num <- 6
 
 source(file = "R/report/combo_plot2.R")
@@ -20,8 +20,8 @@ graphData_conc_no_match = graph_chem_data_CAS(chemicalSummary_conc_no_match) %>%
 full_classes <- c(levels(graphData_tox_det$Class),
                   levels(graphData_conc_no_match$Class)[!(levels(graphData_conc_no_match$Class) %in% levels(graphData_tox_det$Class))])
 
-levels(graphData_tox_det$Class) <- full_classes
-levels(graphData_conc_no_match$Class) <- full_classes
+graphData_tox_det$Class <- factor(as.character(graphData_tox_det$Class), levels = full_classes)
+graphData_conc_no_match$Class <- factor(as.character(graphData_conc_no_match$Class), levels = full_classes)
 
 matches <- fancy_combo(graphData_tox_det, 
                        graphData_conc_det_match, 
@@ -76,7 +76,7 @@ ggarrange(
 dev.off()
 
 
-pdf("triple_graph_full.pdf", width = 9, height = 11, onefile=FALSE)
+pdf("triple_graph_full_v3.pdf", width = 9, height = 11, onefile=FALSE)
 ggarrange(
   
   matches$site_graph,
@@ -86,10 +86,10 @@ ggarrange(
     no_axis_no_match,
     NULL,
     nrow = 2, ncol = 2,
-    widths = c(1,1.4),
+    widths = c(1.5,2),
     heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
   ),
-  widths =  c(1.5,4,4),nrow=1,ncol=3,
+  widths =  c(2,4,4),nrow=1,ncol=3,
   common.legend = TRUE, legend = "bottom"
 )
 dev.off()

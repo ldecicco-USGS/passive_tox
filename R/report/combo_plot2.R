@@ -55,13 +55,24 @@ combine_gd <- function(gd_1, gd_2){
 
 class_colors <- function(tox_list){
   
-  cbValues <- c("#E41A1C","#377EB8","#4DAF4A","#984EA3","#FF7F00","#FFFF33","#A65628",
-                "#DCDA4B","#999999","#00FFFF","#CEA226","#CC79A7","#4E26CE",
-                "#003366","#78C15A","#79AEAE","#FF0000","#00FF00","#B1611D",
-                "#FFA500","#F4426e", "#800000", "#808000")
-  
   
   classes <- unique(tox_list$chem_info$Class)
+  
+  #play with colorspace::hcl_wizard()
+  cbValues <- colorspace::rainbow_hcl(length(classes), 
+                                      start = -360, end = -55, c = 100, l = 64)
+  
+  cbValues[cbValues == "#E767EE"] <- "red"
+  cbValues[cbValues == "#D58D00"] <- "orange"
+  cbValues[cbValues == "#00BB6B"] <- "darkseagreen1"
+  cbValues[cbValues == "#00A9FA"] <- "cyan"
+  cbValues[cbValues == "#599AFF"] <- "blue"
+  cbValues[cbValues == "#CB76FE"] <- "blueviolet"
+  cbValues[cbValues == "#A088FF"] <- "purple4"
+  cbValues[cbValues == "#E68127"] <- "yellow"
+  cbValues[cbValues == "#00BACF"] <- "moccasin"
+  cbValues[cbValues == "#81AA00"] <- "navy"
+  cbValues[cbValues == "#00BE91"] <- "green"
   
   names(cbValues) <- classes
   

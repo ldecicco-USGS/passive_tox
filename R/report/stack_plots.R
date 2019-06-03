@@ -1,11 +1,12 @@
 chem_counts <- function(chemical_summary, chem_site){
+  
   counts <- chemical_summary %>%
     dplyr::group_by(site, CAS) %>%
     dplyr::summarize(count = sum(EAR > 0)) %>%
     dplyr::ungroup() %>%
     dplyr::group_by(site) %>%
     dplyr::summarise(count = sum(count > 0)) %>%
-    dplyr::left_join(dplyr::select(chem_site, site=SiteID, `Short Name`, site_grouping), by="site") %>%
+    dplyr::full_join(dplyr::select(chem_site, site=SiteID, `Short Name`, site_grouping), by="site") %>%
     dplyr::select(-site) %>%
     dplyr::mutate(count= ifelse(nchar(count) < 2, paste0(" ",count), count),
                   count_title = "Chemicals")
@@ -90,8 +91,7 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
                             manual_remove = NULL,
                             include_legend = TRUE, 
                             font_size = NA,
-                            title = NA,
-                            top_num = NA){
+                            title = NA){
   
   match.arg(category, c("Biological","Chemical Class","Chemical"))
   
@@ -120,32 +120,34 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
     } 
   }
 
-  siteToFind <- unique(chemical_summary$shortName)
-
-  siteLimits <- chem_site$`Short Name`
-  single_site <- length(siteToFind) == 1
-  
   graphData <- graphData %>%
-    dplyr::left_join(chem_site[, c("SiteID", "site_grouping", "Short Name")],
+    dplyr::full_join(chem_site[, c("SiteID", "site_grouping", "Short Name")],
                      by=c("site"="SiteID"))
-  graphData$`Short Name` <- factor(graphData$`Short Name`, levels = rev(levels(graphData$`Short Name`)))
-  graphData$count_title <- ""
   
+  graphData$`Short Name` <- factor(graphData$`Short Name`, levels = rev(levels(graphData$`Short Name`)))
+  
+  if(is.na(title)){
+    graphData$count_title <- ""
+  } else {
+    graphData$count_title <- title
+  }
+
   upperPlot <- ggplot(graphData) +
     geom_col(aes(x=`Short Name`, y=meanEAR, fill = category))  +
     theme_minimal() +
-    ylab("Sum of Maximum EAR Values") +
+    # ylab("Sum of Maximum EAR Values") +
     facet_grid(site_grouping ~ count_title, scales="free", space="free") +
-    geom_text(data = distinct(select(graphData, site_grouping)),
-              aes(label = site_grouping),
-              size=5*font_size/14,
-              x = Inf, y = Inf, hjust = 1, vjust = 1.5) +
+    # geom_text(data = distinct(select(graphData, site_grouping)),
+    #           aes(label = site_grouping),
+    #           size=5*font_size/14,
+    #           x = Inf, y = Inf, hjust = 1, vjust = 1.5) +
     coord_flip(clip = "off") + 
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 2)) +
     scale_fill_manual(name = category,
                       values = cbValues, drop=TRUE) +
     theme(strip.background = element_blank(),
-          strip.text.y = element_blank(),
-          strip.text.x = element_text(size = 4),
+          # strip.text.y = element_blank(),
+          strip.text = element_text(size = font_size),
           axis.title.y = element_blank(),
           legend.position="bottom",
           panel.grid.minor = element_blank(),
@@ -154,14 +156,33 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
           legend.title=element_blank(),
           legend.text = element_text(size=5),
-          legend.key.height = unit(1,"line")) +
-    guides(fill=guide_legend(ncol=5)) +
+          legend.key.height = unit(0.5,"line")) +
+    # guides(fill=guide_legend(ncol=5)) +
     theme(axis.text = element_text(size = font_size),
           axis.title =   element_text(size= font_size),
           axis.ticks = element_line(colour = "black", size = 0.05))
 
+    return(upperPlot)
+}
+
+whole_stack <- function(chemicalSummary, 
+                        site_info, tox_list, 
+                        color_map, 
+                        font_size, 
+                        category, 
+                        title){
   
+  plot_back <- plot_tox_stacks_manuscript(chemicalSummary,
+                                          cbValues = color_map, 
+                                          chem_site = site_info,
+                                          font_size = font_size,
+                                          category = category,
+                                          title = title)
+  no_axis_plot_back <- strip_graph(plot_back, font_size)
+  chem_df <- chem_counts(chemicalSummary, site_info)
+  chem_count_graph <- chem_count_plot(chem_df,
+                                      axis_size = font_size)
   
-  return(upperPlot)
+  return(list(chem_count=chem_count_graph,no_axis=no_axis_plot_back))
 }
 

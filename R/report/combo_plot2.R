@@ -62,6 +62,8 @@ class_colors <- function(tox_list){
   cbValues <- colorspace::rainbow_hcl(length(classes), 
                                       start = -360, end = -55, c = 100, l = 64)
   
+  names(cbValues) <- classes
+  
   cbValues[cbValues == "#E767EE"] <- "red"
   cbValues[cbValues == "#D58D00"] <- "orange"
   cbValues[cbValues == "#00BB6B"] <- "darkseagreen1"
@@ -74,7 +76,7 @@ class_colors <- function(tox_list){
   cbValues[cbValues == "#81AA00"] <- "navy"
   cbValues[cbValues == "#00BE91"] <- "green"
   
-  names(cbValues) <- classes
+  
   
   return(cbValues)
   
@@ -219,11 +221,11 @@ add_label <- function(plot_full, label_info, label_size = 2){
   return(plot_full_w_label)
 }
 
-strip_graph <- function(plot_full){
+strip_graph <- function(plot_full, font_size = 5){
   
   no_axis <- plot_full +
     theme(axis.title.y=element_blank(),
-          strip.text.x = element_text(size = 5),
+          strip.text.x = element_text(size = 0.75*font_size),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank(),
           legend.position = "none",
@@ -260,7 +262,7 @@ site_count_plot <- function(site_counts, axis_size = 6){
     theme(axis.text.x = element_text(size=axis_size, color = "transparent"),
           axis.text.y = element_text(size=axis_size, vjust=.35, color = "black"),
           axis.title=element_blank(),
-          strip.text.x = element_text(size = 5),
+          strip.text.x = element_text(size = 0.75*axis_size),
           plot.margin = unit(c(0, 0, 0, 0.25), "cm"),
           panel.background = element_blank(),
           panel.grid.minor = element_blank(),

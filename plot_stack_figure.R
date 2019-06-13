@@ -1,3 +1,8 @@
+library(drake)
+library(tidyverse)
+library(toxEval)
+library(ggpubr)
+
 loadd(chemicalSummary)
 loadd(site_info)
 loadd(tox_list)
@@ -10,7 +15,7 @@ full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 
                          category = "Chemical Class")
 
-pdf("stack2.pdf", width = 4.5, height = 5.5, onefile=FALSE)
+pdf("plots/stack_full.pdf", width = 4.5, height = 5.5, onefile=FALSE)
 ggarrange(
   full_plot$chem_count,
   full_plot$no_axis +

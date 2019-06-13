@@ -52,15 +52,21 @@ all_data <- eps_data %>%
   filter(!is.na(YES))
 
 library(ggplot2)
+library(quantreg)
 
-yes_plot <- ggplot(all_data) +
-  geom_point(aes(x=Value, y=YES)) +
+
+yes_plot <- ggplot(all_data, aes(x=Value, y=YES)) +
+  geom_point() +
   facet_grid(. ~ endPoint) + 
   theme_bw() +
   scale_x_continuous(trans = "log10") +
-  scale_y_continuous(trans = "log10")
+  scale_y_continuous(trans = "log10") +
+  geom_quantile(quantiles = c(0.1, 0.5,0.9))
+
+yes_plot
 
 ggsave(yes_plot, filename = "plots/yes.png")
+
 
 new_order <- chem_sum_eps %>%
   mutate(chnm = as.character(chnm)) %>%
@@ -103,7 +109,7 @@ chem_yes_data_filtered <- chem_yes_data %>%
 
 chem_facets <- ggplot(data = chem_yes_data_filtered) +
   geom_point(aes(x=EAR,y=YES)) +
-  facet_wrap(. ~ chnm, scales = "free") +
+  facet_wrap(. ~ chnm) +
   scale_x_continuous(trans = "log10") +
   scale_y_continuous(trans = "log10")
   

@@ -95,7 +95,7 @@ pdf("plots/AOP.pdf", width = 4.5, height = 4.5)
 ggarrange(
   aop_graph$count_plot, aop_graph$stackedPlot,
   aop_graph$chem_plot, aop_graph$aop_plot,nrow = 1,ncol = 4,
-  widths =  c(2/10,6/10,1/10,1/10)
+  widths =  c(4/10,4/10,1/10,1/10)
 )
 dev.off()
 

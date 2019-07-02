@@ -61,7 +61,7 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
       sheet <- "pharms"
     }
   }
-  
+  data_long <- na.omit(data_long)
   data_long$comment <- ""
   data_long$comment[grep("<",data_long$Value)] <- "<"
   data_long$comment[grep("DNQ",data_long$Value)] <- "DNQ"
@@ -71,6 +71,13 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
   data_long$Value <- gsub("b","",data_long$Value)
   data_long$Value <- gsub("c","",data_long$Value)
   data_long$Value <- gsub(" ","",data_long$Value)
+  data_long <- data_long[data_long$Value != "lostinfield",]
+  data_long <- data_long[data_long$Value != "-----",]
+  data_long <- data_long[data_long$Value != "'-----",]
+  data_long$comment[which(data_long$Value == "ND")] <- "<"
+  data_long$Value[which(data_long$Value == "ND")] <- data_long$MDL[which(data_long$Value == "ND")]
+  data_long <- data_long[data_long$Value != "NA",]
+  
   data_long$Value <- as.numeric(data_long$Value) 
   data_long$Value <- data_long$Value/convert
   data_long$generic_class <- sheet
@@ -84,18 +91,20 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
     mutate(chnm = tolower(chnm)) %>%
     left_join(cas_df, by="chnm") %>%
     mutate(chnm = tools::toTitleCase(chnm)) %>%
-    left_join(select(site_stuff, SiteID, STAID), by="SiteID") %>%
-    mutate(SiteID = dataRetrieval::zeroPad(STAID, 8)) %>%
-    select(-STAID) %>%
-    distinct() %>%
+    left_join(select(site_stuff, SiteID, STAID), by="SiteID") 
+  
+  
+  data_long$STAID[nchar(data_long$STAID) == 8 & substring(data_long$STAID, first = 1, last = 1) != "0"] <- dataRetrieval::zeroPad(data_long$STAID[nchar(data_long$STAID) == 8 & substring(data_long$STAID, first = 1, last = 1) != "0"], 9)
+  data_long$STAID <- dataRetrieval::zeroPad(data_long$STAID, 8)
+  
+  data_long <- data_long %>%
+    select(-SiteID) %>%
+    rename(SiteID=STAID) %>%
     filter(!is.na(chnm),
            CAS != "---" | is.na(CAS),
            CAS != "-" | is.na(CAS))
   
-  if(any(is.na(data_long$CAS))){
-    message("Some CAS didn't match up")
-  }
-  
+
   ignore_totals <- c("Total PCBs","Total Pcbs in Mg/l","Total Oc Pesticides")
   data_long <- data_long[!(data_long$chnm %in% ignore_totals),]
   
@@ -104,8 +113,18 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
   data_long$chnm[data_long$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
   data_long$CAS[data_long$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
   
+  data_long <- data_long[!(data_long$chnm %in% c("Tcpp_isomer","Tcpp Isomer")),]
+  
+  data_long$CAS[data_long$chnm == "Omeprazole + Esomprazole"] <- "73590-58-6"
+  
+  if(any(is.na(data_long$CAS))){
+    message("Some CAS didn't match up")
+  }
+  
   # Get rid of censored data:
   data_long$Value[data_long$comment != ""] <- 0
+  
+  data_long$SiteID[data_long$SiteID == "04085790"] <- "04085721"
   
   return(data_long)
 }

@@ -53,6 +53,8 @@ get_chem_info <- function(all_data, chem_info_old){
     left_join(sites_with_detections, by="CAS") %>%
     left_join(x, by="CAS")
   
+  chem_info_more <- chem_info_more[!duplicated(chem_info_more$CAS, fromLast = TRUE),]
+  
   return(chem_info_more)
 }
 
@@ -61,4 +63,21 @@ get_exclude <- function(exclude_download){
   exclude <- left_join(exclude, select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
   exclude <- select(exclude, CAS, endPoint, chnm, everything(), -X)
   return(exclude)
+}
+
+
+fix_cas <- function(df, cas_change){
+  
+  cas_change_clean <- cas_change %>%
+    select(CAS = `Original CAS`, new_CAS = `CAS to update in analytical data`) %>%
+    filter(!is.na(CAS))
+  
+  df_fixed <- df %>%
+    left_join(cas_change_clean, by="CAS")
+  
+  df_fixed$CAS[!is.na(df_fixed$new_CAS)] <- df_fixed$new_CAS[!is.na(df_fixed$new_CAS)]
+  
+  df_fixed <- select(df_fixed, -new_CAS)
+
+  return(df_fixed)  
 }

@@ -72,11 +72,9 @@ class_colors <- function(tox_list){
   cbValues[cbValues == "#CB76FE"] <- "blueviolet"
   cbValues[cbValues == "#A088FF"] <- "purple4"
   cbValues[cbValues == "#E68127"] <- "yellow"
-  cbValues[cbValues == "#00BACF"] <- "moccasin"
+  # cbValues[cbValues == "#00BACF"] <- "moccasin"
   cbValues[cbValues == "#81AA00"] <- "navy"
   cbValues[cbValues == "#00BE91"] <- "green"
-  
-  
   
   return(cbValues)
   
@@ -225,7 +223,7 @@ strip_graph <- function(plot_full, font_size = 5){
   
   no_axis <- plot_full +
     theme(axis.title.y=element_blank(),
-          strip.text.x = element_text(size = 0.75*font_size),
+          strip.text.x = element_text(size = 0.85*font_size),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank(),
           legend.position = "none",
@@ -262,7 +260,7 @@ site_count_plot <- function(site_counts, axis_size = 6){
     theme(axis.text.x = element_text(size=axis_size, color = "transparent"),
           axis.text.y = element_text(size=axis_size, vjust=.35, color = "black"),
           axis.title=element_blank(),
-          strip.text.x = element_text(size = 0.75*axis_size),
+          strip.text.x = element_text(size = 0.85*axis_size),
           plot.margin = unit(c(0, 0, 0, 0.25), "cm"),
           panel.background = element_blank(),
           panel.grid.minor = element_blank(),

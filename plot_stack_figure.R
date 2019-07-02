@@ -15,7 +15,7 @@ full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 
                          category = "Chemical Class")
 
-pdf("plots/stack_full.pdf", width = 4.5, height = 5.5, onefile=FALSE)
+pdf("plots/stack_full.pdf", width = 6, height =7, onefile=FALSE)
 ggarrange(
   full_plot$chem_count,
   full_plot$no_axis +
@@ -29,7 +29,7 @@ dev.off()
 classes <- unique(tox_list$chem_info$Class)
 num_chem_to_keep <- 5
 font_size <- 5
-pdf("plots/classes_split.pdf", width = 4.5, height = 5.5, onefile=TRUE)
+pdf("plots/classes_split_new.pdf", width = 6, height = 7, onefile=TRUE)
 for(i in classes){
 
   chem_i <- dplyr::filter(chemicalSummary, Class == i)
@@ -120,7 +120,7 @@ library(cowplot)
 
 general_lp <- c(0.15,0.87)
 
-pdf("plots/MoreChemicalStacks.pdf", width = 10, height = 8)
+pdf("plots/MoreChemicalStacks_new.pdf", width = 10, height = 8)
 
 plot_grid(
   class_plots[[1]]$chem_count,

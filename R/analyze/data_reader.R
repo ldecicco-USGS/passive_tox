@@ -93,7 +93,6 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
     mutate(chnm = tools::toTitleCase(chnm)) %>%
     left_join(select(site_stuff, SiteID, STAID), by="SiteID") 
   
-  
   data_long$STAID[nchar(data_long$STAID) == 8 & substring(data_long$STAID, first = 1, last = 1) != "0"] <- dataRetrieval::zeroPad(data_long$STAID[nchar(data_long$STAID) == 8 & substring(data_long$STAID, first = 1, last = 1) != "0"], 9)
   data_long$STAID <- dataRetrieval::zeroPad(data_long$STAID, 8)
   
@@ -104,7 +103,6 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
            CAS != "---" | is.na(CAS),
            CAS != "-" | is.na(CAS))
   
-
   ignore_totals <- c("Total PCBs","Total Pcbs in Mg/l","Total Oc Pesticides")
   data_long <- data_long[!(data_long$chnm %in% ignore_totals),]
   
@@ -160,16 +158,21 @@ clean_cas <- function(cas_df){
     mutate(chnm = tools::toTitleCase(chnm))
   
   cas_final$chnm[cas_final$chnm == "Deet"] <- "DEET"
+  cas_final$chnm[cas_final$chnm == "Tcep"] <- "TCEP"
+  cas_final$chnm[cas_final$chnm == "Tbep"] <- "TBEP"
+  cas_final$chnm[cas_final$chnm == "Tdcpp"] <- "TDCPP"
+  cas_final$chnm[cas_final$chnm == "Total Pcbs"] <- "Total PCBS"
   cas_final$chnm[cas_final$chnm == "O,p'-Ddd"] <- "o,p'-DDD"
   cas_final$chnm[cas_final$chnm == "P,p'-Ddd"] <- "p,p'-DDD"
   cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "PCA"
   cas_final$chnm[cas_final$chnm == "Tributyl Phosphate (Tbp)"] <- "TBP"
   cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "HCTZ"
   cas_final$chnm[cas_final$chnm == "Tris(2−Chloroethyl)Phosphate (Tcep)"] <- "TCEP"
-  cas_final$chnm[cas_final$chnm == "O,p'−Ddt"] <- "o,p'−DDT"
-  cas_final$chnm[cas_final$chnm == "P,p'−Dde"] <- "p,p'−DDE"
-  cas_final$chnm[cas_final$chnm == "P,p'−Ddt"] <- "p,p'−DDT"
-  cas_final$chnm[cas_final$chnm == "O,p'−Dde"] <- "o,p'−DDE"
+  cas_final$chnm[cas_final$chnm == "O,p'-Ddt"] <- "o,p'-DDT"
+  cas_final$chnm[cas_final$chnm == "O,p'-Ddt"] <- "o,p'-DDT"
+  cas_final$chnm[cas_final$chnm == "P,p'-Dde"] <- "p,p'-DDE"
+  cas_final$chnm[cas_final$chnm == "P,p'-Ddt"] <- "p,p'-DDT"
+  cas_final$chnm[cas_final$chnm == "O,p'-Dde"] <- "o,p'-DDE"
   cas_final$chnm[cas_final$chnm == "Tris(1-Chloro-2-Propyl)Phosphate (Tcpp)"] <- "TCPP"
   cas_final$chnm[cas_final$chnm == "Hexachlorobenzene (Hcb)"] <- "HCB"
   cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate "

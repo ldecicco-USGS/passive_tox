@@ -232,3 +232,32 @@ plot_grid(
 )
 
 dev.off()
+
+
+# Mock up stack of concentrations that aren't in toxCast:
+
+loadd(chemicalSummary)
+loadd(chemicalSummary_conc)
+loadd(site_info)
+loadd(tox_list)
+
+non_tox <- chemicalSummary_conc %>%
+  filter(!(CAS %in% chemicalSummary$CAS))
+
+source(file = "R/report/stack_plots.R")
+source(file = "R/report/combo_plot2.R")
+color_map <- class_colors(tox_list)
+font_size <- 5
+
+full_plot <- whole_stack(non_tox, site_info, title="Chemicals not in toxCast",
+                         tox_list, color_map, font_size, 
+                         category = "Chemical Class")
+pdf("plots/conc_stack_nonTox.pdf", width = 5.5, height =7, onefile=FALSE)
+ggarrange(
+  full_plot$chem_count,
+  full_plot$no_axis +
+    ylab("Concentration [\U003BCg/L]"),
+  widths = c(1.2,5),
+  common.legend = TRUE, legend = "bottom"
+)
+dev.off()

@@ -57,23 +57,23 @@ site_graph_no_match <- site_count_plot(site_counts_df_no_match,
 #   common.legend = TRUE, legend = "bottom"
 # )
 
-pdf("plots/triple_graph_half.pdf", width = 9, height = 5.5, onefile=FALSE)
-ggarrange(
-  
-  matches$site_graph,
-  matches$no_axis,
-  ggarrange(
-    site_graph_no_match, 
-    no_axis_no_match,
-    NULL,
-    nrow = 2, ncol = 2,
-    widths = c(1,1.4),
-    heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
-  ),
-  widths =  c(1.5,4,4),nrow=1,ncol=3,
-  common.legend = TRUE, legend = "bottom"
-)
-dev.off()
+# pdf("plots/triple_graph_half.pdf", width = 9, height = 5.5, onefile=FALSE)
+# ggarrange(
+#   
+#   matches$site_graph,
+#   matches$no_axis,
+#   ggarrange(
+#     site_graph_no_match, 
+#     no_axis_no_match,
+#     NULL,
+#     nrow = 2, ncol = 2,
+#     widths = c(1,1.4),
+#     heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
+#   ),
+#   widths =  c(1.5,4,4),nrow=1,ncol=3,
+#   common.legend = TRUE, legend = "bottom"
+# )
+# dev.off()
 
 
 pdf("plots/triple_graph_full_page.pdf", width = 9, height = 11, onefile=FALSE)

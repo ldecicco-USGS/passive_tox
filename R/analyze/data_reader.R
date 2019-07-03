@@ -159,6 +159,7 @@ clean_cas <- function(cas_df){
   
   cas_final$chnm[cas_final$chnm == "Deet"] <- "DEET"
   cas_final$chnm[cas_final$chnm == "Tcep"] <- "TCEP"
+  cas_final$chnm[cas_final$chnm == "Tcpp"] <- "TCPP"
   cas_final$chnm[cas_final$chnm == "Tbep"] <- "TBEP"
   cas_final$chnm[cas_final$chnm == "Tdcpp"] <- "TDCPP"
   cas_final$chnm[cas_final$chnm == "Total Pcbs"] <- "Total PCBS"
@@ -173,7 +174,8 @@ clean_cas <- function(cas_df){
   cas_final$chnm[cas_final$chnm == "P,p'-Dde"] <- "p,p'-DDE"
   cas_final$chnm[cas_final$chnm == "P,p'-Ddt"] <- "p,p'-DDT"
   cas_final$chnm[cas_final$chnm == "O,p'-Dde"] <- "o,p'-DDE"
-  cas_final$chnm[cas_final$chnm == "Tris(1-Chloro-2-Propyl)Phosphate (Tcpp)"] <- "TCPP"
+  cas_final$chnm[cas_final$CAS =="26248-87-3"] <- "Tri(chloropropyl) phosphate"
+  # cas_final$chnm[cas_final$chnm == "Tris(1-Chloro-2-Propyl)Phosphate (Tcpp)"] <- "TCPP"
   cas_final$chnm[cas_final$chnm == "Hexachlorobenzene (Hcb)"] <- "HCB"
   cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate "
   cas_final$chnm[cas_final$CAS == "30306-93-5"] <- "Ethyl Citrate"

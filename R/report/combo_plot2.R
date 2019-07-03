@@ -65,12 +65,12 @@ class_colors <- function(tox_list){
   names(cbValues) <- classes
   
   cbValues[cbValues == "#E767EE"] <- "red"
-  cbValues[cbValues == "#D58D00"] <- "orange"
+  cbValues[cbValues == "#D58D00"] <- "gold"
   cbValues[cbValues == "#00BB6B"] <- "darkseagreen1"
   cbValues[cbValues == "#00A9FA"] <- "cyan"
   cbValues[cbValues == "#599AFF"] <- "blue"
   cbValues[cbValues == "#CB76FE"] <- "blueviolet"
-  cbValues[cbValues == "#A088FF"] <- "purple4"
+  cbValues[cbValues == "#A088FF"] <- "lightslateblue"
   cbValues[cbValues == "#E68127"] <- "yellow"
   cbValues[cbValues == "#81AA00"] <- "navy"
   cbValues[cbValues == "#00BE91"] <- "green"

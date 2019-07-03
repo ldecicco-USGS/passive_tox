@@ -100,7 +100,7 @@ combo_plot_matches_2 <- function(graphData_1_2,
           strip.background = element_rect(fill = "transparent",colour = NA),
           strip.text.y = element_blank(),
           axis.ticks = element_line(colour = "black", size = 0.05)) +
-    guides(fill=guide_legend(ncol=10)) +
+    guides(fill=guide_legend(ncol=3)) +
     theme(legend.position="bottom",
           legend.justification = "left",
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
@@ -223,7 +223,7 @@ strip_graph <- function(plot_full, font_size = 5){
   
   no_axis <- plot_full +
     theme(axis.title.y=element_blank(),
-          strip.text.x = element_text(size = 0.85*font_size),
+          strip.text.x = element_text(size = font_size),
           axis.text.y=element_blank(),
           axis.ticks.y=element_blank(),
           legend.position = "none",
@@ -260,7 +260,7 @@ site_count_plot <- function(site_counts, axis_size = 6){
     theme(axis.text.x = element_text(size=axis_size, color = "transparent"),
           axis.text.y = element_text(size=axis_size, vjust=.35, color = "black"),
           axis.title=element_blank(),
-          strip.text.x = element_text(size = 0.85*axis_size),
+          strip.text.x = element_text(size = axis_size),
           plot.margin = unit(c(0, 0, 0, 0.25), "cm"),
           panel.background = element_blank(),
           panel.grid.minor = element_blank(),

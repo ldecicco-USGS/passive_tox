@@ -1,3 +1,7 @@
+library(drake)
+library(tidyverse)
+
+
 loadd(graphData_conc_det_match)
 loadd(graphData_tox_det)
 loadd(chemicalSummary_conc)
@@ -52,30 +56,6 @@ site_counts_df_no_match <- site_counts(tox_list$chem_data, no_axis_no_match$data
 site_graph_no_match <- site_count_plot(site_counts_df_no_match,
                                        axis_size = axis_num)
 
-# ggarrange(
-#   site_graph_no_match,no_axis_no_match,
-#   common.legend = TRUE, legend = "bottom"
-# )
-
-# pdf("plots/triple_graph_half.pdf", width = 9, height = 5.5, onefile=FALSE)
-# ggarrange(
-#   
-#   matches$site_graph,
-#   matches$no_axis,
-#   ggarrange(
-#     site_graph_no_match, 
-#     no_axis_no_match,
-#     NULL,
-#     nrow = 2, ncol = 2,
-#     widths = c(1,1.4),
-#     heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
-#   ),
-#   widths =  c(1.5,4,4),nrow=1,ncol=3,
-#   common.legend = TRUE, legend = "bottom"
-# )
-# dev.off()
-
-
 pdf("plots/triple_graph_full_page.pdf", width = 9, height = 11, onefile=FALSE)
 ggarrange(
   
@@ -94,3 +74,27 @@ ggarrange(
 )
 dev.off()
 
+
+library(cowplot)
+
+l2 <- get_legend(toxPlot_no_match)
+
+pdf("plots/triple_graph_cow.pdf", width = 9, height = 11, onefile=FALSE)
+plot_grid(
+  matches$site_graph,
+  matches$no_axis,
+  plot_grid(
+    plot_grid(
+      site_graph_no_match, 
+      no_axis_no_match,
+      ncol = 2,
+      rel_widths = c(1.75,2)
+    ),
+    l2,
+    nrow = 2, ncol = 1,
+    rel_heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
+  ),
+  rel_widths = c(2,4,4),
+  nrow=1,ncol=3
+)
+dev.off()

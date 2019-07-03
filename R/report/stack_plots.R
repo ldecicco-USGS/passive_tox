@@ -29,7 +29,7 @@ chem_count_plot <- function(chem_df, axis_size){
     coord_flip(clip = "off") + 
     theme(strip.background = element_blank(),
           strip.text.y = element_blank(),
-          strip.text.x = element_text(size = 4),
+          strip.text.x = element_text(size = 5),
           panel.background = element_blank(),
           panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
@@ -146,8 +146,8 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
     scale_fill_manual(name = category,
                       values = cbValues, drop=TRUE) +
     theme(strip.background = element_blank(),
-          # strip.text.y = element_blank(),
-          strip.text = element_text(size = font_size),
+          strip.text.x = element_text(size = 5),
+          strip.text.y = element_text(size = font_size),
           axis.title.y = element_blank(),
           legend.position="bottom",
           panel.grid.minor = element_blank(),
@@ -156,7 +156,8 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
           legend.title=element_blank(),
           legend.text = element_text(size=5),
-          legend.key.height = unit(0.5,"line")) +
+          legend.key.height = unit(0.5,"line"),
+          legend.key.width = unit(0.5, "line")) +
     # guides(fill=guide_legend(ncol=5)) +
     theme(axis.text = element_text(size = font_size),
           axis.title =   element_text(size= font_size),

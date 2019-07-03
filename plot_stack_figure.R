@@ -15,12 +15,12 @@ full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 
                          category = "Chemical Class")
 
-pdf("plots/stack_full.pdf", width = 6, height =7, onefile=FALSE)
+pdf("plots/stack_full.pdf", width = 5.5, height =7, onefile=FALSE)
 ggarrange(
   full_plot$chem_count,
   full_plot$no_axis +
     ylab("Sum of Maximum EAR Values"),
-  widths = c(1.3,5),
+  widths = c(1.2,5),
   common.legend = TRUE, legend = "bottom"
 )
 dev.off()
@@ -46,6 +46,8 @@ for(i in classes){
     chem_i$chnm[chem_i$chnm %in% too_small] <- too_small_text
     chem_i$chnm <- factor(chem_i$chnm, levels = c(rev(just_right), too_small_text))
     
+  } else {
+    chem_i$chnm <- factor(as.character(chem_i$chnm), levels = rev(levels(chem_i$chnm)))
   }
 
   color_i <- colorspace::rainbow_hcl(length(unique(chem_i$chnm)), 
@@ -79,11 +81,13 @@ for(i in classes){
 dev.off()
 
 class_plots <- list()
-font_size <- 9
+font_size <- 8
 
 for(i in classes){
   
-  chem_i <- dplyr::filter(chemicalSummary, Class == i)
+  chem_i <- chemicalSummary %>%
+    dplyr::filter(Class == i)
+  
   if(nrow(chem_i) == 0){
     next
   }
@@ -97,7 +101,9 @@ for(i in classes){
     chem_i$chnm[chem_i$chnm %in% too_small] <- too_small_text
     chem_i$chnm <- factor(chem_i$chnm, levels = c(rev(just_right), too_small_text))
     
-  }
+  } else {
+    chem_i$chnm <- factor(as.character(chem_i$chnm), levels = rev(levels(chem_i$chnm)))
+  } 
   
   color_i <- colorspace::rainbow_hcl(length(unique(chem_i$chnm)), 
                                      start = -360, end = -55, 
@@ -118,7 +124,8 @@ for(i in classes){
 
 library(cowplot)
 
-general_lp <- c(0.15,0.87)
+general_lp <- c(0.1,0.87)
+
 
 pdf("plots/MoreChemicalStacks_new.pdf", width = 10, height = 8)
 
@@ -131,7 +138,7 @@ plot_grid(
   class_plots[[2]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[2]]$no_axis +
-    theme(legend.position = c(0.15,0.92) ,
+    theme(legend.position = c(0.1,0.92) ,
           strip.text.y =  element_blank()) +
     ylab(""),
   class_plots[[3]]$chem_count +
@@ -149,7 +156,7 @@ plot_grid(
   class_plots[[5]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[5]]$no_axis +
-    theme(legend.position = c(0.15,0.84),
+    theme(legend.position = c(0.01,0.84),
           strip.text.y = element_text(size = 0.75*font_size)) +
     ylab(""),
   rel_widths = c(3,3,rep(c(1,3),4)),
@@ -183,7 +190,7 @@ plot_grid(
   class_plots[[10]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[10]]$no_axis +
-    theme(legend.position = c(0.15,0.84),
+    theme(legend.position = c(0.01,0.84),
           strip.text.y = element_text(size = 0.75*font_size)) +
     ylab(""),
   rel_widths = c(3,3,rep(c(1,3),4)),
@@ -205,7 +212,7 @@ plot_grid(
   class_plots[[13]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[13]]$no_axis +
-    theme(legend.position = c(0.15,0.93),
+    theme(legend.position = c(0.1,0.93),
           strip.text.y =  element_blank()) +
     ylab("Sum of Maximum EAR Values"),
   class_plots[[14]]$chem_count +
@@ -217,7 +224,7 @@ plot_grid(
   class_plots[[15]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[15]]$no_axis +
-    theme(legend.position = c(0.15,0.84),
+    theme(legend.position = c(0.01,0.84),
           strip.text.y = element_text(size = 0.75*font_size)) +
     ylab(""),
   rel_widths = c(3,3,rep(c(1,3),4)),

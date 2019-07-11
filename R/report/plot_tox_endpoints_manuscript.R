@@ -94,19 +94,19 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
     mutate(site = NA,
            has_AOP = NA,
            meanEAR = NA,
-           column = "# Sites")
+           column = "Sites")
   
  nChem_df <- chem_ns %>%
     mutate(site = NA,
            has_AOP = NA,
            meanEAR = NA,
-           column = "# Chemicals")
+           column = "Chemicals")
  
   AOP_IDs <- AOP %>%
     filter(endPoint %in% nChem_df$endPoint) %>%
     group_by(endPoint) %>%
     summarize(AOP_ID = length(unique(ID))) %>%
-    mutate(column = "# AOPs",
+    mutate(column = "AOPs",
            site = NA,
            has_AOP = NA,
            meanEAR = NA)
@@ -115,10 +115,10 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
   
   graphData$endPoint <- factor(graphData$endPoint, levels = orderedLevelsEP)
   graphData$column <- factor(graphData$column, 
-                             levels = c("# Sites",
+                             levels = c("Sites",
                                         "",
-                                        "# Chemicals",
-                                        "# AOPs"))
+                                        "Chemicals",
+                                        "AOPs"))
   
   stackedPlot <- ggplot()+
     scale_y_log10(expression(EAR[mixture]),labels=toxEval:::fancyNumbers,breaks=pretty_logs_new) +
@@ -138,51 +138,55 @@ plot_tox_endpoints_manuscript <- function(chemicalSummary, AOP,
       scale_fill_manual(values = pallette) 
   }
   
-  if(!is.na(title)){
-    stackedPlot <- stackedPlot +
-      ggtitle(title)
-    
-    if(!is.na(font_size)){
-      stackedPlot <- stackedPlot +
-        theme(plot.title = element_text(size=font_size))
-    }
+  if(is.na(title)){
+    title <- "  "
   } 
+  
+  stackedPlot <- stackedPlot +
+      ggtitle(title)    
+  
+  if(!is.na(font_size)){
+    stackedPlot <- stackedPlot +
+      theme(plot.title = element_text(size=font_size))
+  }
   
   count_plot <- ggplot() +
     geom_text(aes(x=endPoint, y=1, label = nonZero),size=5*font_size/14,
-                 data = filter(graphData, column == "# Sites")) +
+                 data = filter(graphData, column == "Sites")) +
     theme_minimal() +
     theme(axis.text.y = element_text(vjust = .25,hjust=1),
           legend.position = "none",
-          axis.text.x = element_blank(),
+          axis.text.x = element_text(color = "white"),
           axis.title = element_blank(),
           panel.grid = element_blank(),
           plot.title = element_text(hjust = 0.5, size = font_size)) +
     coord_flip() +
-    ggtitle("# Sites")
+    ggtitle("Sites")
   
   chem_plot <- ggplot() +
     geom_text(aes(x=endPoint, y=1, label = nChems),size=5*font_size/14,
-            data = filter(graphData, column == "# Chemicals")) +
+            data = filter(graphData, column == "Chemicals")) +
     theme_minimal() +
-    theme(axis.text = element_blank(),
+    theme(axis.text.y = element_blank(),
+          axis.text.x = element_text(color = "white"),
           axis.title = element_blank(),
           panel.grid = element_blank(),
           plot.title = element_text(hjust = 0.5, size = font_size)) +
     coord_flip() +
-    ggtitle("# Chemicals")
+    ggtitle("Chemicals")
   
   aop_plot <- ggplot() +
     geom_text(aes(x=endPoint, y=1, label = AOP_ID),size=5*font_size/14,
-              data = filter(graphData, column == "# AOPs")) +
+              data = filter(graphData, column == "AOPs")) +
     theme_minimal() +
-    theme(axis.text = element_blank(),
+    theme(axis.text.y = element_blank(),
+          axis.text.x = element_text(color = "white"),
           axis.title = element_blank(),
           panel.grid = element_blank(),
           plot.title = element_text(hjust = 0.5, size = font_size)) +
     coord_flip() +
     scale_x_discrete(drop=FALSE) +
-    ggtitle("# AOPs")
+    ggtitle("AOPs")
   
   if(!is.na(font_size)){
     stackedPlot <- stackedPlot +

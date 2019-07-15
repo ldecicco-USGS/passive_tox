@@ -9,6 +9,26 @@ library(openxlsx)
 source("R/analyze/data_reader.R")
 loadd(cas_df)
 
+eps <- c("ATG_ERE_CIS_up","ATG_ERa_TRANS_up","TOX21_ERa_BLA_Agonist_ch1",
+         "TOX21_ERa_BLA_Agonist_ch2","TOX21_ERa_LUC_BG1_Agonist")
+
+tox_list = create_toxEval("data/clean/passive.xlsx")
+ACC <- get_ACC(tox_list$chem_info$CAS)
+
+all(eps %in% ACC$endPoint)
+
+cleaned_ep <- clean_endPoint_info(end_point_info)
+all(eps %in% cleaned_ep$assay_component_endpoint_name)
+
+cleaned_ep$intended_target_family[cleaned_ep$assay_component_endpoint_name %in% c("TOX21_ERa_BLA_Agonist_ch1","TOX21_ERa_BLA_Agonist_ch2")]
+cleaned_ep$intended_target_family[cleaned_ep$assay_component_endpoint_name %in% eps]
+
+filtered_ep <- filter_groups(cleaned_ep)
+all(eps %in% filtered_ep$endPoint)
+
+eps[!(eps %in% filtered_ep$endPoint)]
+eps[(eps %in% filtered_ep$endPoint)]
+
 YES_2014 = generic_file_opener("data/raw/YES_2014.xlsx",
                                cas_df,
                                n_max = 2, 
@@ -34,8 +54,6 @@ yes_info <- data.frame(CAS = 1,
 loadd(sites)
 loadd(chemicalSummary)
 
-eps <- c("ATG_ERE_CIS_up","ATG_Era_Trans_up","TOX21_Era_BLA_Agonist_ch1",
-         "TOX21_Era_BLA_Agonist_ch2","TOX21_Era_LUC_BG1_Agonis")
 
 chem_sum_eps <- dplyr::filter(chemicalSummary, endPoint %in% eps)
 
@@ -85,17 +103,20 @@ chem_sum_eps$chnm <- factor(as.character(chem_sum_eps$chnm),
                             levels = orderedLevels)
 
 n_fun <- function(x){
-  return(data.frame(y = -9,
+  return(data.frame(y = -10,
                     label = length(x)))
 }
 
-chem_contrib <- ggplot(chem_sum_eps, aes(x=chnm,  y=EAR)) +
-  geom_boxplot() +
+chem_contrib <- ggplot() +
+  geom_boxplot(data = chem_sum_eps, aes(x=chnm,  y=EAR)) +
   scale_y_continuous(trans = "log10") +
-  stat_summary(fun.data = n_fun, geom = "text", hjust = 0.5) +
-  coord_flip() +
+  stat_summary(data = chem_sum_eps, aes(x=chnm,  y=EAR),
+               fun.data = n_fun, geom = "text", hjust = 0.5) +
+  coord_flip(clip="off") +
   xlab("") +
-  ggtitle("EAR by chemical for ATG_ERE_CIS_up")
+  geom_text(aes(y = 1e-10, x = Inf, label = "Hi!"), 
+            vjust = -0.5) +
+  theme(plot.margin = margin(13, 5.5, 5.5, 5.5, "pt"))
 
 chem_contrib
 ggsave(chem_contrib, filename = "plots/yes_chems.png", width = 8, height = 6)

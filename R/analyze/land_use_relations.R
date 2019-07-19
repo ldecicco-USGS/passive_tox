@@ -110,18 +110,27 @@ p_Dev
 ####################################################################################
 ## Explore the endpoints 
 
-test <- filter(class_EP_summary,EAR_sum > 0.001)
+
+thresh <- 0.001
+class_EP_summary_thresh <- filter(class_EP_summary,EAR_sum > 0.001)
 length(unique(test$endPoint))
 
-EP_list <- unique(class_EP_summary$endPoint)
-for (i in 1:length()) {
-  
-  
-  ggplot(data = class_EP_summary,aes(x=EAR_sum,y=endPoint)) +
-    geom_boxplot() +
-    facet_wrap(~Class)
-  
+class_list <- unique(class_EP_summary_thresh$Class)
 
+filenm <- "endpoints_by_class.pdf"
+pdf()
+for (i in 1:length(class_list)) {
+  
+  plot_df <- filter(class_EP_summary_thresh,Class == class_list[i])
+    
+  p <- ggplot(data = plot_df,aes(x=EAR_sum,y=endPoint)) +
+    geom_boxplot() +
+    facet_wrap(~Class) +
+    scale_x_continuous(trans='log10')
+  print(p)
+}
+dev.off()
+shell.exec(filenm)
   # Graph EAR summaries vs land use
 # Compute EAR summaries by Class regardless of endpoint
 

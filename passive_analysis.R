@@ -26,7 +26,7 @@ data_analysis_plan <- drake_plan(
   benchmarks = tox_list$chem_data %>%
     select(CAS) %>%
     distinct() %>%
-    left_join(cas_final, by="CAS") %>%
+    left_join(select(cas_final, CAS, Class, chnm), by="CAS") %>%
     mutate(endPoint = "Concentration",
            Value = 1,
            groupCol = "Concentration") %>%
@@ -37,10 +37,10 @@ data_analysis_plan <- drake_plan(
     filter(!is.na(CAS)),
   graphData_tox = graph_chem_data_CAS(chemicalSummary) %>%
     mutate(guide_side = "ToxCast [EAR]") %>%
-    left_join(cas_final, by="CAS"),
+    left_join(select(cas_final, CAS, chnm), by="CAS"),
   graphData_conc = graph_chem_data_CAS(chemicalSummary_conc) %>%
     mutate(guide_side = "Concentration [\U003BCg/L]") %>%
-    left_join(cas_final, by="CAS"),
+    left_join(select(cas_final, CAS, chnm), by="CAS"),
   toxPlot_ear_conc = fancy_combo(graphData_tox,
                                  graphData_conc,
                                  tox_list),
@@ -48,17 +48,17 @@ data_analysis_plan <- drake_plan(
   chemicalSummary_tox_det = filter(chemicalSummary, EAR > 0),
   graphData_conc_det = graph_chem_data_CAS(chemicalSummary_conc_det) %>%
     mutate(guide_side = "Concentration [\U003BCg/L]") %>%
-    left_join(cas_final, by="CAS"),
+    left_join(select(cas_final, CAS, chnm), by="CAS"),
   graphData_tox_det = graph_chem_data_CAS(chemicalSummary_tox_det) %>%
     mutate(guide_side = "ToxCast [EAR]") %>%
-    left_join(cas_final, by="CAS"),
+    left_join(select(cas_final, CAS, chnm), by="CAS"),
   toxPlot_ear_conc_detects = fancy_combo(graphData_tox_det,
                                          graphData_conc_det,
                                          tox_list),
   chemicalSummary_conc_det_match = filter(chemicalSummary_conc_det, CAS %in% unique(graphData_tox_det$CAS)),
   graphData_conc_det_match = graph_chem_data_CAS(chemicalSummary_conc_det_match) %>%
     mutate(guide_side = "Concentration [\U003BCg/L]") %>%
-    left_join(cas_final, by="CAS"),
+    left_join(select(cas_final, CAS, chnm), by="CAS"),
   toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
                                          graphData_conc_det_match,
                                          tox_list),
@@ -91,7 +91,7 @@ vis_drake_graph(config, build_times = "none")
 make(data_analysis_plan)
 
 loadd(aop_graph)
-pdf("plots/AOP.pdf", width = 4.5, height = 4.5)
+pdf("plots/AOP_v3.pdf", width = 4.5, height = 4.5)
 ggarrange(
   aop_graph$count_plot, aop_graph$stackedPlot,
   aop_graph$chem_plot, aop_graph$aop_plot,nrow = 1,ncol = 4,

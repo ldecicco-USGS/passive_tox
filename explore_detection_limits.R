@@ -185,3 +185,5 @@ plot_DL <- plot_chemical_boxplots_mod(cs_det_level,
 ggsave(plot_DL, filename = "plots/detection_level_EARs.pdf", 
        width = 9, height = 11)
 
+graphDataDL <- graph_chem_data(cs_det_level) %>% 
+  arrange(desc(meanEAR))

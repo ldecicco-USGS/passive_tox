@@ -53,12 +53,14 @@ get_sites_ready <- function(file_2014_download, file_2010_download, sites_OWC){
   sites_orig_2014$SiteID[sites_orig_2014$SiteID == "40851385"] <- "040851385"
   
   sites_orig <- bind_rows(sites_orig_2014, sites_OWC)
+
   sites_orig <- sites_orig[sites_orig$SiteID != "000-----",]
   
   sites_orig_2010 <- readxl::read_excel(file_2010_download,
                                 sheet = "site info",
                                 skip = 2) %>%
     select(SiteID = `USGS Station ID`) %>%
+    mutate(SiteID = dataRetrieval::zeroPad(SiteID, 8)) %>%
     filter(!(SiteID %in% sites_orig$SiteID),
            !is.na(SiteID))
 
@@ -80,15 +82,6 @@ get_sites_ready <- function(file_2014_download, file_2010_download, sites_OWC){
 
   sites_ordered <- sites_ordered %>%
     arrange(site_grouping, `Short Name`)
-  
-  sites_ordered$map_nm <- substr(gsub("Lake ", "", sites_ordered$site_grouping),1,1)
-  
-  sites_ordered$map_nm <- paste0(sites_ordered$map_nm, 
-                                 c(1:sum(sites_ordered$map_nm == "S"),
-                                   1:sum(sites_ordered$map_nm == "M"),
-                                   1:sum(sites_ordered$map_nm == "H"),
-                                   1:sum(sites_ordered$map_nm == "E"),
-                                   1:sum(sites_ordered$map_nm == "O")))
   
   return(sites_ordered)
   

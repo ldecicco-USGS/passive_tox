@@ -9,9 +9,9 @@ get_chem_info <- function(all_data, chem_info_old){
   chem_data <-  all_data %>%
     select(SiteID, Date=`Sample Date`, CAS, Value, comment)
   
-  chem_info <- select(all_data, CAS, generic_class) %>%
+  chem_info <- select(all_data, CAS, generic_class, chnm) %>%
     distinct() %>%
-    left_join(select(chem_info_old, CAS, Class, chnm), by="CAS") %>%
+    left_join(distinct(select(chem_info_old, CAS, Class)), by="CAS") %>%
     filter(!is.na(CAS)) %>%
     distinct(CAS, .keep_all = TRUE) 
   

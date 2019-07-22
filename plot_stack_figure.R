@@ -11,9 +11,19 @@ source(file = "R/report/combo_plot2.R")
 color_map <- class_colors(tox_list)
 font_size <- 5
 
+upperPlot <- plot_tox_stacks_manuscript2(chemical_summary = chemicalSummary, 
+                                         chem_site = site_info, 
+                                         title=NA,cbValues = color_map,
+                                         font_size =  font_size, 
+                                         category = "Chemical Class")
+
+ggsave(upperPlot, filename = "plots/new_stack_v3.pdf", height = 8, width = 5)
+
 full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 
                          category = "Chemical Class")
+
+
 
 pdf("plots/stack_full.pdf", width = 5.5, height =7, onefile=FALSE)
 ggarrange(

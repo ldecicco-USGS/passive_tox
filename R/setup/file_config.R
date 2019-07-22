@@ -28,4 +28,7 @@ last_modified_exclude_id <- drive_get_datetime_modified(exclude_id)
 cas_change_id <- as_id("1NcsZ3sfB8SEGLO0dS3oCTRDPRUbHtWXJ")
 last_modified_cas_change_id <- drive_get_datetime_modified(cas_change_id)
 
+chem_name_id <- as_id("15Ph4jPBuLndJbUInLDu_FO8SrhnTpB0d7UDvOHouliY")
+last_modified_chem_name_id <- drive_get_datetime_modified(chem_name_id)
+
 

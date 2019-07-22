@@ -19,7 +19,7 @@ chemicalSummary_conc_no_match = chemicalSummary_conc %>%
 
 graphData_conc_no_match = graph_chem_data_CAS(chemicalSummary_conc_no_match) %>%
   mutate(guide_side = "Concentration [\U003BCg/L]") %>%
-  left_join(cas_final, by="CAS")
+  left_join(select(cas_final, CAS, chnm), by="CAS")
 
 full_classes <- c(levels(graphData_tox_det$Class),
                   levels(graphData_conc_no_match$Class)[!(levels(graphData_conc_no_match$Class) %in% levels(graphData_tox_det$Class))])
@@ -56,7 +56,7 @@ site_counts_df_no_match <- site_counts(tox_list$chem_data, no_axis_no_match$data
 site_graph_no_match <- site_count_plot(site_counts_df_no_match,
                                        axis_size = axis_num)
 
-pdf("plots/triple_graph_full_page.pdf", width = 9, height = 11, onefile=FALSE)
+pdf("plots/triple_graph_full_page_v3.pdf", width = 9, height = 11, onefile=FALSE)
 ggarrange(
   
   matches$site_graph,
@@ -79,7 +79,7 @@ library(cowplot)
 
 l2 <- get_legend(toxPlot_no_match)
 
-pdf("plots/triple_graph_cow.pdf", width = 9, height = 11, onefile=FALSE)
+pdf("plots/triple_graph_v3_new_names.pdf", width = 9, height = 11, onefile=FALSE)
 plot_grid(
   matches$site_graph,
   matches$no_axis,
@@ -94,7 +94,24 @@ plot_grid(
     nrow = 2, ncol = 1,
     rel_heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
   ),
-  rel_widths = c(2,4,4),
+  rel_widths = c(2.5,4,4),
   nrow=1,ncol=3
 )
+dev.off()
+
+loadd(chemicalSummary)
+
+pdf("plots/top_eps.pdf")
+for(i in rev(levels(chemicalSummary$chnm))[1:10]){
+  # add threshold!!!
+  ep_plot <- plot_tox_endpoints(chemicalSummary, 
+                                category = 'Chemical',
+                                mean_logic = FALSE,
+                                hit_threshold = NA,
+                                title = i,
+                                top_num = 10,
+                                filterBy = i)  
+  print(ep_plot)
+
+}
 dev.off()

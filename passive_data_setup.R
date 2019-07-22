@@ -54,10 +54,6 @@ data_setup_plan <- drake_plan(
                                                     time_stamp = last_modified_cas_change_id),
                         trigger = trigger(change = last_modified_cas_change_id)), 
   cas_change = readxl::read_xlsx(cas_change_download),
-  cas_df = all_cas(cas_download),
-  clean_cas_df = clean_cas(cas_df),
-  clean_cas_fixed = fix_cas(clean_cas_df, cas_change),
-  
   AOP_crosswalk = target(command = drive_download_gd(AOP_update_id,
                                                            path = file_out("data/raw/AOP_crosswalk.csv"),
                                                            time_stamp = last_modified_AOP),
@@ -135,10 +131,15 @@ data_setup_plan <- drake_plan(
                         WW_2014,
                         OC_2014,
                         PAHs_2014) ,
-  chem_info = get_chem_info(all_data, chem_info_old),
-  all_data_fixed_cas = fix_cas(all_data, cas_change),
+  cas_df = all_cas(cas_download),
+  clean_cas_df = clean_cas(cas_df),
+  clean_cas_fixed = fix_cas(clean_cas_df, cas_change),
+  all_data_chnm = clean_names(all_data),
+  all_data_fixed_cas = fix_cas(all_data_chnm, cas_change),
+  chem_info = get_chem_info(all_data_fixed_cas, chem_info_old),
   chem_info_fixed_cas = fix_cas(chem_info, cas_change),
   saveRDS(object = chem_info_fixed_cas, file = file_out("data/clean/cas_df.rds")),
+  
   sites = get_sites_ready(file_2014_download, file_2010_download, sites_OWC),
   tox_list_init = create_tox_object(all_data_fixed_cas, chem_info_fixed_cas, sites, exclude),
   saveOutput = openxlsx::write.xlsx(tox_list_init, file = file_out("data/clean/passive.xlsx"))

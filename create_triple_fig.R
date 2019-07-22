@@ -88,13 +88,13 @@ plot_grid(
       site_graph_no_match, 
       no_axis_no_match,
       ncol = 2,
-      rel_widths = c(1.75,2)
+      rel_widths = c(2,2)
     ),
     l2,
     nrow = 2, ncol = 1,
     rel_heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
   ),
-  rel_widths = c(2.5,4,4),
+  rel_widths = c(3,4,5.5),
   nrow=1,ncol=3
 )
 dev.off()

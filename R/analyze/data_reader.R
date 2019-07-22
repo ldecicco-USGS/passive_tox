@@ -89,8 +89,6 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
   # Premature taking out censored values?
   data_long <- filter(data_long,
                       !(is.na(Value) & comment == ""))
-  # data_long <- filter(data_long,
-  #                     !(is.na(Value)))
   
   data_long <- data_long %>%
     mutate(chnm = tolower(chnm)) %>%
@@ -107,26 +105,6 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
     filter(!is.na(chnm),
            CAS != "---" | is.na(CAS),
            CAS != "-" | is.na(CAS))
-  
-  ignore_totals <- c("Total PCBs","Total Pcbs in Mg/l","Total Oc Pesticides")
-  data_long <- data_long[!(data_long$chnm %in% ignore_totals),]
-  
-  data_long$CAS[data_long$chnm == "Buproprion"] <- "34841-39-9"
-  data_long$CAS[data_long$chnm == "Nadolol"] <- "42200-33-9"
-  data_long$chnm[data_long$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"
-  data_long$CAS[data_long$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
-  data_long$CAS[data_long$CAS == "26248-87-3"] <- "13674-84-5" #2 versions of TDCPP
-  data_long$CAS[data_long$chnm == "TCEP"] <- "115-96-8"
-  data_long$CAS[data_long$chnm == "Tri(2-chloroethyl) phosphate (TCEP)"] <- "115-96-8"
-  # data_long$CAS[data_long$CAS == "51805-45-9"] <- "115-96-8"
-  data_long$chnm[data_long$CAS == "101-20-2"] <- "3,4,4'-Trichlorocarbanilide"
-  data_long$chnm[data_long$CAS == "115-96-8"] <- "Tri(2-chloroethyl) phosphate (TCEP)"
-  
-  data_long <- data_long[!(data_long$chnm %in% c("Tcpp_isomer","Tcpp Isomer")),]
-  
-  data_long$CAS[data_long$chnm == "Omeprazole + Esomprazole"] <- "73590-58-6"
-  data_long$chnm[data_long$CAS == "73590-58-6"] <- "Omeprazole + Esomprazole"
-  
   
   if(any(is.na(data_long$CAS))){
     message("Some CAS didn't match up")
@@ -160,28 +138,50 @@ all_cas <- function(file_cas="raw/cas.xlsx"){
   last_row <- nrow(cas_data_cleaned)
   cas_data_cleaned[last_row+1,] <- c("dl-menthol","89-78-1")
   
-  
   return(cas_data_cleaned)
 }
 
-clean_cas <- function(cas_df){
+clean_names <- function(cas_df){
   
   cas_final =  cas_df %>%
-    filter(!duplicated(CAS)) %>%
     mutate(chnm = tools::toTitleCase(chnm))
   
+  cas_final$CAS[cas_final$chnm == "Buproprion"] <- "34841-39-9"
+  cas_final$CAS[cas_final$chnm == "Nadolol"] <- "42200-33-9"
+  
+  cas_final$CAS[cas_final$chnm == "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)"] <- "13674-87-8"
+  cas_final$CAS[cas_final$CAS == "26248-87-3"] <- "13674-84-5" #2 versions of TDCPP
+  # cas_final$CAS[cas_final$chnm == "TCEP"] <- "115-96-8"
+  cas_final$CAS[cas_final$chnm == "Tri(2-chloroethyl) phosphate (TCEP)"] <- "115-96-8"
+  cas_final$CAS[cas_final$chnm == "Omeprazole + Esomprazole"] <- "73590-58-6"
+  cas_final$CAS[cas_final$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "13674-87-8"
+  
+  ignore_totals <- c("Total PCBs","Total Pcbs in Mg/l","Total Oc Pesticides")
+  cas_final <- cas_final[!(cas_final$chnm %in% ignore_totals),]
+  cas_final <- cas_final[!(cas_final$chnm %in% c("Tcpp_isomer","Tcpp Isomer")),]
+  
+  cas_final$chnm[cas_final$CAS == "73590-58-6"] <- "Omeprazole + Esomprazole"
+  cas_final$chnm[cas_final$CAS == "101-20-2"] <- "3,4,4'-Trichlorocarbanilide"
+  cas_final$chnm[cas_final$CAS == "115-96-8"] <- "Tri(2-chloroethyl) phosphate (TCEP)"
+  cas_final$chnm[cas_final$chnm == "Triethyl Phosphate (Tep)"] <- "Triethyl Phosphate (TEP)"
   cas_final$chnm[cas_final$chnm == "Deet"] <- "N,N-diethyltoluamide (DEET)"
-  cas_final$chnm[cas_final$chnm == "Tcep"] <- "Tri(2-chloroethyl) phosphate (TCEP)"
-  # cas_final$CAS[cas_final$chnm == "Tri(2-chloroethyl) phosphate (TCEP)"] <- "115-96-8"
+  cas_final$chnm[cas_final$chnm == "N,n-Diethyltoluamide (Deet)"] <- "N,N-diethyltoluamide (DEET)"
+  cas_final$chnm[cas_final$chnm =="Diethylhexylphthalate (Dehp)"] <- "Diethylhexylphthalate (DEHP)"
+  cas_final$chnm[cas_final$chnm == "Tris(2-Ethylhexyl)Phosphate (Tehp)"] <- "Tris(2-Ethylhexyl)Phosphate (TEHP)"
+  cas_final$chnm[cas_final$chnm == "Triphenyl Phosphate (Tpp)"] <- "Triphenyl Phosphate (TPP)"
+  cas_final$chnm[cas_final$CAS == "51805-45-9"] <- "Tris(2-carboxyethyl)phosphine hydrochloride"
+  cas_final$chnm[cas_final$chnm == "Tris(1-Chloro-2-Propyl)Phosphate (Tcpp)"] <- "Tris(1-chloro-2-propyl)phosphate (TCPP)"
+  cas_final$chnm[cas_final$chnm == "Tris(2-Butoxyethyl)Phosphate (Tbep)"] <- "Tris(2-Butoxyethyl)Phosphate (TBEP)"
   cas_final$chnm[cas_final$chnm == "Tcpp"] <- "Tris(1-chloro-2-propyl)phosphate (TCPP)"
-  cas_final$chnm[cas_final$chnm == "Tbep"] <- "Tri(2-chloroethyl) phosphate (TCEP)"
+  cas_final$chnm[cas_final$chnm == "Tbep"] <- "Tris(2-Butoxyethyl)Phosphate (TBEP)"
   cas_final$chnm[cas_final$chnm == "Tdcpp"] <- "Tris(1,3-dichloro-2-propyl) phosphate (TDCPP)"
+  cas_final$chnm[cas_final$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "Tris(1,3-dichloro-2-propyl) phosphate (TDCPP)"
   cas_final$chnm[cas_final$chnm == "Total Pcbs"] <- "Total PCBs"
   cas_final$chnm[cas_final$chnm == "O,p'-Ddd"] <- "o,p'-DDD"
   cas_final$chnm[cas_final$chnm == "P,p'-Ddd"] <- "p,p'-DDD"
-  cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "Pentachloroanisole"
+  cas_final$chnm[cas_final$chnm == "Pentachloroanisole (Pca)"] <- "Pentachloroanisole (PCA)"
   cas_final$chnm[cas_final$chnm == "Tributyl Phosphate (Tbp)"] <- "Tributyl phosphate (TBP)"
-  cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "Hydrochlorothiazide"
+  cas_final$chnm[cas_final$chnm == "Hydrochlorothiazide (Hctz)"] <- "Hydrochlorothiazide (HCTZ)"
   cas_final$chnm[cas_final$chnm == "O,p'-Ddt"] <- "o,p'-DDT"
   cas_final$chnm[cas_final$chnm == "O,p'-Ddt"] <- "o,p'-DDT"
   cas_final$chnm[cas_final$chnm == "P,p'-Dde"] <- "p,p'-DDE"
@@ -196,29 +196,45 @@ clean_cas <- function(cas_df){
   cas_final$chnm[cas_final$chnm == "Dibenzo[a,h]anthracene"] <- "Dibenz[a,h]anthracene"
   cas_final$chnm[cas_final$chnm == "p-Tert-Octylphenol"] <- "p-tert-octylphenol"
   cas_final$chnm[cas_final$CAS =="26248-87-3"] <- "Tri(chloropropyl) phosphate"
-  cas_final$chnm[cas_final$chnm == "Hexachlorobenzene (Hcb)"] <- "Hexachlorobenzene"
+  cas_final$chnm[cas_final$chnm == "Hexachlorobenzene (Hcb)"] <- "Hexachlorobenzene (HCB"
   cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate "
   cas_final$chnm[cas_final$CAS == "30306-93-5"] <- "Ethyl Citrate"
   cas_final$chnm[cas_final$CAS == "101-20-2"] <- "3,4,4'-Trichlorocarbanilide"
   cas_final$chnm[cas_final$CAS == "73590-58-6"] <- "Omeprazole + Esomprazole"
   cas_final$chnm[grep("Cis-", cas_final$chnm)] <- gsub(pattern = "Cis-",
-                                                        replacement = "cis-",
-                                                        cas_final$chnm[grep("Cis-", cas_final$chnm)])
+                                                       replacement = "cis-",
+                                                       cas_final$chnm[grep("Cis-", cas_final$chnm)])
   cas_final$chnm[grep("Trans-", cas_final$chnm)] <- gsub(pattern = "Trans-",
-                                                       replacement = "trans-",
-                                                       cas_final$chnm[grep("Trans-", cas_final$chnm)])
+                                                         replacement = "trans-",
+                                                         cas_final$chnm[grep("Trans-", cas_final$chnm)])
   
   cas_final$chnm[grep("Pbde-", cas_final$chnm)] <- gsub(pattern = "Pbde-",
                                                         replacement = "PBDE-",
                                                         cas_final$chnm[grep("Pbde-", cas_final$chnm)])
-  cas_final <- rbind(cas_final, data.frame(CAS="34841-39-9",
-                                           chnm="Bupropion",
+  if(!("34841-39-9" %in% cas_final$CAS)){
+    cas_final <- dplyr::bind_rows(cas_final, data.frame(CAS="34841-39-9",
+                                           chnm="Buproprion",
                                            stringsAsFactors = FALSE))
+  }
+  
   cas_final$chnm[cas_final$CAS == "34911-55-2"] <- "Bupropion hydrochloride"
   
-  cas_final$chnm[grep(pattern = "Delta-Benzenehexachloride",cas_final$chnm)] <- "Delta-Benzenehexachloride"
-  cas_final$chnm[grep(pattern = "Beta-Benzenehexachloride",cas_final$chnm)] <- "Beta-Benzenehexachloride"
-  cas_final$chnm[grep(pattern = "Alpha-Benzenehexachloride", cas_final$chnm)] <- "Alpha-Benzenehexachloride"
+  # cas_final$chnm[grep(pattern = "Delta-Benzenehexachloride",cas_final$chnm)] <- "Delta-Benzenehexachloride"
+  # cas_final$chnm[grep(pattern = "Beta-Benzenehexachloride",cas_final$chnm)] <- "Beta-Benzenehexachloride"
+  # cas_final$chnm[grep(pattern = "Alpha-Benzenehexachloride", cas_final$chnm)] <- "Alpha-Benzenehexachloride"
+  # 
+    
+
+  return(cas_final)
   
+}
+
+clean_cas <- function(cas_df){
+  
+  cas_final =  cas_df %>%
+    filter(!duplicated(CAS)) 
+  
+  cas_final <- clean_names(cas_final)
+
   return(cas_final)
 }

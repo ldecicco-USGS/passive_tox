@@ -88,30 +88,18 @@ plot_grid(
       site_graph_no_match, 
       no_axis_no_match,
       ncol = 2,
-      rel_widths = c(2,2)
+      rel_widths = c(2.25,3)
     ),
-    l2,
+    plot_grid(
+      l2,
+      NULL,
+      ncol=1
+    ),
     nrow = 2, ncol = 1,
     rel_heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
   ),
-  rel_widths = c(3,4,5.5),
+  rel_widths = c(2.75,4,5),
   nrow=1,ncol=3
 )
 dev.off()
 
-loadd(chemicalSummary)
-
-pdf("plots/top_eps.pdf")
-for(i in rev(levels(chemicalSummary$chnm))[1:10]){
-  # add threshold!!!
-  ep_plot <- plot_tox_endpoints(chemicalSummary, 
-                                category = 'Chemical',
-                                mean_logic = FALSE,
-                                hit_threshold = NA,
-                                title = i,
-                                top_num = 10,
-                                filterBy = i)  
-  print(ep_plot)
-
-}
-dev.off()

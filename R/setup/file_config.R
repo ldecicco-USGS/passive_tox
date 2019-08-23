@@ -13,7 +13,7 @@ last_modified_general_2014 <- drive_get_datetime_modified(general_2014_id)
 general_2010_id <- as_id("1rPyoFx5HKteOJJL284ZYGVkPJ_c7By3i")
 last_modified_general_2010 <- drive_get_datetime_modified(general_2010_id)
 
-cas_id <- as_id("14PqaeFZYPpAmVuaDPvsBEsumYriJ2nsW")
+cas_id <- as_id("1koO-feY-a7jf3tCoginKJR_-Mv-j5sQM")
 last_modified_cas_id <- drive_get_datetime_modified(cas_id)
 
 site_id <- as_id("1nxaBE2P92cFH3qzqFUSnNvYeCnkA12Kv")
@@ -24,3 +24,11 @@ last_modified_class_id <- drive_get_datetime_modified(class_id)
 
 exclude_id <- as_id("1XOOD1ddaya8tz_SYTGtC_ef5RCrXBINg")
 last_modified_exclude_id <- drive_get_datetime_modified(exclude_id)
+
+cas_change_id <- as_id("1NcsZ3sfB8SEGLO0dS3oCTRDPRUbHtWXJ")
+last_modified_cas_change_id <- drive_get_datetime_modified(cas_change_id)
+
+chem_name_id <- as_id("15Ph4jPBuLndJbUInLDu_FO8SrhnTpB0d7UDvOHouliY")
+last_modified_chem_name_id <- drive_get_datetime_modified(chem_name_id)
+
+

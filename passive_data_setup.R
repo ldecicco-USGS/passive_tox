@@ -6,6 +6,8 @@ library(data.table)
 library(toxEval)
 library(openxlsx)
 
+options(drake_make_menu = FALSE)
+
 dir.create("data", showWarnings = FALSE)
 dir.create("plots", showWarnings = FALSE)
 dir.create(file.path("data","raw"), showWarnings = FALSE)
@@ -21,14 +23,16 @@ source("R/analyze/get_chem_info.R")
 source("R/analyze/create_tox_file.R")
 
 pkgconfig::set_config("drake::strings_in_dots" = "literals")
-file_out_data <- file.path("data","clean","passive.xlsx")
 
 data_setup_plan <- drake_plan(
-
   pharm_2014_download = target(command = drive_download_gd(pharm_update_id,
                                               path = file_out("data/raw/pharm_update.xlsx"),
                                               time_stamp = last_modified_pharm),
                         trigger = trigger(change = last_modified_pharm)),
+  chem_change_download = target(command = drive_download_gd(chem_name_id,
+                                                           path = file_out("data/raw/chem_names.xlsx"),
+                                                           time_stamp = last_modified_chem_name_id),
+                               trigger = trigger(change = last_modified_pharm)),
   file_2014_download = target(command = drive_download_gd(general_2014_id,
                                                       path = file_out("data/raw/general_2014.xlsx"),
                                                       time_stamp = last_modified_general_2014),
@@ -44,8 +48,12 @@ data_setup_plan <- drake_plan(
   cas_download = target(command = drive_download_gd(cas_id,
                                                           path = file_out("data/raw/cas.xlsx"),
                                                           time_stamp = last_modified_cas_id),
-                              trigger = trigger(change = last_modified_cas_id)),  
-  cas_df = all_cas(cas_download),
+                              trigger = trigger(change = last_modified_cas_id)), 
+  cas_change_download = target(command = drive_download_gd(cas_change_id,
+                                                    path = file_out("data/raw/cas_change.xlsx"),
+                                                    time_stamp = last_modified_cas_change_id),
+                        trigger = trigger(change = last_modified_cas_change_id)), 
+  cas_change = readxl::read_xlsx(cas_change_download),
   AOP_crosswalk = target(command = drive_download_gd(AOP_update_id,
                                                            path = file_out("data/raw/AOP_crosswalk.csv"),
                                                            time_stamp = last_modified_AOP),
@@ -62,55 +70,54 @@ data_setup_plan <- drake_plan(
                                                       path = file_out("data/raw/chem_classes.csv"),
                                                       time_stamp = last_modified_class_id),
                           trigger = trigger(change = last_modified_class_id)),  
-  chem_info_old = read.csv(class_download, stringsAsFactors = FALSE),
-  chem_info = get_chem_info(all_data, chem_info_old),
+  chem_info_old = read.csv(file_in("data/raw/chem_classes.csv"), stringsAsFactors = FALSE),
   exclude_download = target(command = drive_download_gd(exclude_id,
                                                         path = file_out("data/raw/exclude.csv"),
                                                         time_stamp = last_modified_exclude_id),
                             trigger = trigger(change = last_modified_exclude_id)),  
-  exclude = get_exclude(exclude_download),
-  OC_2014 = generic_file_opener(file_2014_download, cas_df,
+  exclude = get_exclude(file_in("data/raw/exclude.csv")),
+  OC_2014 = generic_file_opener(file_in("data/raw/general_2014.xlsx"), cas_df,
                                  n_max = 45, 
                                  sheet = "OC-PCB-PBDE",
                                  site_sheet = "site info",
                                  year = 2014),
-  PAHs_2014 = generic_file_opener(file_2014_download, cas_df,
+  PAHs_2014 = generic_file_opener(file_in("data/raw/general_2014.xlsx"), cas_df,
                                    n_max = 33, 
                                    sheet = "PAHs",
                                    site_sheet = "site info",
                                    year = 2014),
-  pharm_2014 = generic_file_opener(pharm_2014_download, cas_df,
+  pharm_2014 = generic_file_opener(file_in("data/raw/pharm_update.xlsx"), cas_df,
                                     n_max = 41, 
                                     sheet = "est water concentrations",
                                     site_sheet = "PrioritySiteInfo",
                                     year = 2014,
                                     skip = 7, skip_site = 2),
-  PAHs_2010 = generic_file_opener(file_2010_download, cas_df, 
+  PAHs_2010 = generic_file_opener(file_in("data/raw/general_2010.xlsx"), cas_df, 
                                    n_max = 33,
                                    sheet = "PAHs",
                                    site_sheet = "site info",
                                    year = 2010,
                                    skip_site = 2),
-  OC_2010 = generic_file_opener(file_2010_download, cas_df,
+  OC_2010 = generic_file_opener(file_in("data/raw/general_2010.xlsx"), cas_df,
                                  n_max = 40, 
                                  sheet = "OC-PCB-PBDE",
                                  site_sheet = "site info",
                                  year = 2010,
                                  skip_site = 2),
-  WW_2010 = generic_file_opener(file_2010_download, cas_df, 
+  WW_2010 = generic_file_opener(file_in("data/raw/general_2010.xlsx"), cas_df, 
                                  n_max = 53, 
                                  sheet = "WW",
                                  site_sheet = "site info",
                                  year = 2010,
                                  skip_site = 2),
-  WW_2014 = generic_file_opener(WW_2014_download, cas_df, 
+  WW_2014 = generic_file_opener(file_in("data/raw/ww_update.xlsx"), cas_df, 
                                  n_max = 46, 
                                  sheet = "est water concentrations",
                                  site_sheet = "PrioritySiteInfo",
                                  year = 2014,
                                  skip = 7,
                                  skip_site = 2),
-  pharm_2010 = generic_file_opener(file_2010_download, cas_df,
+  pharm_2010 = generic_file_opener(file_in("data/raw/general_2010.xlsx"), cas_df,
                                     n_max = 44, 
                                     sheet = "pharms",
                                     site_sheet = "site info",
@@ -124,13 +131,23 @@ data_setup_plan <- drake_plan(
                         WW_2014,
                         OC_2014,
                         PAHs_2014) ,
+  cas_df = all_cas(cas_download),
+  clean_cas_df = clean_cas(cas_df),
+  clean_cas_fixed = fix_cas(clean_cas_df, cas_change),
+  all_data_chnm = clean_names(all_data),
+  all_data_fixed_cas = fix_cas(all_data_chnm, cas_change),
+  chem_info = get_chem_info(all_data_fixed_cas, chem_info_old),
+  chem_info_fixed_cas = fix_cas(chem_info, cas_change),
+  saveRDS(object = chem_info_fixed_cas, file = file_out("data/clean/cas_df.rds")),
+  
   sites = get_sites_ready(file_2014_download, file_2010_download, sites_OWC),
-  tox_list = create_tox_object(all_data, chem_info, sites, exclude),
-  openxlsx::write.xlsx(tox_list, file = file_out(file_out_data), append=TRUE)
+  tox_list_init = create_tox_object(all_data_fixed_cas, chem_info_fixed_cas, sites, exclude),
+  saveOutput = openxlsx::write.xlsx(tox_list_init, file = file_out("data/clean/passive.xlsx"))
   
 )
 
 make(data_setup_plan)
+
 
 config <- drake_config(data_setup_plan)
 vis_drake_graph(config, build_times = "none")

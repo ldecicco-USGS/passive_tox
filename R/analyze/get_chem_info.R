@@ -1,19 +1,61 @@
 get_chem_info <- function(all_data, chem_info_old){
   
-  chem_data <- all_data %>%
-    select(SiteID, `Sample Date`, CAS, Value, comment)
+  all_data <- all_data %>%
+    filter(!(chnm %in% c("Tcpp Isomer","Tcpp_isomer")),
+           !(chnm == "Chlorpyrifos" & generic_class == "WW"),
+           !(chnm == "Caffeine" & generic_class == "WW"),
+           !(chnm == "Cotinine" & generic_class == "WW"))
   
-  chem_info <- select(all_data, CAS, generic_class) %>%
+  chem_data <-  all_data %>%
+    select(SiteID, Date=`Sample Date`, CAS, Value, comment)
+  
+  chem_info <- select(all_data, CAS, generic_class, chnm) %>%
     distinct() %>%
-    left_join(chem_info_old, by="CAS")
+    left_join(distinct(select(chem_info_old, CAS, Class)), by="CAS") %>%
+    filter(!is.na(CAS)) %>%
+    distinct(CAS, .keep_all = TRUE) 
   
   chem_info$Class[is.na(chem_info$Class)] <- chem_info$generic_class[is.na(chem_info$Class)]
   chem_info$Class[chem_info$Class == "pharms"] <- "Pharmaceuticals"
+  chem_info <- select(chem_info, -generic_class)
   
-  chem_info <- chem_info[!duplicated(chem_info$CAS),]
-  chem_info <- left_join(chem_info, select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
+  sites_with_detections <- chem_data %>%
+    group_by(CAS) %>%
+    summarise(n_sites = length(unique(SiteID[Value != 0])))
   
-  return(chem_info)
+  #DLs:
+  dls <- select(all_data, CAS, generic_class, MDL, MQL, Date = `Sample Date`, DL, RL) %>%
+    distinct() 
+  
+  dls$MDL[is.na(dls$MDL)] <- dls$DL[is.na(dls$MDL)]
+  dls$MQL[is.na(dls$MQL)] <- dls$RL[is.na(dls$MQL)]
+  
+  dls$MDL[dls$generic_class == "WW"] <- dls$MDL[dls$generic_class == "WW"]/1000
+  dls$MQL[dls$generic_class == "WW"] <- dls$MQL[dls$generic_class == "WW"]/1000
+  dls$MDL[dls$generic_class == "pharms"] <- dls$MDL[dls$generic_class == "pharms"]/1000
+  dls$MQL[dls$generic_class == "pharms"] <- dls$MQL[dls$generic_class == "pharms"]/1000
+  dls$MDL[dls$generic_class %in% c("OC-PCB-PBDE","PAHs")] <- dls$MDL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")]/1000000
+  dls$MQL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")] <- dls$MQL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")]/1000000
+  
+  x <- dls %>%
+    dplyr::select(-DL, -RL) %>%
+    tidyr::gather(variable, value, -Date, -CAS, -generic_class) %>%
+    tidyr::unite(temp, Date, variable) %>%
+    tidyr::spread(temp, value) %>%
+    dplyr::select(-generic_class) %>% 
+    select(-`2014.5_MDL`, -`2014.5_MQL`)
+  
+  x$`2014_MQL`[x$CAS == "1912-24-9"] <- x$`2014_MQL`[x$CAS == "1912-24-9"][!is.na(x$`2014_MQL`[x$CAS == "1912-24-9"])]
+  
+  x <- x[-duplicated(x$CAS),]
+  
+  chem_info_more <- chem_info %>%
+    left_join(sites_with_detections, by="CAS") %>%
+    left_join(x, by="CAS")
+  
+  chem_info_more <- chem_info_more[!duplicated(chem_info_more$CAS, fromLast = TRUE),]
+  
+  return(chem_info_more)
 }
 
 get_exclude <- function(exclude_download){
@@ -21,4 +63,21 @@ get_exclude <- function(exclude_download){
   exclude <- left_join(exclude, select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
   exclude <- select(exclude, CAS, endPoint, chnm, everything(), -X)
   return(exclude)
+}
+
+
+fix_cas <- function(df, cas_change){
+  
+  cas_change_clean <- cas_change %>%
+    select(CAS = `Original CAS`, new_CAS = `CAS to update in analytical data`) %>%
+    filter(!is.na(CAS))
+  
+  df_fixed <- df %>%
+    left_join(cas_change_clean, by="CAS")
+  
+  df_fixed$CAS[!is.na(df_fixed$new_CAS)] <- df_fixed$new_CAS[!is.na(df_fixed$new_CAS)]
+  
+  df_fixed <- select(df_fixed, -new_CAS)
+
+  return(df_fixed)  
 }

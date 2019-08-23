@@ -1,0 +1,382 @@
+---
+title: "Explore Mixtures"
+output:
+  word_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 7,
+                      fig.height = 7)
+
+library(tidyverse)
+library(rpart)
+library(party)
+library(partykit)
+library(rpartScore)
+library(readxl)
+library(flextable)
+source("R/mixtures/mix_script.R")
+drake::loadd(chemicalSummary)
+
+EARsum_endpoint <- sum_endpoints(chemicalSummary)
+
+contributing_chems <- calc_contr_chems(EARsum_endpoint)
+
+df_lu <- read_xlsx(path = file.path("data",
+                                    "raw",
+                                    "GLRItox_summary.xlsx"),
+                           sheet = 1, skip=1) %>% 
+    rename(site = STAID, 
+           Urban = `Urban (%)...6`, 
+           Parking_lot = `Parking Lot (%)`,
+           Agriculture = `Agriculture (%)...7`) %>% 
+    mutate(Developed = Urban + Agriculture)
+
+names(df_lu) <- gsub(pattern = " \\(\\%\\)",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "\\...",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = ", ",
+                     replacement = "_",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "/",
+                     replacement = "_",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = " ",
+                     replacement = "_",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "\\[",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "]",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "-",
+                     replacement = "_",
+                     names(df_lu))
+
+
+chm_key <- contributing_chems %>% 
+    select(contr_chems) %>% 
+    distinct() %>% 
+    left_join(unique(select(contributing_chems,
+                            contr_chems,
+                            contr_chems_lt)), 
+              by="contr_chems")
+
+n_sample_thresh <- 10
+
+top_mixes <- contributing_chems %>% 
+    group_by(contr_chems, endPoint) %>% 
+    summarise(n_samples = n()) %>% 
+    filter(n_samples > {{n_sample_thresh}}) %>% 
+    arrange(desc(n_samples)) %>% 
+    left_join(chm_key, by="contr_chems") %>% 
+    mutate(contr_chems_st =
+             paste(unique(unlist(contr_chems_lt)),
+                   collapse = ","))
+
+mix_graph_data <- data.frame()
+
+for(i in 1:nrow(top_mixes)){
+    
+    chem <- top_mixes$contr_chems_lt[i]
+    endpoint <- top_mixes$endPoint[i]
+    
+    mix_EAR_sum <- chemicalSummary %>%
+        mutate(chnm = as.character(chnm)) %>% 
+        filter(chnm %in% unlist(chem),
+               endPoint == endpoint) %>% 
+        group_by(site, date, endPoint) %>% 
+        summarise(sumEAR = sum(EAR)) %>%
+        group_by(site, endPoint) %>% 
+        summarize(maxSumEAR = max(sumEAR)) %>% 
+        mutate(mix_st = paste(unlist(chem),
+                              collapse = ","),
+               mix = list(unlist(chem)))
+    
+    mix_graph_data <- bind_rows(mix_graph_data,
+                                mix_EAR_sum)
+}
+
+mix_graph_data_lu <- mix_graph_data %>% 
+    left_join(df_lu, by = "site") %>% 
+    mutate(thresh = maxSumEAR > 0.001)
+
+```
+
+# Overview
+
+```{r regularBP}
+n_fun <- function(x){
+  return(data.frame(y = 0,
+                    label = length(x)))
+}
+
+mix_graph_data_lu$facet <-
+  paste(mix_graph_data_lu$mix_st,
+        mix_graph_data_lu$endPoint,
+        sep = "\n")
+
+urban <- ggplot(data = mix_graph_data_lu,
+                aes(x = thresh, y = Urban)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(color = "grey50", alpha = 0.4) +
+    stat_summary(fun.data = n_fun,
+                 geom = "text", hjust = 0.5) +
+    facet_wrap(. ~ facet, ncol = 4) +
+    theme_bw() +
+    theme(strip.text = element_text(size = 8)) +
+    xlab("EAR > 0.001")
+urban
+
+```
+
+```{r party1, eval=FALSE}
+mix_graph_data_lu$mixture_id <- as.integer(as.factor(mix_graph_data_lu$facet))
+
+form <- formula("maxSumEAR ~ Urban + Agriculture + mixture_id")
+
+tree_1 <- rpart(formula = form,
+                data = mix_graph_data_lu,
+                control = rpart.control(minsplit = 40,
+                                        minbucket = 40,
+                                        cp = 0.001))
+
+tree_1.Prune <- prune(tree_1,
+                      cp=tree_1$cptable[
+                          which.min(tree_1$cptable[, "xerror"]), "CP"])
+
+plot(as.party(tree_1.Prune),
+     tp_args = list(id = FALSE),
+     main = "Top mixtures combined")
+
+```
+
+# Trees by Urban/Ag
+
+```{r party2, results="asis"}
+mix_graph_data_lu$mixture_id <-
+  as.integer(as.factor(mix_graph_data_lu$facet))
+
+form <- formula("maxSumEAR ~ Urban + Agriculture")
+
+for(i in seq_len(nrow(top_mixes))){
+    
+    mixture <- top_mixes$contr_chems_st[i]
+    endpoint <- top_mixes$endPoint[i]
+    
+    cat('\n##', mixture, '\n')
+    
+    sub_df <- 
+        mix_graph_data_lu %>% 
+        filter(mix_st == mixture) %>% 
+        select(-mix)
+    
+    tree_2 <- rpart(formula = form,
+                    data = sub_df,
+                    control = rpart.control(minsplit = 10,
+                                            minbucket = 10,
+                                            cp = 0.001))
+    
+    tree_2.Prune <- prune(tree_2,
+                          cp = tree_2$cptable[
+                              which.min(tree_2$cptable[,"xerror"]), "CP"])
+    
+    plot(as.party(tree_2.Prune),
+         tp_args = list(id=FALSE),
+         main = paste(endpoint,
+                      paste("Mixture ID:",
+                            unique(sub_df$mixture_id)),
+                            sep = "\n"))
+    cat("\n")
+
+}
+
+```
+
+# Trees by more complicated land use options
+
+Variables available:
+
+```{r table_of_categories}
+
+not_all_na <- function(x) any(!is.na(x))
+
+df_lu <- 
+    df_lu %>% 
+    select_if(not_all_na)
+
+df <- data.frame(a = names(df_lu)[1:20],
+                 b = names(df_lu)[21:40],
+                 c = c(names(df_lu)[41:53], rep(NA, 7)),
+                 stringsAsFactors = FALSE)
+
+autofit(flextable(df))
+
+```
+
+Variables included:
+
+```{r moreLandUse, results="asis"}
+
+not_all_na <- function(x) any(!is.na(x))
+
+mix_graph_data_lu <- 
+  mix_graph_data_lu %>%
+  select_if(not_all_na) %>% 
+  distinct()
+
+variables_to_use <- names(mix_graph_data_lu)[9:37]
+
+exclude_cols <- c("Urban9","Other8",
+                  "Agriculture10","Other11",
+                  "Impervious_Area13", "Water14",
+                  "Recreation","Very_Low_Use_Conservation",
+                  "Developed_Other",
+                  "Residential_Low_Medium_Density",
+                  "Outside_of_dataset_extent")
+
+variables_to_use <- variables_to_use[!(variables_to_use %in%
+                                       exclude_cols)]
+print(variables_to_use)
+
+form_bigger <- formula(paste("maxSumEAR ~ ",
+                             paste(variables_to_use,
+                                   collapse = " + ")))
+
+for(i in seq_len(nrow(top_mixes))){
+    
+    mixture <- top_mixes$contr_chems_st[i]
+    endpoint <- top_mixes$endPoint[i]
+    
+    cat('\n##', mixture, '\n')
+    
+    sub_df <- 
+        mix_graph_data_lu %>% 
+        filter(mix_st == mixture) %>% 
+        select(-mix) %>% 
+        distinct()
+    
+    tree_2 <- rpart(formula = form_bigger,
+                    data = sub_df,
+                    control = rpart.control(minsplit = 10,
+                                            minbucket = 10,
+                                            cp = 0.001))
+    
+    tree_2.Prune <- prune(tree_2,
+                          cp = tree_2$cptable[
+                              which.min(tree_2$cptable[,"xerror"]), "CP"])
+    
+    plot(as.party(tree_2.Prune),
+         tp_args = list(id=FALSE),
+         main = paste(endpoint,
+                      paste("Mixture ID:",
+                            unique(sub_df$mixture_id)),
+                      sep = "\n"))
+    cat("\n")
+
+}
+
+```
+
+
+# All EARs for our top endpoints:
+
+```{r allEARs, results ='asis'}
+
+priority_endpoints <- top_mixes$endPoint
+
+mixtures_in_ep <-
+  chemicalSummary %>% 
+  filter(endPoint %in% priority_endpoints) %>% 
+  group_by(site, shortName, date, endPoint) %>%
+  mutate(sum_ear_endpoint = sum(EAR)) %>%
+  ungroup() %>%
+  mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
+  group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
+  summarize(n_contr_chems = n(),
+            contr_chems_lt = list(as.character(unique(chnm))),
+            contr_cas_lt = list(as.character(unique(CAS))),
+            contr_chems = paste(as.character(unique(chnm)),
+                                collapse = ","),
+            contr_chems = paste(as.character(unique(CAS)),
+                                collapse = ","),
+            max_individual_contr = max(EAR)) 
+
+# unifying mixures
+
+for(ep in priority_endpoints){
+  
+  sub_df <- 
+    mixtures_in_ep %>% 
+    filter(endPoint %in% ep) %>% 
+    group_by(site) %>% 
+    summarise(maxSumEAR = max(sum_ear_endpoint),
+              chems = list(unique(unlist(contr_chems_lt)))) %>% 
+    distinct()
+  
+  cat('\n##', ep, '\n')
+  
+  cat(ep,"has", length(unique(sub_df$chems)), "unique mixtures\n\n")
+  
+  for(mix in unique(sub_df$chems)){
+    mix <- unlist(mix)
+    
+    cat('\n###', paste(mix, collapse = ", "), '\n')
+    
+    mix_df <- 
+      chemicalSummary %>% 
+      mutate(chnm = as.character(chnm)) %>% 
+      filter(endPoint %in% ep,
+             chnm %in% mix) %>% 
+      group_by(site, date) %>% 
+      summarise(sumEAR = sum(EAR)) %>% 
+      group_by(site) %>% 
+      summarise(maxSumEAR = max(sumEAR)) %>%
+      distinct() %>% 
+      left_join(df_lu, by="site") %>% 
+      select_if(not_all_na)
+    
+    variables_to_use <- names(mix_df)
+    variables_to_use <- variables_to_use[c(-1:-5)]
+    variables_to_use <- variables_to_use[!(variables_to_use %in%
+                                           exclude_cols)]
+    
+
+    form_bigger <- formula(paste("maxSumEAR ~ ",
+                             paste(variables_to_use,
+                                   collapse = " + ")))
+    tree_2 <- rpart(formula = form_bigger,
+                    data = mix_df,
+                    control = rpart.control(minsplit = 10,
+                                            minbucket = 10,
+                                            cp = 0.001))
+    
+    tree_2.Prune <- prune(tree_2,
+                          cp = tree_2$cptable[
+                              which.min(tree_2$cptable[,"xerror"]), "CP"])
+    
+    plot(as.party(tree_2.Prune),
+         tp_args = list(id=FALSE),
+         main = paste(ep, sep = "\n"))
+    
+    cat("\n")
+  }
+  
+  cat("\n")
+  
+}
+
+
+```
+
+

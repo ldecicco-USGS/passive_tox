@@ -249,6 +249,18 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
                           label = c("Map Name","Chemicals"),
                           site_grouping = c("Lake Superior","Lake Superior"))
   
+  classes <- c("Insecticide","Flavor/Fragrance",
+               "Antimicrobial disinfectant", "Herbicide",                 
+               "Fire retardant", "Detergent metabolites",  
+               "Pharmaceuticals", "Plasticizer",               
+               "WW", "PAHs",                      
+               "Other", "OC Pesticides",             
+               "Food Additive/Plasticizer", "Dye/Pigment",             
+               "Solvent", "PBDEs", "Sterol", "Fuel")
+  
+  graphData$category <- factor(graphData$category,
+                               levels = classes)
+  
   upperPlot <- ggplot() +
     geom_col(data = graphData, 
              aes(x=`Short Name`, y=meanEAR, fill = category))  +

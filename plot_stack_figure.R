@@ -36,6 +36,13 @@ ggarrange(
 dev.off()
 
 
+levels(chemicalSummary$Class)[levels(chemicalSummary$Class) == "Food Additive/Plasticizer"] <- "Food Additive"
+levels(chemicalSummary$Class)[levels(chemicalSummary$Class) == "Antimicrobial disinfectant"] <- "Antimicrobial"
+
+tox_list$chem_info$Class[tox_list$chem_info$Class == "Food Additive/Plasticizer"] <- "Food Additive"
+tox_list$chem_info$Class[tox_list$chem_info$Class == "Antimicrobial disinfectant"] <- "Antimicrobial"
+
+
 classes <- unique(tox_list$chem_info$Class)
 num_chem_to_keep <- 5
 font_size <- 5
@@ -91,6 +98,11 @@ for(i in classes){
 dev.off()
 
 class_plots <- list()
+
+site_info <- site_info %>% arrange(`Short Name`)
+levels(site_info$`Short Name`) <- paste0(levels(site_info$`Short Name`),
+                                         " (",site_info$map_nm,")")
+
 font_size <- 8
 
 for(i in classes){
@@ -139,6 +151,8 @@ general_lp <- c(0.1,0.87)
 
 pdf("plots/MoreChemicalStacks_new.pdf", width = 10, height = 8)
 
+rel_widths <- c(3.75,3,rep(c(1,3),3), 1, 3.5)
+
 plot_grid(
   class_plots[[1]]$chem_count,
   class_plots[[1]]$no_axis +
@@ -169,14 +183,14 @@ plot_grid(
     theme(legend.position = c(0.01,0.84),
           strip.text.y = element_text(size = 0.75*font_size)) +
     ylab(""),
-  rel_widths = c(3,3,rep(c(1,3),4)),
+  rel_widths = rel_widths,
   nrow = 1
 )
 
 plot_grid(
   class_plots[[6]]$chem_count,
   class_plots[[6]]$no_axis +
-    theme(legend.position = general_lp,
+    theme(legend.position = c(0.05,0.87),
           strip.text.y =  element_blank()) +
     ylab(""),
   class_plots[[7]]$chem_count +
@@ -203,7 +217,7 @@ plot_grid(
     theme(legend.position = c(0.01,0.84),
           strip.text.y = element_text(size = 0.75*font_size)) +
     ylab(""),
-  rel_widths = c(3,3,rep(c(1,3),4)),
+  rel_widths = rel_widths,
   nrow = 1
 )
 
@@ -222,22 +236,22 @@ plot_grid(
   class_plots[[13]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[13]]$no_axis +
-    theme(legend.position = c(0.1,0.93),
+    theme(legend.position = general_lp,
           strip.text.y =  element_blank()) +
     ylab("Sum of Maximum EAR Values"),
   class_plots[[14]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[14]]$no_axis +
-    theme(legend.position = general_lp,
+    theme(legend.position = c(0.01,0.92),
           strip.text.y =  element_blank()) +
     ylab(""),
   class_plots[[15]]$chem_count +
     theme(axis.text.y = element_blank()),
   class_plots[[15]]$no_axis +
-    theme(legend.position = c(0.01,0.84),
+    theme(legend.position = c(0.01,0.88),
           strip.text.y = element_text(size = 0.75*font_size)) +
     ylab(""),
-  rel_widths = c(3,3,rep(c(1,3),4)),
+  rel_widths = rel_widths,
   nrow = 1
 )
 

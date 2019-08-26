@@ -66,9 +66,9 @@ class_colors <- function(tox_list){
               "Solvent", "PBDEs", "Sterol", "Fuel")
 
   
-  cbValues <- c("brown1", "orange","darkred","darkblue","yellow","grey10",
-                "darkolivegreen","darksalmon", "darkolivegreen1","cyan3","deeppink2","grey75",
-                "aquamarine","azure2","darkgoldenrod2","darkorchid","cornflowerblue","cornsilk")
+  cbValues <- c("brown1", "gold","darkred","darkblue","yellow","grey10",
+                "darkolivegreen","darksalmon", "darkolivegreen1","cyan3","deeppink2","grey50",
+                "aquamarine","azure2","darkorange","darkorchid","cornflowerblue","cornsilk")
 
   names(cbValues) <- classes
   

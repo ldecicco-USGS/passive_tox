@@ -9,7 +9,7 @@ chem_counts <- function(chemical_summary, chem_site){
     dplyr::full_join(dplyr::select(chem_site, site=SiteID, `Short Name`, site_grouping), by="site") %>%
     dplyr::select(-site) %>%
     dplyr::mutate(count= ifelse(nchar(count) < 2, paste0(" ",count), count),
-                  count_title = "Chemicals")
+                  count_title = "# Chems")
   
   counts$`Short Name` <- factor(counts$`Short Name`, levels = rev(levels(counts$`Short Name`)))
   
@@ -133,7 +133,7 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
   }
 
   upperPlot <- ggplot(graphData) +
-    geom_col(aes(x=`Short Name`, y=meanEAR, fill = category))  +
+    geom_col(aes(x=`Short Name`, y=meanEAR, fill = category), position = position_stack())  +
     theme_minimal() +
     # ylab("Sum of Maximum EAR Values") +
     facet_grid(site_grouping ~ count_title, scales="free", space="free") +
@@ -246,7 +246,7 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
   
   labels_df <- data.frame(y = c(-0.05,-0.01),
                           x = c(Inf,Inf),
-                          label = c("Map Name","Chemicals"),
+                          label = c("Map Name","# Chems"),
                           site_grouping = c("Lake Superior","Lake Superior"))
   
   classes <- c("Insecticide","Flavor/Fragrance",
@@ -263,7 +263,7 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
   
   upperPlot <- ggplot() +
     geom_col(data = graphData, 
-             aes(x=`Short Name`, y=meanEAR, fill = category))  +
+             aes(x=`Short Name`, y=meanEAR, fill = category), position = position_stack())  +
     theme_minimal() +
     ylab("Sum of Maximum EAR Values") +
     geom_text(data = counts_df, 

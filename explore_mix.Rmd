@@ -304,7 +304,7 @@ for(i in seq_len(nrow(top_mixes))){
   #                             y=response_df,
   #                             nbest = 2, really.big = T)
   # plot(regsubsetsObj, scale = "adjr2")
-
+###############################################################
     # from glmnet
   x <- as.matrix(predictors_df) # Removes class
   y <- as.double(sub_df[["maxSumEAR"]]) # Only class
@@ -359,7 +359,6 @@ for(i in seq_len(nrow(top_mixes))){
        main = paste(endpoint,
                     unique(sub_df$mix_st),
                     sep = "\n"))
-  
   
   scatter_new <- ggplot() +
     geom_point(data = sub_df_sub,
@@ -467,6 +466,68 @@ for(ep in priority_endpoints){
     plot(as.party(tree_2.Prune),
          tp_args = list(id=FALSE),
          main = paste(ep, sep = "\n"))
+    
+################################################################
+        # from glmnet
+    predictors_df <- mix_df[,variables_to_use]  
+    
+    x <- as.matrix(predictors_df) # Removes class
+    y <- as.double(mix_df[["maxSumEAR"]]) # Only class
+    
+    # Fitting the model (Lasso: Alpha = 1)
+    set.seed(999)
+    cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
+                          alpha=1, 
+                          standardize=TRUE, type.measure='auc')
+    coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
+    coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
+    
+    # plot(cv.lasso)
+    bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+  
+    lasso_coef = predict(cv.lasso,
+                         type = "coefficients",
+                         s = bestlam)
+    coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
+    new_form <- formula(paste0("maxSumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
+    
+    basic_lm <- lm(data = mix_df, formula = new_form)
+      
+    predictions <- predict(basic_lm, 
+                           interval = 'confidence')
+      
+    predictions <- data.frame(predictions)
+    
+    sub_df_sub <- 
+      mix_df %>% 
+      bind_cols(predictions) %>% 
+      select(maxSumEAR, lwr, upr, fit)
+    
+    x <- coef(basic_lm)
+    dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
+    dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
+    dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
+    dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
+      
+    scatter_new <- ggplot() +
+      geom_point(data = sub_df_sub,
+                 aes(x = maxSumEAR, y = fit)) +
+      geom_abline(slope = 1, 
+                  linetype = "solid", color = "red") +
+      geom_ribbon(data = sub_df_sub,
+                  aes(x = maxSumEAR,
+                      ymin = lwr,
+                      ymax = upr),
+                  alpha=0.3) +
+      geom_text(aes(label = dirty_eqn,
+                    x = 0.0,
+                    y = max(sub_df_sub$upr)*1.01),
+                hjust = 0) +
+      xlab("Observed") + ylab("Predicted") +
+      theme_bw()
+    
+    
+    print(scatter_new)
     
     cat("\n")
   }

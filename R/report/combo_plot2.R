@@ -56,26 +56,23 @@ combine_gd <- function(gd_1, gd_2){
 class_colors <- function(tox_list){
   
   
-  classes <- unique(tox_list$chem_info$Class)
+  classes <- c("Insecticide","Flavor/Fragrance",
+              "Antimicrobial disinfectant", "Herbicide",                 
+              "Fire retardant", "Detergent metabolites",  
+              "Pharmaceuticals", "Plasticizer",               
+              "WW", "PAHs",                      
+              "Other", "OC Pesticides",             
+              "Food Additive/Plasticizer", "Dye/Pigment",             
+              "Solvent", "PBDEs", "Sterol", "Fuel")
+
   
-  #play with colorspace::hcl_wizard()
-  cbValues <- colorspace::rainbow_hcl(length(classes), 
-                                      start = -360, end = -55, c = 100, l = 64)
-  
+  cbValues <- c("brown1", "gold","darkred","darkblue","yellow","grey10",
+                "darkolivegreen","darksalmon", "darkolivegreen1","cyan3","deeppink2","grey50",
+                "aquamarine","azure2","darkorange","darkorchid","cornflowerblue","cornsilk")
+
   names(cbValues) <- classes
   
-  cbValues[cbValues == "#E767EE"] <- "red"
-  cbValues[cbValues == "#D58D00"] <- "gold"
-  cbValues[cbValues == "#00BB6B"] <- "darkseagreen1"
-  cbValues[cbValues == "#00A9FA"] <- "cyan"
-  cbValues[cbValues == "#599AFF"] <- "blue"
-  cbValues[cbValues == "#CB76FE"] <- "blueviolet"
-  cbValues[cbValues == "#A088FF"] <- "lightslateblue"
-  cbValues[cbValues == "#E68127"] <- "yellow"
-  cbValues[cbValues == "#81AA00"] <- "navy"
-  cbValues[cbValues == "#00BE91"] <- "green"
-  cbValues[cbValues == "#4CB100"] <- "tan1"
-  
+
   return(cbValues)
   
 }

@@ -1,0 +1,542 @@
+---
+title: "Explore Mixtures"
+output:
+  word_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 7,
+                      fig.height = 5)
+
+library(tidyverse)
+library(rpart)
+library(party)
+library(partykit)
+library(rpartScore)
+library(readxl)
+library(flextable)
+# library(subselect) #sim annealing
+library(leaps) #regsubsets
+library(glmnet)
+
+source("R/mixtures/mix_script.R")
+drake::loadd(chemicalSummary)
+
+EARsum_endpoint <- sum_endpoints(chemicalSummary)
+
+contributing_chems <- calc_contr_chems(EARsum_endpoint)
+
+df_lu <- read_xlsx(path = file.path("data",
+                                    "raw",
+                                    "GLRItox_summary.xlsx"),
+                           sheet = 1, skip=1) %>% 
+    rename(site = STAID, 
+           Urban = `Urban (%)...6`, 
+           Parking_lot = `Parking Lot (%)`,
+           Agriculture = `Agriculture (%)...7`) %>% 
+    mutate(Developed = Urban + Agriculture)
+
+names(df_lu) <- gsub(pattern = " \\(\\%\\)",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "\\...",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = ", ",
+                     replacement = "_",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "/",
+                     replacement = "_",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = " ",
+                     replacement = "_",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "\\[",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "]",
+                     replacement = "",
+                     names(df_lu))
+names(df_lu) <- gsub(pattern = "-",
+                     replacement = "_",
+                     names(df_lu))
+
+
+chm_key <- contributing_chems %>% 
+    select(contr_chems) %>% 
+    distinct() %>% 
+    left_join(unique(select(contributing_chems,
+                            contr_chems,
+                            contr_chems_lt)), 
+              by="contr_chems")
+
+n_sample_thresh <- 10
+
+top_mixes <- contributing_chems %>% 
+    group_by(contr_chems, endPoint) %>% 
+    summarise(n_samples = n()) %>% 
+    filter(n_samples > {{n_sample_thresh}}) %>% 
+    arrange(desc(n_samples)) %>% 
+    left_join(chm_key, by="contr_chems") %>% 
+    mutate(contr_chems_st =
+             paste(unique(unlist(contr_chems_lt)),
+                   collapse = ","))
+
+mix_graph_data <- data.frame()
+
+for(i in 1:nrow(top_mixes)){
+    
+    chem <- top_mixes$contr_chems_lt[i]
+    endpoint <- top_mixes$endPoint[i]
+    
+    mix_EAR_sum <- chemicalSummary %>%
+        mutate(chnm = as.character(chnm)) %>% 
+        filter(chnm %in% unlist(chem),
+               endPoint == endpoint) %>% 
+        group_by(site, date, endPoint) %>% 
+        summarise(sumEAR = sum(EAR)) %>%
+        group_by(site, endPoint) %>% 
+        summarize(maxSumEAR = max(sumEAR)) %>% 
+        mutate(mix_st = paste(unlist(chem),
+                              collapse = ","),
+               mix = list(unlist(chem)),
+               mixID = i)
+    
+    if(length(unlist(chem)) == 1){
+      mix_EAR_sum$mix_st <- paste0(mix_EAR_sum$mix_st,
+                                   " (", mix_EAR_sum$mixID, ")")
+    }
+    
+    mix_graph_data <- bind_rows(mix_graph_data,
+                                mix_EAR_sum)
+}
+
+mix_graph_data_lu <- mix_graph_data %>% 
+    left_join(df_lu, by = "site") %>% 
+    mutate(thresh = maxSumEAR > 0.001)
+
+```
+
+# Overview
+
+```{r regularBP}
+n_fun <- function(x){
+  return(data.frame(y = 0,
+                    label = length(x)))
+}
+
+mix_graph_data_lu$facet <-
+  paste(mix_graph_data_lu$mix_st,
+        mix_graph_data_lu$endPoint,
+        sep = "\n")
+
+urban <- ggplot(data = mix_graph_data_lu,
+                aes(x = thresh, y = Urban)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(color = "grey50", alpha = 0.4) +
+    stat_summary(fun.data = n_fun,
+                 geom = "text", hjust = 0.5) +
+    facet_wrap(. ~ facet, ncol = 4) +
+    theme_bw() +
+    theme(strip.text = element_text(size = 8)) +
+    xlab("EAR > 0.001")
+urban
+
+```
+
+
+# Trees by Urban/Ag
+
+```{r party2, results="asis"}
+mix_graph_data_lu$mixture_id <-
+  as.integer(as.factor(mix_graph_data_lu$facet))
+
+form <- formula("maxSumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2")
+
+
+for(i in seq_len(nrow(top_mixes))){
+    
+  chem <- top_mixes$contr_chems_lt[i]
+  endpoint <- top_mixes$endPoint[i]
+  
+  sub_df <- 
+    mix_graph_data_lu %>% 
+    filter(mixID == i) %>% 
+    select(-mix)
+    
+  cat('\n##', unique(sub_df$mix_st), '\n')
+  
+  tree_2 <- rpart(formula = form,
+                  data = sub_df,
+                  control = rpart.control(minsplit = 10,
+                                          minbucket = 10,
+                                          cp = 0.001))
+  
+  tree_2.Prune <- prune(tree_2,
+                        cp = tree_2$cptable[
+                            which.min(tree_2$cptable[,"xerror"]), "CP"])
+    
+  plot(as.party(tree_2.Prune),
+       tp_args = list(id=FALSE),
+       main = paste(endpoint,"\n",
+                    unique(sub_df$mix_st)))
+  
+  cat("\n")
+
+  basic_lm <- lm(data = sub_df, formula = form)
+  
+  predictions <- predict(basic_lm, 
+                         interval = 'confidence')
+  
+  predictions <- data.frame(predictions)
+  
+  sub_df_sub <- 
+    sub_df %>% 
+    bind_cols(predictions) %>% 
+    select(maxSumEAR, lwr, upr, fit)
+  
+  x <- coef(basic_lm)
+  dirty_eqn <- paste(format(x, digits = 2),
+                     names(x), collapse = " +", sep = "*")
+  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
+  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
+  dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
+  
+  scatter_urb_ag <- ggplot() +
+    geom_point(data = sub_df_sub,
+               aes(x = maxSumEAR, y = fit)) +
+    geom_abline(slope = 1, 
+                linetype = "solid", color = "red") +
+    geom_ribbon(data = sub_df_sub,
+                aes(x = maxSumEAR,
+                    ymin = lwr,
+                    ymax = upr),
+                alpha=0.3) +
+    geom_text(aes(label = dirty_eqn,
+                  x = 0.0,
+                  y = max(sub_df_sub$upr)*1.01),
+              hjust = 0) +
+    xlab("Observed") + ylab("Predicted") +
+    theme_bw()
+  
+  print(scatter_urb_ag)
+  
+  cat("\n")
+    
+}
+
+```
+
+# Trees by more complicated land use options
+
+Variables available:
+
+```{r table_of_categories}
+
+not_all_na <- function(x) any(!is.na(x))
+
+df_lu <- 
+    df_lu %>% 
+    select_if(not_all_na)
+
+df <- data.frame(a = names(df_lu)[1:20],
+                 b = names(df_lu)[21:40],
+                 c = c(names(df_lu)[41:53], rep(NA, 7)),
+                 stringsAsFactors = FALSE)
+
+autofit(flextable(df))
+
+```
+
+Variables included:
+
+```{r moreLandUse, results="asis"}
+
+not_all_na <- function(x) any(!is.na(x))
+
+mix_graph_data_lu <- 
+  mix_graph_data_lu %>%
+  select(-mix) %>% 
+  select_if(not_all_na) %>% 
+  distinct()
+
+variables_to_use <- names(mix_graph_data_lu)[9:37]
+
+exclude_cols <- c("Urban9","Other8",
+                  "Agriculture10","Other11",
+                  "Impervious_Area13", "Water14","Urban_Interface_High",
+                  "Recreation","Very_Low_Use_Conservation",
+                  "Developed_Other","Developed",
+                  "Residential_Low_Medium_Density",
+                  "Outside_of_dataset_extent")
+
+variables_to_use <- variables_to_use[!(variables_to_use %in%
+                                       exclude_cols)]
+print(variables_to_use)
+
+form_bigger <- formula(paste("maxSumEAR ~ ",
+                             paste(variables_to_use,
+                                   collapse = " + ")))
+
+for(i in seq_len(nrow(top_mixes))){
+    
+  mixture <- top_mixes$contr_chems_st[i]
+  endpoint <- top_mixes$endPoint[i]
+  
+  sub_df <- 
+      mix_graph_data_lu %>% 
+      filter(mixID == i) %>%
+      distinct()
+  
+  cat('\n##', unique(sub_df$mix_st), '\n')
+  
+  predictors_df <- sub_df[,variables_to_use]
+  response_df <- sub_df[,"maxSumEAR"]
+  
+  # from leaps package:
+  # regsubsetsObj <- regsubsets(x=predictors_df,
+  #                             y=response_df,
+  #                             nbest = 2, really.big = T)
+  # plot(regsubsetsObj, scale = "adjr2")
+###############################################################
+    # from glmnet
+  x <- as.matrix(predictors_df) # Removes class
+  y <- as.double(sub_df[["maxSumEAR"]]) # Only class
+  
+  # Fitting the model (Lasso: Alpha = 1)
+  set.seed(999)
+  cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
+                        alpha=1, 
+                        standardize=TRUE, type.measure='auc')
+  coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
+  coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
+  
+  # plot(cv.lasso)
+  bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+
+  lasso_coef = predict(cv.lasso,
+                       type = "coefficients",
+                       s = bestlam)
+  coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
+  new_form <- formula(paste0("maxSumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
+  
+  basic_lm <- lm(data = sub_df, formula = new_form)
+    
+  predictions <- predict(basic_lm, 
+                         interval = 'confidence')
+    
+  predictions <- data.frame(predictions)
+  
+  sub_df_sub <- 
+    sub_df %>% 
+    bind_cols(predictions) %>% 
+    select(maxSumEAR, lwr, upr, fit)
+  
+  x <- coef(basic_lm)
+  dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
+  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
+  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
+  dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
+  
+  tree_2 <- rpart(formula = form_bigger,
+                  data = sub_df,
+                  control = rpart.control(minsplit = 10,
+                                          minbucket = 10,
+                                          cp = 0.001))
+  
+  tree_2.Prune <- prune(tree_2,
+                        cp = tree_2$cptable[
+                            which.min(tree_2$cptable[,"xerror"]), "CP"])
+  
+  plot(as.party(tree_2.Prune),
+       tp_args = list(id=FALSE),
+       main = paste(endpoint,
+                    unique(sub_df$mix_st),
+                    sep = "\n"))
+  
+  scatter_new <- ggplot() +
+    geom_point(data = sub_df_sub,
+               aes(x = maxSumEAR, y = fit)) +
+    geom_abline(slope = 1, 
+                linetype = "solid", color = "red") +
+    geom_ribbon(data = sub_df_sub,
+                aes(x = maxSumEAR,
+                    ymin = lwr,
+                    ymax = upr),
+                alpha=0.3) +
+    geom_text(aes(label = dirty_eqn,
+                  x = 0.0,
+                  y = max(sub_df_sub$upr)*1.01),
+              hjust = 0) +
+    xlab("Observed") + ylab("Predicted") +
+    theme_bw()
+  
+  
+  print(scatter_new)
+  
+  cat("\n")
+
+}
+
+```
+
+
+# All EARs for our top endpoints:
+
+```{r allEARs, results ='asis'}
+
+priority_endpoints <- top_mixes$endPoint
+
+mixtures_in_ep <-
+  chemicalSummary %>% 
+  filter(endPoint %in% priority_endpoints) %>% 
+  group_by(site, shortName, date, endPoint) %>%
+  mutate(sum_ear_endpoint = sum(EAR)) %>%
+  ungroup() %>%
+  mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
+  group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
+  summarize(n_contr_chems = n(),
+            contr_chems_lt = list(as.character(unique(chnm))),
+            contr_cas_lt = list(as.character(unique(CAS))),
+            contr_chems = paste(as.character(unique(chnm)),
+                                collapse = ","),
+            contr_chems = paste(as.character(unique(CAS)),
+                                collapse = ","),
+            max_individual_contr = max(EAR)) 
+
+# unifying mixures
+
+for(ep in priority_endpoints){
+  
+  sub_df <- 
+    mixtures_in_ep %>% 
+    filter(endPoint %in% ep) %>% 
+    group_by(site) %>% 
+    summarise(maxSumEAR = max(sum_ear_endpoint),
+              chems = list(unique(unlist(contr_chems_lt)))) %>% 
+    distinct()
+  
+  cat('\n##', ep, '\n')
+  
+  cat(ep,"has", length(unique(sub_df$chems)), "unique mixtures\n\n")
+  
+  for(mix in unique(sub_df$chems)){
+    mix <- unlist(mix)
+    
+    cat('\n###', paste(mix, collapse = ", "), '\n')
+    
+    mix_df <- 
+      chemicalSummary %>% 
+      mutate(chnm = as.character(chnm)) %>% 
+      filter(endPoint %in% ep,
+             chnm %in% mix) %>% 
+      group_by(site, date) %>% 
+      summarise(sumEAR = sum(EAR)) %>% 
+      group_by(site) %>% 
+      summarise(maxSumEAR = max(sumEAR)) %>%
+      distinct() %>% 
+      left_join(df_lu, by="site") %>% 
+      select_if(not_all_na)
+    
+    variables_to_use <- names(mix_df)
+    variables_to_use <- variables_to_use[c(-1:-5)]
+    variables_to_use <- variables_to_use[!(variables_to_use %in%
+                                           exclude_cols)]
+    
+
+    form_bigger <- formula(paste("maxSumEAR ~ ",
+                             paste(variables_to_use,
+                                   collapse = " + ")))
+    tree_2 <- rpart(formula = form_bigger,
+                    data = mix_df,
+                    control = rpart.control(minsplit = 10,
+                                            minbucket = 10,
+                                            cp = 0.001))
+    
+    tree_2.Prune <- prune(tree_2,
+                          cp = tree_2$cptable[
+                              which.min(tree_2$cptable[,"xerror"]), "CP"])
+    
+    plot(as.party(tree_2.Prune),
+         tp_args = list(id=FALSE),
+         main = paste(ep, sep = "\n"))
+    
+################################################################
+        # from glmnet
+    predictors_df <- mix_df[,variables_to_use]  
+    
+    x <- as.matrix(predictors_df) # Removes class
+    y <- as.double(mix_df[["maxSumEAR"]]) # Only class
+    
+    # Fitting the model (Lasso: Alpha = 1)
+    set.seed(999)
+    cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
+                          alpha=1, 
+                          standardize=TRUE, type.measure='auc')
+    coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
+    coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
+    
+    # plot(cv.lasso)
+    bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+  
+    lasso_coef = predict(cv.lasso,
+                         type = "coefficients",
+                         s = bestlam)
+    coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
+    new_form <- formula(paste0("maxSumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
+    
+    basic_lm <- lm(data = mix_df, formula = new_form)
+      
+    predictions <- predict(basic_lm, 
+                           interval = 'confidence')
+      
+    predictions <- data.frame(predictions)
+    
+    sub_df_sub <- 
+      mix_df %>% 
+      bind_cols(predictions) %>% 
+      select(maxSumEAR, lwr, upr, fit)
+    
+    x <- coef(basic_lm)
+    dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
+    dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
+    dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
+    dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
+      
+    scatter_new <- ggplot() +
+      geom_point(data = sub_df_sub,
+                 aes(x = maxSumEAR, y = fit)) +
+      geom_abline(slope = 1, 
+                  linetype = "solid", color = "red") +
+      geom_ribbon(data = sub_df_sub,
+                  aes(x = maxSumEAR,
+                      ymin = lwr,
+                      ymax = upr),
+                  alpha=0.3) +
+      geom_text(aes(label = dirty_eqn,
+                    x = 0.0,
+                    y = max(sub_df_sub$upr)*1.01),
+                hjust = 0) +
+      xlab("Observed") + ylab("Predicted") +
+      theme_bw()
+    
+    
+    print(scatter_new)
+    
+    cat("\n")
+  }
+  
+  cat("\n")
+  
+}
+
+
+```
+
+

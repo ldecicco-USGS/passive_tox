@@ -359,100 +359,104 @@ mixtures_in_ep <-
                                 collapse = ","),
             max_individual_contr = max(EAR)) 
 
+key <- mixtures_in_ep %>% 
+              ungroup() %>%
+              select(contr_chems, contr_chems_lt) 
+
+key <- key[!duplicated(key$contr_chems),]
+
+top_mixes_per_ep <- mixtures_in_ep %>% 
+  group_by(endPoint, contr_chems) %>% 
+  summarize(n_sites = length(unique(site)),
+            sumEAR = sum(sum_ear_endpoint)) %>% 
+  filter(sumEAR == max(sumEAR)) %>% 
+  ungroup() %>% 
+  left_join(key,
+            by="contr_chems")
+
 # unifying mixures
 
-for(ep in priority_endpoints){
+for(i in seq_len(nrow(top_mixes_per_ep))){
   
-  sub_df <- 
-    mixtures_in_ep %>% 
-    filter(endPoint %in% ep) %>% 
-    mutate( chems = list(unique(unlist(contr_chems_lt))))
+  ep <- top_mixes_per_ep$endPoint[i]
+  chems <- top_mixes_per_ep$contr_chems_lt[[i]]
   
   cat('\n##', ep, '\n')
+
   
-  cat(ep,"has", length(unique(sub_df$chems)), "unique mixtures\n\n")
+  cat('\n###', paste(chems, collapse = ", "), '\n')
   
-  for(mix in unique(sub_df$chems)){
-    mix <- unlist(mix)
-    
-    cat('\n###', paste(mix, collapse = ", "), '\n')
-    
-    sub_df <- 
-      chemicalSummary %>% 
-      mutate(chnm = as.character(chnm)) %>% 
-      filter(endPoint %in% ep,
-             chnm %in% mix) %>% 
-      group_by(site, date, shortName) %>% 
-      summarise(sumEAR = sum(EAR),
-                mix_st = paste(unique(chnm),
-                               collapse = ",")) %>%
-      ungroup() %>% 
-      left_join(df_lu_filtered, by="site") %>% 
-      select_if(not_all_na)
-    
-    if(length(unique(sub_df$site)) < 10){
-      break
-    }
-    
-    variables_to_use <- names(df_lu_filtered[,-1])
-
-    form_bigger <- formula(paste("sumEAR ~ ",
-                             paste(variables_to_use,
-                                   collapse = " + ")))
-    
-    cat("\n#### Tree\n")
-    tree_return <- plot_trees(form_bigger, sub_df, ep)
-    cat("\n")
-
-    cat("\n#### Linear\n")
-    cat("\n")
-    
-    new_form <- get_formula(sub_df, variables_to_use)
-    
-    if(is.null(new_form)){
-      message("No linear")
-      x_df <- data.frame()
-    } else {
-      x_df <- plot_lm(new_form, sub_df)
-    }
-
-    cat("\n")
-    
-    cat("\n")
-    cat("\n#### Log\n")
-    cat("\n")
-    
-    sub_df$sumEAR_offset <- sub_df$sumEAR
-    sub_df$sumEAR_offset[sub_df$sumEAR_offset <= 0] <- 0.5*min(sub_df$sumEAR_offset[sub_df$sumEAR_offset > 0], na.rm = TRUE)
-    
-    new_form_log <- get_formula(sub_df,
-                                variables_to_use,
-                                sumEAR = "sumEAR_offset",
-                                log = TRUE)
-    if(is.null(new_form_log)){
-      message("No log")
-      x_df2 <- data.frame()
-    } else {
-      x_df2 <- plot_lm(new_form_log, sub_df,
-                sumEAR = "sumEAR_offset", log = TRUE)
-    }
-
-    cat("\n")
-    
-    df_temp <- variable_summary(mix, ep,
-                                x_df, x_df2)
-    
-    cat("\n#### Summarize variables\n")
-    cat("\n")
-    table_mix <- flextable(df_temp)
-    table_mix <- width(table_mix, width = 1.5)
-    cat(knitr::knit_print(table_mix))
-    cat("\n")
-    
-    
+  sub_df <- 
+    chemicalSummary %>% 
+    mutate(chnm = as.character(chnm)) %>% 
+    filter(endPoint %in% ep,
+           chnm %in% chems) %>% 
+    group_by(site, date, shortName) %>% 
+    summarise(sumEAR = sum(EAR),
+              mix_st = paste(unique(chnm),
+                             collapse = ",")) %>%
+    ungroup() %>% 
+    left_join(df_lu_filtered, by="site") %>% 
+    select_if(not_all_na)
+  
+  if(length(unique(sub_df$site)) < 10){
+    break
   }
   
+  variables_to_use <- names(df_lu_filtered[,-1])
+
+  form_bigger <- formula(paste("sumEAR ~ ",
+                           paste(variables_to_use,
+                                 collapse = " + ")))
+  
+  cat("\n#### Tree\n")
+  tree_return <- plot_trees(form_bigger, sub_df, ep)
   cat("\n")
+
+  cat("\n#### Linear\n")
+  cat("\n")
+  
+  new_form <- get_formula(sub_df, variables_to_use)
+  
+  if(is.null(new_form)){
+    message("No linear")
+    x_df <- data.frame()
+  } else {
+    x_df <- plot_lm(new_form, sub_df)
+  }
+
+  
+  cat("\n")
+  cat("\n#### Log\n")
+  cat("\n")
+  
+  sub_df$sumEAR_offset <- sub_df$sumEAR
+  sub_df$sumEAR_offset[sub_df$sumEAR_offset <= 0] <- 0.5*min(sub_df$sumEAR_offset[sub_df$sumEAR_offset > 0], na.rm = TRUE)
+  
+  new_form_log <- get_formula(sub_df,
+                              variables_to_use,
+                              sumEAR = "sumEAR_offset",
+                              log = TRUE)
+  if(is.null(new_form_log)){
+    message("No log")
+    x_df2 <- data.frame()
+  } else {
+    x_df2 <- plot_lm(new_form_log, sub_df,
+              sumEAR = "sumEAR_offset", log = TRUE)
+  }
+
+  cat("\n")
+  
+  df_temp <- variable_summary(chems, ep,
+                              x_df, x_df2)
+  
+  cat("\n#### Summarize variables\n")
+  cat("\n")
+  table_mix <- flextable(df_temp)
+  table_mix <- width(table_mix, width = 1.5)
+  cat(knitr::knit_print(table_mix))
+  cat("\n")
+
   
 }
 

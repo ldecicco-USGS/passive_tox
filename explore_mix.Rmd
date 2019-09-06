@@ -168,8 +168,10 @@ form <- formula("sumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2")
 
 form2 <- formula("log10(sumEAR_shifted) ~ Urban + Agriculture + Urban^2 + Agriculture^2")
 
-df_1 <- data.frame(chems = character(),
-                   endpoint = character(),
+df_1 <- data.frame(chems_endpoint = character(),
+                   tree_return = character(),
+                   linear_return = character(),
+                   log_return = character(),
                    stringsAsFactors = FALSE)
 
 for(i in seq_len(nrow(top_mixes))){
@@ -185,41 +187,36 @@ for(i in seq_len(nrow(top_mixes))){
   cat('\n##', unique(sub_df$mix_st), '\n')
   
   cat("\n### Tree\n")
-  plot_trees(form, sub_df, endpoint)
+  tree_return <- plot_trees(form, sub_df, endpoint)
+
   cat("\n")
-  cat("\n### Regression")
   
-  cat("\n#### Linear\n")
+  cat("\n### Linear\n")
   x_df <- plot_lm(form, sub_df)
-  equation <- flextable(x_df)
-  equation <- colformat_num(x = equation,
-                            col_keys = "x",
-                            digits = 6)
-  equation <- autofit(equation)
+  # equation <- flextable(x_df)
+  # equation <- colformat_num(x = equation,
+  #                           col_keys = "x",
+  #                           digits = 6)
+  # equation <- autofit(equation)
+  # cat(knitr::knit_print(equation))
   
   cat("\n")
-  cat("\n#### Log\n")
+  cat("\n### Log\n")
   x_df2 <- plot_lm(form2, sub_df,
                   sumEAR = "sumEAR_shifted", log=TRUE)
-  equation <- flextable(x_df2)
-  equation <- colformat_num(x = equation,
-                            col_keys = "x",
-                            digits = 6)
-  equation <- autofit(equation)
-  cat("\n")
-  
-  
-  cat(knitr::knit_print(equation))
-  
   cat("\n")
     
   df_1 <- bind_rows(df_1,
-              data.frame(chems = unlist(chem),
-                         endpoint = endpoint,
-                   stringsAsFactors = FALSE))
+                    variable_summary(chem, endpoint,
+                                     x_df, x_df2))
 }
 
-autofit(flextable(df_1))
+cat("\n## Summarize variables\n")
+
+table_mix <- flextable(df_1)
+table_mix <- width(table_mix, width = 1.5)
+table_mix
+cat("\n")
 
 ```
 
@@ -264,9 +261,9 @@ df <- data.frame(a = c(names(df_lu_filtered)[2:7], NA),
                  b = names(df_lu_filtered)[8:14],
                  c = names(df_lu_filtered)[15:21],
                  stringsAsFactors = FALSE)
-
+cat("\n")
 autofit(flextable(df))
-
+cat("\n")
 ```
 
 
@@ -302,47 +299,38 @@ for(i in seq_len(nrow(top_mixes))){
   cat('\n##', unique(sub_df$mix_st), '\n')
   
   cat("\n### Tree\n")
-  plot_trees(form_bigger, sub_df, endpoint)
+  tree_return <- plot_trees(form_bigger, sub_df, endpoint)
   cat("\n")
 
-  cat("\n### Regression")
   new_form <- get_formula(sub_df, variables_to_use)
 
   
-  cat("\n#### Linear\n")
+  cat("\n### Linear\n")
   x_df <- plot_lm(new_form, sub_df)
-  equation <- flextable(x_df)
-  equation <- colformat_num(x = equation,
-                            col_keys = "x",
-                            digits = 6)
-  equation <- autofit(equation)
-  
   cat("\n")
-  cat("\n#### Log\n")
   
-  new_form2 <- get_formula(sub_df, variables_to_use,
-                           sumEAR = "sumEAR_shifted", log=TRUE)
-  x_df2 <- plot_lm(form2, sub_df,
+  cat("\n### Log\n")
+  new_form2 <- get_formula(sub_df,
+                           variables_to_use,
+                           sumEAR = "sumEAR_shifted",
+                           log=TRUE)
+  
+  x_df2 <- plot_lm(new_form2, sub_df,
                   sumEAR = "sumEAR_shifted", log=TRUE)
-  equation <- flextable(x_df2)
-  equation <- colformat_num(x = equation,
-                            col_keys = "x",
-                            digits = 6)
-  equation <- autofit(equation)
-  cat("\n")
-  cat("\n")
   
-  equation <- flextable(x_df)
-  equation <- colformat_num(x = equation,
-                            col_keys = "x",
-                            digits = 6)
-  equation <- autofit(equation)
-  
+  df_temp <- variable_summary(chem, endpoint, x_df, x_df2)
+    
   cat("\n")
-  cat(knitr::knit_print(equation))
+  cat("\n### Summarize variables\n")
+  cat("\n")
+  table_mix <- flextable(df_temp)
+  table_mix <- width(table_mix, width = 1.5)
+  cat(knitr::knit_print(table_mix))
   cat("\n")
 
 }
+
+
 
 ```
 
@@ -397,11 +385,14 @@ for(ep in priority_endpoints){
       group_by(site, date, shortName) %>% 
       summarise(sumEAR = sum(EAR),
                 mix_st = paste(unique(chnm),
-                               collapse = ",")) %>% 
-      distinct() %>% 
+                               collapse = ",")) %>%
       ungroup() %>% 
       left_join(df_lu_filtered, by="site") %>% 
       select_if(not_all_na)
+    
+    if(length(unique(sub_df$site)) < 10){
+      break
+    }
     
     variables_to_use <- names(df_lu_filtered[,-1])
 
@@ -410,25 +401,55 @@ for(ep in priority_endpoints){
                                    collapse = " + ")))
     
     cat("\n#### Tree\n")
-    plot_trees(form_bigger, sub_df, ep)
+    tree_return <- plot_trees(form_bigger, sub_df, ep)
     cat("\n")
 
-    cat("\n#### Regression")
+    cat("\n#### Linear\n")
+    cat("\n")
+    
     new_form <- get_formula(sub_df, variables_to_use)
-    x_df <- plot_lm(new_form, sub_df)
-    cat("\n")
-  
-    equation <- flextable(x_df)
-    equation <- colformat_num(x = equation,
-                              col_keys = "x",
-                              digits = 6)
-    equation <- autofit(equation)
     
-    cat("\n")
-    cat(knitr::knit_print(equation))
-    cat("\n")
-    
+    if(is.null(new_form)){
+      message("No linear")
+      x_df <- data.frame()
+    } else {
+      x_df <- plot_lm(new_form, sub_df)
+    }
 
+    cat("\n")
+    
+    cat("\n")
+    cat("\n#### Log\n")
+    cat("\n")
+    
+    sub_df$sumEAR_offset <- sub_df$sumEAR
+    sub_df$sumEAR_offset[sub_df$sumEAR_offset <= 0] <- 0.5*min(sub_df$sumEAR_offset[sub_df$sumEAR_offset > 0], na.rm = TRUE)
+    
+    new_form_log <- get_formula(sub_df,
+                                variables_to_use,
+                                sumEAR = "sumEAR_offset",
+                                log = TRUE)
+    if(is.null(new_form_log)){
+      message("No log")
+      x_df2 <- data.frame()
+    } else {
+      x_df2 <- plot_lm(new_form_log, sub_df,
+                sumEAR = "sumEAR_offset", log = TRUE)
+    }
+
+    cat("\n")
+    
+    df_temp <- variable_summary(mix, ep,
+                                x_df, x_df2)
+    
+    cat("\n#### Summarize variables\n")
+    cat("\n")
+    table_mix <- flextable(df_temp)
+    table_mix <- width(table_mix, width = 1.5)
+    cat(knitr::knit_print(table_mix))
+    cat("\n")
+    
+    
   }
   
   cat("\n")

@@ -36,8 +36,8 @@ calc_contr_chems <- function(summed_EARs) {
               contr_chems = paste(as.character(unique(chnm)), collapse = ","),
               contr_chems = paste(as.character(unique(CAS)), collapse = ","),
               max_individual_contr = max(EAR)) %>%
-    ungroup() %>% 
-    filter(n_contr_chems > 1)
+    ungroup() 
+    # filter(n_contr_chems > 1)
   
   return(EAR_sum_endpoint)
 }
@@ -173,6 +173,9 @@ calc_site_mix_metrics <- function(top_mixtures, out_file) {
 
 
 plot_trees <- function(form, sub_df, endpoint){
+  
+  set.seed(999)
+  
   tree_2 <- rpart(formula = form,
                   data = sub_df,
                   control = rpart.control(minsplit = 10,
@@ -187,6 +190,10 @@ plot_trees <- function(form, sub_df, endpoint){
        tp_args = list(id=FALSE),
        main = paste(endpoint,"\n",
                     unique(sub_df$mix_st)))
+  
+  tree_terms <- unique(as.character(tree_2.Prune$frame$var)[as.character(tree_2.Prune$frame$var) != "<leaf>"])
+  
+  return(tree_terms)
 }
 
 plot_lm <- function(form, sub_df, sumEAR = "sumEAR", log=FALSE){
@@ -295,11 +302,38 @@ get_formula <- function(sub_df, variables_to_use, sumEAR = "sumEAR", log=FALSE){
                        type = "coefficients",
                        s = bestlam)
   coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
-  if(log){
-    new_form <- formula(paste0("log10(",sumEAR, ") ~ ", paste(coefs_to_save, collapse = " + ")))
-  } else {
-    new_form <- formula(paste0(sumEAR, " ~ ", paste(coefs_to_save, collapse = " + ")))
-  }
   
-  return(new_form)
+  if(length(coefs_to_save) == 0){
+    
+    return(NULL)
+    
+  } else {
+  
+    if(log){
+      new_form <- formula(paste0("log10(",sumEAR, ") ~ ", paste(coefs_to_save, collapse = " + ")))
+    } else {
+      new_form <- formula(paste0(sumEAR, " ~ ", paste(coefs_to_save, collapse = " + ")))
+    }
+    
+    return(new_form)
+  }
+}
+
+variable_summary <- function(chem, endpoint, x_df, x_df2){
+  df_temp <- data.frame(chems_endpoint = paste(
+    paste(unlist(chem),
+          collapse = ",\n"),endpoint, sep=",\n"),
+    tree_return = paste(tree_return,
+                        collapse = ",\n"),
+    linear_return = paste(x_df$coef[x_df$coef != "(Intercept)"],
+                          collapse = ",\n"),
+    log_return = paste(x_df2$coef[x_df2$coef != "(Intercept)"],
+                       collapse = ",\n"),
+    stringsAsFactors = FALSE)
+  
+  df_temp$log_return <- gsub("_"," ", df_temp$log_return)
+  df_temp$linear_return <- gsub("_"," ", df_temp$linear_return)
+  df_temp$tree_return <- gsub("_"," ", df_temp$tree_return)
+  
+  return(df_temp)
 }

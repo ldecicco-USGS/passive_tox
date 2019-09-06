@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = FALSE,
                       message = FALSE,
                       warning = FALSE,
                       fig.width = 7,
-                      fig.height = 5.5)
+                      fig.height = 5)
 
 library(tidyverse)
 library(rpart)
@@ -124,6 +124,10 @@ for(i in 1:nrow(top_mixes)){
                                 mix_EAR_sum)
 }
 
+#Add a shifted term to try logs:
+mix_graph_data$sumEAR_shifted <- mix_graph_data$sumEAR
+mix_graph_data$sumEAR_shifted[mix_graph_data$sumEAR <= 0] <- mix_graph_data$sumEAR_shifted[mix_graph_data$sumEAR <= 0] + 0.5*min(mix_graph_data$sumEAR[mix_graph_data$sumEAR > 0], na.rm = TRUE) 
+
 ```
 
 # Overview
@@ -162,6 +166,8 @@ urban
 
 form <- formula("sumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2")
 
+form2 <- formula("log10(sumEAR_shifted) ~ Urban + Agriculture + Urban^2 + Agriculture^2")
+
 df_1 <- data.frame(chems = character(),
                    endpoint = character(),
                    stringsAsFactors = FALSE)
@@ -178,78 +184,30 @@ for(i in seq_len(nrow(top_mixes))){
     
   cat('\n##', unique(sub_df$mix_st), '\n')
   
-  tree_2 <- rpart(formula = form,
-                  data = sub_df,
-                  control = rpart.control(minsplit = 10,
-                                          minbucket = 10,
-                                          cp = 0.001))
-  
-  tree_2.Prune <- prune(tree_2,
-                        cp = tree_2$cptable[
-                            which.min(tree_2$cptable[,"xerror"]), "CP"])
-    
   cat("\n### Tree\n")
-  
-  plot(as.party(tree_2.Prune),
-       tp_args = list(id=FALSE),
-       main = paste(endpoint,"\n",
-                    unique(sub_df$mix_st)))
-  
+  plot_trees(form, sub_df, endpoint)
   cat("\n")
-
-  basic_lm <- lm(data = sub_df, formula = form)
+  cat("\n### Regression")
   
-  predictions <- predict(basic_lm, 
-                         interval = 'confidence')
-  
-  predictions <- data.frame(predictions)
-  
-  sub_df_sub <- 
-    sub_df %>% 
-    bind_cols(predictions) %>% 
-    select(sumEAR, lwr, upr, fit, shortName)
-  
-  x <- coef(basic_lm)
-  x_df <- data.frame(x)
-  x_df$coef <- row.names(x_df)
-  
+  cat("\n#### Linear\n")
+  x_df <- plot_lm(form, sub_df)
   equation <- flextable(x_df)
   equation <- colformat_num(x = equation,
                             col_keys = "x",
                             digits = 6)
   equation <- autofit(equation)
   
-  cat("\n### Linear Regression")
-  
-  dirty_eqn <- paste(format(x, digits = 2),
-                     names(x), collapse = " +", sep = "*")
-  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
-  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
-  dirty_eqn <- paste0("sumEAR = ", dirty_eqn)
-  
+  cat("\n")
+  cat("\n#### Log\n")
+  x_df2 <- plot_lm(form2, sub_df,
+                  sumEAR = "sumEAR_shifted", log=TRUE)
+  equation <- flextable(x_df2)
+  equation <- colformat_num(x = equation,
+                            col_keys = "x",
+                            digits = 6)
+  equation <- autofit(equation)
   cat("\n")
   
-  scatter_urb_ag <- ggplot() +
-    geom_point(data = sub_df_sub,
-               aes(x = sumEAR, y = fit)) +
-    geom_text(data = filter(sub_df_sub, sumEAR == max(sumEAR)),
-          aes(x = sumEAR, y = fit, label = shortName),
-          vjust = 1, hjust = 1) +
-    geom_abline(slope = 1, 
-                linetype = "solid", color = "red") +
-    geom_ribbon(data = sub_df_sub,
-                aes(x = sumEAR,
-                    ymin = lwr,
-                    ymax = upr),
-                alpha=0.3) +
-    geom_text(aes(label = dirty_eqn,
-                  x = 0.0,
-                  y = max(sub_df_sub$upr)*1.01),
-              hjust = 0) +
-    xlab("Observed") + ylab("Predicted") +
-    theme_bw()
-  
-  print(scatter_urb_ag)
   
   cat(knitr::knit_print(equation))
   
@@ -324,8 +282,10 @@ mix_graph_data_lu <-
 
 variables_to_use <- names(df_lu_filtered[-1])
 
-# LOG SCALE EAR term? add an offset to deal with zero's?
 form_bigger <- formula(paste("sumEAR ~ ",
+                             paste(names(df_lu_filtered[-1]),
+                                   collapse = " + ")))
+form_bigger_log <- formula(paste("log10(sumEAR_shifted) ~ ",
                              paste(names(df_lu_filtered[-1]),
                                    collapse = " + ")))
 
@@ -341,102 +301,42 @@ for(i in seq_len(nrow(top_mixes))){
   
   cat('\n##', unique(sub_df$mix_st), '\n')
   
-  predictors_df <- sub_df[,variables_to_use]
-  response_df <- sub_df[,"sumEAR"]
-  
-  # from glmnet
-  x <- as.matrix(predictors_df) # Removes class
-  y <- as.double(sub_df[["sumEAR"]]) # Only class
-  
-  # Fitting the model (Lasso: Alpha = 1)
-  set.seed(999)
-  cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
-                        alpha=1, 
-                        standardize=TRUE, type.measure='mse')
-  coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
-  coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
-  
-  # plot(cv.lasso)
-  bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+  cat("\n### Tree\n")
+  plot_trees(form_bigger, sub_df, endpoint)
+  cat("\n")
 
-  lasso_coef = predict(cv.lasso,
-                       type = "coefficients",
-                       s = bestlam)
-  coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
-  new_form <- formula(paste0("sumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
+  cat("\n### Regression")
+  new_form <- get_formula(sub_df, variables_to_use)
+
   
-  basic_lm <- lm(data = sub_df, formula = new_form)
-    
-  predictions <- predict(basic_lm, 
-                         interval = 'confidence')
-    
-  predictions <- data.frame(predictions)
-  
-  sub_df_sub <- 
-    sub_df %>% 
-    bind_cols(predictions) %>% 
-    select(sumEAR, lwr, upr, fit, shortName)
-  
-  x <- coef(basic_lm)
-  x_df <- data.frame(x)
-  x_df$coef <- row.names(x_df)
-  
+  cat("\n#### Linear\n")
+  x_df <- plot_lm(new_form, sub_df)
   equation <- flextable(x_df)
   equation <- colformat_num(x = equation,
                             col_keys = "x",
                             digits = 6)
   equation <- autofit(equation)
   
-  
-  
-
-  dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
-  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
-  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
-  dirty_eqn <- paste0("sumEAR = ", dirty_eqn)
-  
-  tree_2 <- rpart(formula = form_bigger,
-                  data = sub_df,
-                  control = rpart.control(minsplit = 10,
-                                          minbucket = 10,
-                                          cp = 0.001))
-  
-  tree_2.Prune <- prune(tree_2,
-                        cp = tree_2$cptable[
-                            which.min(tree_2$cptable[,"xerror"]), "CP"])
-  
-  cat("\n### Tree\n")
-  
-  plot(as.party(tree_2.Prune),
-       tp_args = list(id=FALSE),
-       main = paste(endpoint,
-                    unique(sub_df$mix_st),
-                    sep = "\n"))
   cat("\n")
-  cat("\n### Linear Regression\n")
+  cat("\n#### Log\n")
   
-  scatter_new <- ggplot() +
-    geom_point(data = sub_df_sub,
-               aes(x = sumEAR, y = fit)) +
-    geom_text(data = filter(sub_df_sub, sumEAR == max(sumEAR)),
-              aes(x = sumEAR, y = fit, label = shortName),
-              vjust = 1, hjust = 1) +
-    geom_abline(slope = 1, 
-                linetype = "solid", color = "red") +
-    geom_ribbon(data = sub_df_sub,
-                aes(x = sumEAR,
-                    ymin = lwr,
-                    ymax = upr),
-                alpha=0.3) +
-    geom_text(aes(label = dirty_eqn,
-                  x = 0.0,
-                  y = max(sub_df_sub$upr)*1.01),
-              hjust = 0) +
-    xlab("Observed") + ylab("Predicted") +
-    theme_bw()
+  new_form2 <- get_formula(sub_df, variables_to_use,
+                           sumEAR = "sumEAR_shifted", log=TRUE)
+  x_df2 <- plot_lm(form2, sub_df,
+                  sumEAR = "sumEAR_shifted", log=TRUE)
+  equation <- flextable(x_df2)
+  equation <- colformat_num(x = equation,
+                            col_keys = "x",
+                            digits = 6)
+  equation <- autofit(equation)
+  cat("\n")
+  cat("\n")
   
-  
-  print(scatter_new)
+  equation <- flextable(x_df)
+  equation <- colformat_num(x = equation,
+                            col_keys = "x",
+                            digits = 6)
+  equation <- autofit(equation)
   
   cat("\n")
   cat(knitr::knit_print(equation))
@@ -460,6 +360,7 @@ mixtures_in_ep <-
   mutate(sum_ear_endpoint = sum(EAR)) %>%
   ungroup() %>%
   mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
+  filter(chem_mix_contribution > 1) %>% 
   group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
   summarize(n_contr_chems = n(),
             contr_chems_lt = list(as.character(unique(chnm))),
@@ -488,13 +389,15 @@ for(ep in priority_endpoints){
     
     cat('\n###', paste(mix, collapse = ", "), '\n')
     
-    mix_df <- 
+    sub_df <- 
       chemicalSummary %>% 
       mutate(chnm = as.character(chnm)) %>% 
       filter(endPoint %in% ep,
              chnm %in% mix) %>% 
       group_by(site, date, shortName) %>% 
-      summarise(sumEAR = sum(EAR)) %>% 
+      summarise(sumEAR = sum(EAR),
+                mix_st = paste(unique(chnm),
+                               collapse = ",")) %>% 
       distinct() %>% 
       ungroup() %>% 
       left_join(df_lu_filtered, by="site") %>% 
@@ -505,114 +408,27 @@ for(ep in priority_endpoints){
     form_bigger <- formula(paste("sumEAR ~ ",
                              paste(variables_to_use,
                                    collapse = " + ")))
-    tree_2 <- rpart(formula = form_bigger,
-                    data = mix_df,
-                    control = rpart.control(minsplit = 10,
-                                            minbucket = 10,
-                                            cp = 0.001))
     
-    tree_2.Prune <- prune(tree_2,
-                          cp = tree_2$cptable[
-                              which.min(tree_2$cptable[,"xerror"]), "CP"])
-    
-    plot(as.party(tree_2.Prune),
-         tp_args = list(id=FALSE),
-         main = paste(ep, sep = "\n"))
-    
-################################################################
-        # from glmnet
-    predictors_df <- mix_df[,variables_to_use]  
-    
-    x <- as.matrix(predictors_df) # Removes class
-    y <- as.double(mix_df[["sumEAR"]]) # Only class
-    
-    # Fitting the model (Lasso: Alpha = 1)
-    set.seed(999)
-    cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
-                          alpha=1, 
-                          standardize=TRUE, type.measure='mse')
-    coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
-    coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
+    cat("\n#### Tree\n")
+    plot_trees(form_bigger, sub_df, ep)
+    cat("\n")
 
-    bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+    cat("\n#### Regression")
+    new_form <- get_formula(sub_df, variables_to_use)
+    x_df <- plot_lm(new_form, sub_df)
+    cat("\n")
   
-    lasso_coef = predict(cv.lasso,
-                         type = "coefficients",
-                         s = bestlam)
-    coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
-    
-    if(length(coefs_to_save) == 0){
-      
-      scatter_new <- ggplot() +
-        geom_point(data = mix_df,
-                   aes(x = sumEAR, y = Urban)) +
-        theme_bw()
-    
-    
-      print(scatter_new)
-      
-      cat("\n")
-    
-      break
-    }
-    
-    new_form <- formula(paste0("sumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
-    
-    basic_lm <- lm(data = mix_df, formula = new_form)
-      
-    predictions <- predict(basic_lm, 
-                           interval = 'confidence')
-      
-    predictions <- data.frame(predictions)
-    
-    sub_df_sub <- 
-      mix_df %>% 
-      bind_cols(predictions) %>% 
-      ungroup() %>% 
-      select(sumEAR, lwr, upr, fit, shortName)
-    
-    x <- coef(basic_lm)
-    x_df <- data.frame(x)
-    x_df$coef <- row.names(x_df)
-    
     equation <- flextable(x_df)
     equation <- colformat_num(x = equation,
                               col_keys = "x",
                               digits = 6)
     equation <- autofit(equation)
+    
     cat("\n")
     cat(knitr::knit_print(equation))
     cat("\n")
     
-      dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
-    dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
-    dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
-    dirty_eqn <- paste0("sumEAR = ", dirty_eqn)
-      
-    scatter_new <- ggplot() +
-      geom_point(data = sub_df_sub,
-                 aes(x = sumEAR, y = fit)) +
-      geom_abline(slope = 1, 
-                  linetype = "solid", color = "red") +
-      geom_text(data = filter(sub_df_sub, sumEAR == max(sumEAR)),
-          aes(x = sumEAR, y = fit, label = shortName),
-          vjust = 1, hjust = 1) +
-      geom_ribbon(data = sub_df_sub,
-                  aes(x = sumEAR,
-                      ymin = lwr,
-                      ymax = upr),
-                  alpha=0.3) +
-      geom_text(aes(label = dirty_eqn,
-                    x = 0.0,
-                    y = max(sub_df_sub$upr)*1.01),
-                hjust = 0) +
-      xlab("Observed") + ylab("Predicted") +
-      theme_bw()
-    
-    
-    print(scatter_new)
-    
-    cat("\n")
+
   }
   
   cat("\n")

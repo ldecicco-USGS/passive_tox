@@ -463,4 +463,33 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
 
 ```
 
+# Class Exploration
+
+```{r classStuff}
+class_sum <- chemicalSummary %>% 
+  left_join(df_lu_filtered, by = "site")
+
+
+graph_class <- class_sum %>% 
+  group_by(Class, site, date, Urban, Agriculture) %>% 
+  summarize(sumEAR = sum(EAR, na.rm = TRUE)) %>% 
+  group_by(Class, site, Urban, Agriculture) %>% 
+  summarise(maxSumEAR = max(sumEAR)) %>% 
+  ungroup()
+
+
+ggplot(data = graph_class) +
+  geom_point(aes(x = Urban, y = maxSumEAR)) +
+  facet_wrap(. ~ Class, nrow = 3, scale = "free_y") +
+  theme_bw() +
+  theme(axis.text = element_blank())
+
+ggplot(data = graph_class) +
+  geom_point(aes(x = Agriculture, y = maxSumEAR)) +
+  facet_wrap(. ~ Class, nrow = 3, scale = "free_y") +
+  theme_bw() +
+  theme(axis.text = element_blank())
+
+```
+
 

@@ -1,8 +1,9 @@
 ---
 title: "Explore Mixtures"
-output:
-  word_document:
-    toc: yes
+output: 
+  bookdown::word_document2:
+  fig_caption: yes
+  toc: yes
 editor_options: 
   chunk_output_type: console
 ---
@@ -126,13 +127,69 @@ for(i in 1:nrow(top_mixes)){
 
 #Add a shifted term to try logs:
 mix_graph_data$sumEAR_shifted <- mix_graph_data$sumEAR
-mix_graph_data$sumEAR_shifted[mix_graph_data$sumEAR <= 0] <- mix_graph_data$sumEAR_shifted[mix_graph_data$sumEAR <= 0] + 0.5*min(mix_graph_data$sumEAR[mix_graph_data$sumEAR > 0], na.rm = TRUE) 
+mix_graph_data$sumEAR_shifted <- mix_graph_data$sumEAR_shifted + 0.5*min(mix_graph_data$sumEAR[mix_graph_data$sumEAR > 0], na.rm = TRUE) 
+
+priority_endpoints <- top_mixes$endPoint
+
+mixtures_in_ep <-
+  chemicalSummary %>% 
+  filter(endPoint %in% priority_endpoints) %>% 
+  group_by(site, shortName, date, endPoint) %>%
+  mutate(sum_ear_endpoint = sum(EAR)) %>%
+  ungroup() %>%
+  mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
+  filter(chem_mix_contribution > 1) %>% 
+  group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
+  summarize(n_contr_chems = n(),
+            contr_chems_lt = list(as.character(unique(chnm))),
+            contr_cas_lt = list(as.character(unique(CAS))),
+            contr_chems_st = paste(as.character(unique(chnm)),
+                                collapse = ","),
+            contr_chems = paste(as.character(unique(CAS)),
+                                collapse = ","),
+            max_individual_contr = max(EAR)) 
+
+key <- mixtures_in_ep %>% 
+              ungroup() %>%
+              select(contr_chems,
+                     contr_chems_st,
+                     contr_chems_lt) 
+
+key <- key[!duplicated(key$contr_chems), ]
+
+top_mixes_per_ep <- mixtures_in_ep %>% 
+  group_by(endPoint, contr_chems) %>% 
+  summarize(n_sites = length(unique(site)),
+            sumEAR = sum(sum_ear_endpoint)) %>% 
+  filter(sumEAR == max(sumEAR)) %>% 
+  ungroup() %>% 
+  left_join(key,
+            by="contr_chems")
+
+# Mixtures to look at:
+check_mix <- top_mixes %>% 
+  ungroup() %>% 
+  select(chemicals = contr_chems_st) %>% 
+  bind_rows(select(top_mixes_per_ep, chemicals = contr_chems_st)) %>% 
+  distinct()
+
+if(all(c("Atrazine,DEET", "DEET,Atrazine") %in% check_mix$chemicals)){
+  check_mix <- check_mix[check_mix$chemicals !=
+                         "Atrazine,DEET", ]  
+}
+
+if(all(c("Benz(a)anthracene,Indeno(1,2,3-cd)pyrene",
+         "Indeno(1,2,3-cd)pyrene,Benz(a)anthracene") %in% check_mix$chemicals)){
+  
+  check_mix <- check_mix[check_mix$chemicals !=                        "Indeno(1,2,3-cd)pyrene,Benz(a)anthracene", ]  
+}
+
 
 ```
 
 # Overview
 
-```{r regularBP}
+```{r regularBP, fig.cap="Urban hits"}
 n_fun <- function(x){
   return(data.frame(y = 0,
                     label = length(x)))
@@ -159,6 +216,8 @@ urban
 
 ```
 
+
+As you can see by Figure \@ref(fig:regularBP)
 
 # Trees by Urban/Ag
 
@@ -193,12 +252,6 @@ for(i in seq_len(nrow(top_mixes))){
   
   cat("\n### Linear\n")
   x_df <- plot_lm(form, sub_df)
-  # equation <- flextable(x_df)
-  # equation <- colformat_num(x = equation,
-  #                           col_keys = "x",
-  #                           digits = 6)
-  # equation <- autofit(equation)
-  # cat(knitr::knit_print(equation))
   
   cat("\n")
   cat("\n### Log\n")
@@ -235,35 +288,103 @@ autofit(flextable(df))
 
 ```
 
+Variables that have at least 1 site with at least 2 percent:
+
 ```{r corLU, results="asis"}
 library(corrplot)
 
-M <- cor(df_lu[,-1])
+big_enough <- function(x, thresh = 2){
+  max(x, na.rm = TRUE) > thresh
+}
+
+df_lu_filtered <- df_lu %>% 
+  select(-site) %>% 
+  select_if(big_enough)
+
+M <- cor(df_lu_filtered)
 corrplot(M, type="upper", tl.cex = 0.5)
+```
 
-exclude_cols <- c("Basin_area_km2",
-                  "Urban9",
-                  "Population_Density",
-                  "Agriculture10",
-                  "Other11",
-                  "Parking_lot",
-                  "Impervious_Area13",
-                  "Residential_High_Density",
-                  "Commercial_Services",
-                  "Crops","Low_Use","Developed")
+Reduce the variables by those that have a corrolation coefficient >0.95 or <-0.95.
 
-df_lu_filtered <- df_lu[,-which(names(df_lu) %in% exclude_cols)]
+```{r corLU_reduced, results="asis"}
+lu_vars <- colnames(M)
+lu_vars_rev <- rev(lu_vars)
 
-M2 <- cor(df_lu_filtered[,-1])
+exclude <- c()
+exclude_rev <- c()
+
+for(i in seq_along(lu_vars)){
+  
+  check_var <- lu_vars[i]
+  
+  if(check_var %in% exclude){
+    next
+  } else {
+    check_cor <- names(which(M[,check_var] > 0.95 | 
+                        M[,check_var] < -0.95))
+    check_cor <- check_cor[check_cor != check_var]
+    exclude <- c(exclude, check_cor)
+  }
+
+}
+
+# for(i in seq_along(lu_vars_rev)){
+#   
+#   check_var_rev <- lu_vars_rev[i]
+#   
+#   if(check_var_rev %in% exclude_rev){
+#     next
+#   } else {
+#     check_cor <- names(which(M[,check_var_rev] > 0.95 | 
+#                         M[,check_var_rev] < -0.95))
+#     check_cor <- check_cor[check_cor != check_var_rev]
+#     exclude_rev <- c(exclude_rev, check_cor)
+#   }
+# 
+# }
+
+df_lu_filtered <- df_lu_filtered[,-which(names(df_lu_filtered) %in% exclude)]
+
+M2 <- cor(df_lu_filtered)
 corrplot(M2, type="upper", tl.cex = 0.5)
+```
 
-df <- data.frame(a = c(names(df_lu_filtered)[2:7], NA),
+The variables left by the 0.95 threshold:
+
+```{r resultingVars, results="asis"}
+df <- data.frame(a = names(df_lu_filtered)[1:7],
                  b = names(df_lu_filtered)[8:14],
                  c = names(df_lu_filtered)[15:21],
                  stringsAsFactors = FALSE)
 cat("\n")
-autofit(flextable(df))
+ft <- flextable(df)
+ft <- delete_part(x = ft, part = "header")
+autofit(ft)
 cat("\n")
+```
+
+
+
+```{r corLU_manual, results="asis"}
+df_lu_filtered <- bind_cols(df_lu[,"site"], df_lu_filtered)
+
+x <- data.frame(matrix(NA,
+                  nrow = length(names(df_lu_filtered)), 
+                  ncol = nrow(check_mix)))
+
+names(x) <- check_mix$chemicals
+
+for(i in 1:ncol(x)){
+  x[[i]] <- names(df_lu_filtered)
+}
+ 
+x <- x[-1,]
+
+fx <- flextable(x)
+fx <- width(fx, width = 1.5)
+fx
+
 ```
 
 
@@ -275,7 +396,9 @@ cat("\n")
 mix_graph_data_lu <- 
   mix_graph_data_lu %>%
   select(-mix) %>% 
-  left_join(select(df_lu_filtered, -Urban, -Agriculture), by="site")
+  left_join(select(df_lu_filtered,
+                   -Urban, -Agriculture),
+            by="site")
 
 variables_to_use <- names(df_lu_filtered[-1])
 
@@ -339,43 +462,6 @@ for(i in seq_len(nrow(top_mixes))){
 
 ```{r allEARs, results ='asis'}
 
-priority_endpoints <- top_mixes$endPoint
-
-mixtures_in_ep <-
-  chemicalSummary %>% 
-  filter(endPoint %in% priority_endpoints) %>% 
-  group_by(site, shortName, date, endPoint) %>%
-  mutate(sum_ear_endpoint = sum(EAR)) %>%
-  ungroup() %>%
-  mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
-  filter(chem_mix_contribution > 1) %>% 
-  group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
-  summarize(n_contr_chems = n(),
-            contr_chems_lt = list(as.character(unique(chnm))),
-            contr_cas_lt = list(as.character(unique(CAS))),
-            contr_chems = paste(as.character(unique(chnm)),
-                                collapse = ","),
-            contr_chems = paste(as.character(unique(CAS)),
-                                collapse = ","),
-            max_individual_contr = max(EAR)) 
-
-key <- mixtures_in_ep %>% 
-              ungroup() %>%
-              select(contr_chems, contr_chems_lt) 
-
-key <- key[!duplicated(key$contr_chems),]
-
-top_mixes_per_ep <- mixtures_in_ep %>% 
-  group_by(endPoint, contr_chems) %>% 
-  summarize(n_sites = length(unique(site)),
-            sumEAR = sum(sum_ear_endpoint)) %>% 
-  filter(sumEAR == max(sumEAR)) %>% 
-  ungroup() %>% 
-  left_join(key,
-            by="contr_chems")
-
-# unifying mixures
-
 for(i in seq_len(nrow(top_mixes_per_ep))){
   
   ep <- top_mixes_per_ep$endPoint[i]
@@ -431,7 +517,8 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
   cat("\n")
   
   sub_df$sumEAR_offset <- sub_df$sumEAR
-  sub_df$sumEAR_offset[sub_df$sumEAR_offset <= 0] <- 0.5*min(sub_df$sumEAR_offset[sub_df$sumEAR_offset > 0], na.rm = TRUE)
+  sub_df$sumEAR_offset <- sub_df$sumEAR_offset +
+    0.5*min(sub_df$sumEAR_offset[sub_df$sumEAR_offset > 0], na.rm = TRUE)
   
   new_form_log <- get_formula(sub_df,
                               variables_to_use,

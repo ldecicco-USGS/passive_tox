@@ -274,47 +274,64 @@ plot_lm <- function(form, sub_df, sumEAR = "sumEAR", log=FALSE){
   return(x_df)
 }
 
-get_formula <- function(sub_df, variables_to_use, sumEAR = "sumEAR", log=FALSE){
+get_formula <- function(sub_df, variables_to_use, 
+                        sumEAR = "sumEAR", log=FALSE,
+                        lasso = FALSE){
   
   predictors_df <- sub_df[,variables_to_use]
   response_df <- sub_df[,sumEAR]
   
-  # from glmnet
-  x <- as.matrix(predictors_df) # Removes class
+  if(lasso){
+    # from glmnet
+    x <- as.matrix(predictors_df) # Removes class
+    
+    if(log){
+      y <- log10(as.double(sub_df[[sumEAR]])) # Only class
+    } else {
+      y <- as.double(sub_df[[sumEAR]]) # Only class
+    }
+    
+    # Fitting the model (Lasso: Alpha = 1)
+    set.seed(999)
+    cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
+                          alpha=1, 
+                          standardize=TRUE, type.measure='mse')
+    coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
+    coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
   
-  if(log){
-    y <- log10(as.double(sub_df[[sumEAR]])) # Only class
+    bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+    
+    lasso_coef = predict(cv.lasso,
+                         type = "coefficients",
+                         s = bestlam)
+    coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
   } else {
-    y <- as.double(sub_df[[sumEAR]]) # Only class
+    
+    if(log){
+      form <- formula(paste("log10(sumEAR_shifted) ~ ",
+                                     paste(variables_to_use,
+                                           collapse = " + ")))
+    } else {
+      form <- formula(paste("sumEAR ~ ",
+                                 paste(variables_to_use,
+                                       collapse = " + ")))
+    }
+    
+    lm_high <- lm(form, data = sub_df)
+    step_return <- MASS::stepAIC(lm_high, k = log(nrow(sub_df)), trace = FALSE)
+    coefs_to_save <- coefficients(step_return)
+    coefs_to_save <- names(coefs_to_save)
+    coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
   }
   
-  # Fitting the model (Lasso: Alpha = 1)
-  set.seed(999)
-  cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
-                        alpha=1, 
-                        standardize=TRUE, type.measure='mse')
-  coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
-  coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
-
-  bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
-  
-  lasso_coef = predict(cv.lasso,
-                       type = "coefficients",
-                       s = bestlam)
-  coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
-  
   if(length(coefs_to_save) == 0){
-    
     return(NULL)
-    
   } else {
-  
     if(log){
       new_form <- formula(paste0("log10(",sumEAR, ") ~ ", paste(coefs_to_save, collapse = " + ")))
     } else {
       new_form <- formula(paste0(sumEAR, " ~ ", paste(coefs_to_save, collapse = " + ")))
     }
-    
     return(new_form)
   }
 }

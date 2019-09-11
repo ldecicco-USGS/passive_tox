@@ -2,8 +2,8 @@
 title: "Explore Mixtures"
 output: 
   bookdown::word_document2:
-  fig_caption: yes
-  toc: yes
+    fig_caption: yes
+    toc: yes
 editor_options: 
   chunk_output_type: console
 ---
@@ -169,9 +169,11 @@ top_mixes_per_ep <- mixtures_in_ep %>%
 # Mixtures to look at:
 check_mix <- top_mixes %>% 
   ungroup() %>% 
-  select(chemicals = contr_chems_st) %>% 
-  bind_rows(select(top_mixes_per_ep, chemicals = contr_chems_st)) %>% 
-  distinct()
+  select(chemicals = contr_chems_st,
+         chem_list = contr_chems_lt) %>% 
+  bind_rows(select(top_mixes_per_ep, 
+                   chemicals = contr_chems_st,
+                   chem_list = contr_chems_lt))
 
 if(all(c("Atrazine,DEET", "DEET,Atrazine") %in% check_mix$chemicals)){
   check_mix <- check_mix[check_mix$chemicals !=
@@ -184,6 +186,7 @@ if(all(c("Benz(a)anthracene,Indeno(1,2,3-cd)pyrene",
   check_mix <- check_mix[check_mix$chemicals !=                        "Indeno(1,2,3-cd)pyrene,Benz(a)anthracene", ]  
 }
 
+check_mix <- check_mix[!duplicated(check_mix$chemicals),]
 
 ```
 
@@ -305,7 +308,7 @@ M <- cor(df_lu_filtered)
 corrplot(M, type="upper", tl.cex = 0.5)
 ```
 
-Reduce the variables by those that have a corrolation coefficient >0.95 or <-0.95.
+Reduce the variables by those that have a corrolation coefficient >0.9 or <-0.9.
 
 ```{r corLU_reduced, results="asis"}
 lu_vars <- colnames(M)
@@ -321,8 +324,8 @@ for(i in seq_along(lu_vars)){
   if(check_var %in% exclude){
     next
   } else {
-    check_cor <- names(which(M[,check_var] > 0.95 | 
-                        M[,check_var] < -0.95))
+    check_cor <- names(which(M[,check_var] > 0.9 | 
+                        M[,check_var] < -0.9))
     check_cor <- check_cor[check_cor != check_var]
     exclude <- c(exclude, check_cor)
   }
@@ -350,7 +353,7 @@ M2 <- cor(df_lu_filtered)
 corrplot(M2, type="upper", tl.cex = 0.5)
 ```
 
-The variables left by the 0.95 threshold:
+The variables left by the 0.9 threshold:
 
 ```{r resultingVars, results="asis"}
 df <- data.frame(a = names(df_lu_filtered)[1:7],
@@ -364,22 +367,86 @@ autofit(ft)
 cat("\n")
 ```
 
-
+Now, we use the sites with detections and filter out variables that don't have a single site left that doesn't have 10% of that category.
 
 ```{r corLU_manual, results="asis"}
-df_lu_filtered <- bind_cols(df_lu[,"site"], df_lu_filtered)
+
+df_lu_filtered <- bind_cols(df_lu[,c("site","Urban","Crops")],
+                            df_lu_filtered) %>% 
+  select(-Basin_Area_mi2, -Population_Density)
+
+key2 <- chemicalSummary %>% 
+  select(chnm, Class) %>% 
+  distinct() %>% 
+  mutate(chnm = as.character(chnm),
+         Class = as.character(Class))
+
+check_mix$title <- NA
+for(i in seq_len(nrow(check_mix))){
+  chemicals <- unlist(check_mix$chem_list[i])
+  class <- key2$Class[key2$chnm %in% unlist(chemicals)]
+  check_mix$title[i] <- paste0(chemicals,":",class, collapse = "\n")
+}
 
 x <- data.frame(matrix(NA,
                   nrow = length(names(df_lu_filtered)), 
                   ncol = nrow(check_mix)))
-
-names(x) <- check_mix$chemicals
+names(x) <- check_mix$title
 
 for(i in 1:ncol(x)){
   x[[i]] <- names(df_lu_filtered)
 }
  
 x <- x[-1,]
+
+big_enough5 <- function(x, thresh = 10){
+  max(x, na.rm = TRUE) > thresh
+}
+
+top_mixes$variables_to_use <- list(NA)
+top_mixes_per_ep$variables_to_use <- list(NA)
+# Get rid of variables with small influence:
+for(i in 1:ncol(x)){
+  
+  chems <- unlist(check_mix$chem_list[i])
+  
+  sub_df <- chemicalSummary %>% 
+    mutate(chnm = as.character(chnm)) %>% 
+    filter(chnm %in% chems) %>%
+    filter(EAR > 0) 
+  
+  sites <- unique(sub_df$site)
+  
+  sub_df_lu <- df_lu_filtered %>% 
+    filter(site %in% sites) %>% 
+    select(-site) %>% 
+    select_if(big_enough5)
+  
+  x[!(x[[i]] %in% names(sub_df_lu)),i] <- ""
+  
+  index_tm <- sapply(top_mixes$contr_chems_lt, function(x){
+    all(x %in% chems) 
+  })
+  
+  index_tm_ep <- sapply(top_mixes_per_ep$contr_chems_lt, function(x){
+    all(x %in% chems) 
+  })
+  
+  top_mixes$variables_to_use[index_tm] <- list(x[[i]][x[[i]] != ""])
+  top_mixes_per_ep$variables_to_use[index_tm_ep] <- list(x[[i]][x[[i]] != ""])
+  
+}
+
+x <- x[rowSums(x == "") != ncol(x), ]
+
+# data.table::fwrite(x, "table_of_landuse.csv")
+
+```
+
+
+Now we can think about individual categories to remove. For now...I'm taking out Basin Area, pulling Crops back in, and substituting Urban for Population Density.
+
+```{r pickAndChoose, results="asis"}
 
 fx <- flextable(x)
 fx <- width(fx, width = 1.5)
@@ -391,6 +458,7 @@ fx
 # Trees by more complicated land use options
 
 
+
 ```{r moreLandUse, results="asis"}
 
 mix_graph_data_lu <- 
@@ -400,20 +468,20 @@ mix_graph_data_lu <-
                    -Urban, -Agriculture),
             by="site")
 
-variables_to_use <- names(df_lu_filtered[-1])
-
-form_bigger <- formula(paste("sumEAR ~ ",
-                             paste(names(df_lu_filtered[-1]),
-                                   collapse = " + ")))
-form_bigger_log <- formula(paste("log10(sumEAR_shifted) ~ ",
-                             paste(names(df_lu_filtered[-1]),
-                                   collapse = " + ")))
-
 for(i in seq_len(nrow(top_mixes))){
     
   mixture <- top_mixes$contr_chems_st[i]
   endpoint <- top_mixes$endPoint[i]
   
+  variables_to_use <- top_mixes$variables_to_use[[i]]
+
+  form_bigger <- formula(paste("sumEAR ~ ",
+                               paste(variables_to_use,
+                                     collapse = " + ")))
+  form_bigger_log <- formula(paste("log10(sumEAR_shifted) ~ ",
+                               paste(variables_to_use,
+                                     collapse = " + ")))
+
   sub_df <- 
       mix_graph_data_lu %>% 
       filter(mixID == i) %>%
@@ -469,7 +537,6 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
   
   cat('\n##', ep, '\n')
 
-  
   cat('\n###', paste(chems, collapse = ", "), '\n')
   
   sub_df <- 
@@ -489,7 +556,7 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
     break
   }
   
-  variables_to_use <- names(df_lu_filtered[,-1])
+  variables_to_use <- top_mixes_per_ep$variables_to_use[[i]]
 
   form_bigger <- formula(paste("sumEAR ~ ",
                            paste(variables_to_use,
@@ -510,26 +577,26 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
   } else {
     x_df <- plot_lm(new_form, sub_df)
   }
-
   
   cat("\n")
   cat("\n#### Log\n")
   cat("\n")
   
-  sub_df$sumEAR_offset <- sub_df$sumEAR
-  sub_df$sumEAR_offset <- sub_df$sumEAR_offset +
-    0.5*min(sub_df$sumEAR_offset[sub_df$sumEAR_offset > 0], na.rm = TRUE)
+  sub_df$sumEAR_shifted <- sub_df$sumEAR
+  sub_df$sumEAR_shifted <- sub_df$sumEAR_shifted +
+    0.5*min(sub_df$sumEAR_shifted[sub_df$sumEAR_shifted > 0],
+            na.rm = TRUE)
   
   new_form_log <- get_formula(sub_df,
                               variables_to_use,
-                              sumEAR = "sumEAR_offset",
+                              sumEAR = "sumEAR_shifted",
                               log = TRUE)
   if(is.null(new_form_log)){
     message("No log")
     x_df2 <- data.frame()
   } else {
     x_df2 <- plot_lm(new_form_log, sub_df,
-              sumEAR = "sumEAR_offset", log = TRUE)
+              sumEAR = "sumEAR_shifted", log = TRUE)
   }
 
   cat("\n")

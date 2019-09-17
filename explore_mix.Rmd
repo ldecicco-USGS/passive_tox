@@ -26,9 +26,9 @@ library(flextable)
 library(leaps) #regsubsets
 library(glmnet)
 
-
 source("R/mixtures/mix_script.R")
 drake::loadd(chemicalSummary)
+drake::loadd(chem_info)
 
 EARsum_endpoint <- sum_endpoints(chemicalSummary)
 
@@ -125,10 +125,6 @@ for(i in 1:nrow(top_mixes)){
                                 mix_EAR_sum)
 }
 
-#Add a shifted term to try logs:
-mix_graph_data$sumEAR_shifted <- mix_graph_data$sumEAR
-mix_graph_data$sumEAR_shifted <- mix_graph_data$sumEAR_shifted + 0.5*min(mix_graph_data$sumEAR[mix_graph_data$sumEAR > 0], na.rm = TRUE) 
-
 priority_endpoints <- top_mixes$endPoint
 
 mixtures_in_ep <-
@@ -205,6 +201,10 @@ mix_graph_data_lu <- mix_graph_data %>%
            facet = paste(mix_st, endPoint, sep = "\n"),
            mixture_id = as.integer(as.factor(facet)))
 
+# TODO: actually us MDL EARS!!!
+
+mix_graph_data_lu <- create_censor(mix_graph_data_lu)
+
 urban <- ggplot(data = mix_graph_data_lu,
                 aes(x = thresh, y = Urban)) +
     geom_boxplot(outlier.shape = NA) +
@@ -226,9 +226,21 @@ As you can see by Figure \@ref(fig:regularBP)
 
 ```{r party2, results="asis"}
 
-form <- formula("sumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2")
+form_lm <- formula(sumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2)
 
-form2 <- formula("log10(sumEAR_shifted) ~ Urban + Agriculture + Urban^2 + Agriculture^2")
+form2_lm <- formula(log10(sumEAR_shifted) ~ Urban + Agriculture + Urban^2 + Agriculture^2)
+
+form_survival <- formula(survival::Surv(lowEAR,
+                                highEAR,
+                                 type="interval2") ~
+                                 Urban + Agriculture +
+                                 Urban^2 + Agriculture^2)
+
+form_survival_log <- formula(survival::Surv(log10(lowEAR),
+                                log10(highEAR),
+                                 type="interval2") ~
+                                 Urban + Agriculture +
+                                 Urban^2 + Agriculture^2)
 
 df_1 <- data.frame(chems_endpoint = character(),
                    tree_return = character(),
@@ -249,17 +261,17 @@ for(i in seq_len(nrow(top_mixes))){
   cat('\n##', unique(sub_df$mix_st), '\n')
   
   cat("\n### Tree\n")
-  tree_return <- plot_trees(form, sub_df, endpoint)
+  tree_return <- plot_trees(form_lm, sub_df, endpoint)
 
   cat("\n")
   
   cat("\n### Linear\n")
-  x_df <- plot_lm(form, sub_df)
+  x_df <- plot_lm(form_survival, sub_df)
   
   cat("\n")
   cat("\n### Log\n")
-  x_df2 <- plot_lm(form2, sub_df,
-                  sumEAR = "sumEAR_shifted", log=TRUE)
+  x_df2 <- plot_lm(form_survival_log, sub_df, 
+                  log=TRUE)
   cat("\n")
     
   df_1 <- bind_rows(df_1,
@@ -448,10 +460,20 @@ Now we can think about individual categories to remove. For now...I'm taking out
 
 ```{r pickAndChoose, results="asis"}
 
-fx <- flextable(x)
-fx <- width(fx, width = 1.5)
+fx <- flextable(x[,1:3])
+fx <- width(fx, width = 2.5)
+cat("\n##### First 3")
 fx
+cat("\n")
+```
 
+```{r pickAndChoose2, results="asis"}
+fx2 <- flextable(x[,4:5])
+
+fx2 <- width(fx2, width = 2.5)
+cat("\n##### Next 2")
+fx2
+cat("\n")
 ```
 
 
@@ -475,13 +497,6 @@ for(i in seq_len(nrow(top_mixes))){
   
   variables_to_use <- top_mixes$variables_to_use[[i]]
 
-  form_bigger <- formula(paste("sumEAR ~ ",
-                               paste(variables_to_use,
-                                     collapse = " + ")))
-  form_bigger_log <- formula(paste("log10(sumEAR_shifted) ~ ",
-                               paste(variables_to_use,
-                                     collapse = " + ")))
-
   sub_df <- 
       mix_graph_data_lu %>% 
       filter(mixID == i) %>%
@@ -490,24 +505,39 @@ for(i in seq_len(nrow(top_mixes))){
   cat('\n##', unique(sub_df$mix_st), '\n')
   
   cat("\n### Tree\n")
-  tree_return <- plot_trees(form_bigger, sub_df, endpoint)
+  form_bigger_lm <- formula(paste("sumEAR ~ ",
+                               paste(variables_to_use,
+                                     collapse = " + ")))
+  tree_return <- plot_trees(form_bigger_lm, sub_df, endpoint)
   cat("\n")
 
-  new_form <- get_formula(sub_df, variables_to_use)
-
+  new_form <- get_formula(sub_df, variables_to_use, 
+                          lasso = FALSE)
   
   cat("\n### Linear\n")
-  x_df <- plot_lm(new_form, sub_df)
+
+  form <- reformulate(termlabels = attr(terms(new_form),"term.labels"),
+              response = 'survival::Surv(lowEAR,
+                                      highEAR,
+                                      type="interval2")')
+
+  x_df <- plot_lm(form, sub_df = sub_df, survival = TRUE)
   cat("\n")
   
   cat("\n### Log\n")
   new_form2 <- get_formula(sub_df,
                            variables_to_use,
-                           sumEAR = "sumEAR_shifted",
+                           sumEAR = "highEAR",
                            log=TRUE)
   
+  new_form2 <- reformulate(termlabels = attr(terms(new_form2),"term.labels"),
+              response = 'survival::Surv(log10(lowEAR),
+                                      log10(highEAR),
+                                      type="interval2")')
+  
   x_df2 <- plot_lm(new_form2, sub_df,
-                  sumEAR = "sumEAR_shifted", log=TRUE)
+                  sumEAR = "sumEAR",
+                  log=TRUE, survival = TRUE)
   
   df_temp <- variable_summary(chem, endpoint, x_df, x_df2)
     
@@ -520,8 +550,6 @@ for(i in seq_len(nrow(top_mixes))){
   cat("\n")
 
 }
-
-
 
 ```
 
@@ -556,6 +584,8 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
     break
   }
   
+  sub_df <- create_censor(sub_df)
+  
   variables_to_use <- top_mixes_per_ep$variables_to_use[[i]]
 
   form_bigger <- formula(paste("sumEAR ~ ",
@@ -575,28 +605,34 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
     message("No linear")
     x_df <- data.frame()
   } else {
-    x_df <- plot_lm(new_form, sub_df)
+    new_form <- reformulate(termlabels = attr(terms(new_form), "term.labels"), 
+    response = 'survival::Surv(lowEAR,
+                               highEAR,
+                               type="interval2")')
+    x_df <- plot_lm(new_form, sub_df, survival = TRUE)
   }
   
   cat("\n")
   cat("\n#### Log\n")
   cat("\n")
-  
-  sub_df$sumEAR_shifted <- sub_df$sumEAR
-  sub_df$sumEAR_shifted <- sub_df$sumEAR_shifted +
-    0.5*min(sub_df$sumEAR_shifted[sub_df$sumEAR_shifted > 0],
-            na.rm = TRUE)
-  
+
   new_form_log <- get_formula(sub_df,
                               variables_to_use,
-                              sumEAR = "sumEAR_shifted",
+                              sumEAR = "highEAR",
                               log = TRUE)
   if(is.null(new_form_log)){
     message("No log")
     x_df2 <- data.frame()
   } else {
+    new_form_log <- reformulate(termlabels = attr(terms(new_form_log), "term.labels"), 
+    response = 'survival::Surv(log10(lowEAR),
+                               log10(highEAR), 
+                               type="interval2")')
+    
     x_df2 <- plot_lm(new_form_log, sub_df,
-              sumEAR = "sumEAR_shifted", log = TRUE)
+                     survival = TRUE,
+                     sumEAR = "sumEAR",
+                     log = TRUE)
   }
 
   cat("\n")
@@ -623,14 +659,12 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
 class_sum <- chemicalSummary %>% 
   left_join(df_lu_filtered, by = "site")
 
-
 graph_class <- class_sum %>% 
   group_by(Class, site, date, Urban, Agriculture) %>% 
   summarize(sumEAR = sum(EAR, na.rm = TRUE)) %>% 
   group_by(Class, site, Urban, Agriculture) %>% 
   summarise(maxSumEAR = max(sumEAR)) %>% 
   ungroup()
-
 
 ggplot(data = graph_class) +
   geom_point(aes(x = Urban, y = maxSumEAR)) +

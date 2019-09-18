@@ -196,20 +196,14 @@ plot_trees <- function(form, sub_df, endpoint){
   return(tree_terms)
 }
 
-plot_lm <- function(form, sub_df, sumEAR = "sumEAR", log=FALSE){
+get_lm_stuff <- function(form, sub_df, sumEAR, log){
   
   if(length(attr(terms(form),"term.labels")) == 0){
-    
-    scatter_new <- ggplot() +
-      geom_point(data = sub_df,
-                 aes(x = {{sumEAR}}, y = Urban)) +
-      theme_bw()
-    print(scatter_new)
-    break
+    return(list(data_lm = data.frame()), label = NA)
+    message("No terms in lm")
   }
   
   basic_lm <- lm(data = sub_df, formula = form)
-  
   predictions <- predict(basic_lm, 
                          interval = 'confidence')
   
@@ -218,7 +212,14 @@ plot_lm <- function(form, sub_df, sumEAR = "sumEAR", log=FALSE){
   sub_df_sub <- 
     sub_df %>% 
     bind_cols(predictions) %>% 
-    select(sumEAR = {{sumEAR}}, lwr, upr, fit, shortName)
+    select(sumEAR = {{sumEAR}}, #lwr, upr, #if we want a ribbon...bring this back 
+           fit, shortName)
+  
+  if(log){
+    sub_df_sub$fit <- 10^(sub_df_sub$fit)
+    # sub_df_sub$lwr <- 10^(sub_df_sub$lwr)
+    # sub_df_sub$upr <- 10^(sub_df_sub$upr)
+  }
   
   x <- coef(basic_lm)
   x_df <- data.frame(x)
@@ -234,35 +235,111 @@ plot_lm <- function(form, sub_df, sumEAR = "sumEAR", log=FALSE){
   } else {
     dirty_eqn <- paste0(sumEAR, " = ", dirty_eqn)
   }
+  
+  sub_df_sub <- sub_df_sub %>% 
+    mutate(model = "lm")
+  
+  eqn_lm <- data.frame(x = 0,
+                       y = 1.01*max(sub_df_sub$fit),
+                       label = dirty_eqn,
+                       model = "lm",
+                       stringsAsFactors = FALSE)
+  
+  return(list(data_lm = sub_df_sub, label = eqn_lm, x_df = x_df))
+  
+}
 
+get_surv_stuff <- function(form, sub_df, log){
+  
+  if(length(attr(terms(form),"term.labels")) == 0){
+    return(list(data_lm = data.frame()), label = NA)
+    message("No terms in survival")
+  }
+  
+  if (log){
+    basic_lm <- survival::survreg(form, 
+                                  data = sub_df,
+                                  dist="lognormal")
+    predictions <- predict(basic_lm)
+    predictions <- data.frame(fit = predictions)
+  } else {
+    basic_lm <- survival::survreg(form,
+                                  data = sub_df)
+    predictions <- predict(basic_lm)
+    predictions <- data.frame(fit = predictions)
+  }
+  
+  sub_df_sub <- 
+    sub_df %>% 
+    bind_cols(predictions) %>% 
+    select(sumEAR, lowEAR, highEAR, fit, shortName)
+  
+  x <- coef(basic_lm)
+  x_df <- data.frame(x)
+  x_df$coef <- row.names(x_df)
+  
+  dirty_eqn <- paste(format(x, digits = 2),
+                     names(x), collapse = " +", sep = "*")
+  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
+  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
+  
   if(log){
-    
-    sub_df_sub$fit <- 10^(sub_df_sub$fit)
-    sub_df_sub$lwr <- 10^(sub_df_sub$lwr)
-    sub_df_sub$upr <- 10^(sub_df_sub$upr)
-    
+    dirty_eqn <- paste0("Surv(log10(lowEAR),log10(highEAR)) = ", dirty_eqn)
+  } else {
+    dirty_eqn <- paste0("Surv(lowEAR,highEAR) = ", dirty_eqn)
   } 
   
+  sub_df_sub <- sub_df_sub %>% 
+    mutate(model = "survival")
+  
+  eqn_surv <- data.frame(x = 0,
+                       y = 1.01*max(sub_df_sub$fit),
+                       label = dirty_eqn,
+                       model = "survival",
+                       stringsAsFactors = FALSE)
+  
+  return(list(data_surv = sub_df_sub, label = eqn_surv, x_df = x_df))
+
+}
+
+plot_lm <- function(form_lm, form_surv, sub_df, sumEAR = "sumEAR", 
+                    log = FALSE){
+  
+  sub_df_lm_list <- get_lm_stuff(form = form_lm,
+                            sub_df = sub_df, 
+                            sumEAR = sumEAR, 
+                            log = log)
+
+  sub_df_surv_list <- get_surv_stuff(form = form_surv,
+                                     sub_df = sub_df,
+                                     log = log)
+                      
+  graph_data <- dplyr::bind_rows(sub_df_lm_list[["data_lm"]],
+                                 sub_df_surv_list[["data_surv"]])
+
+  label_info <- dplyr::bind_rows(sub_df_lm_list[["label"]],
+                                 sub_df_surv_list[["label"]])
+  
+  x_df <- list(lm = sub_df_lm_list[["x_df"]],
+               surv = sub_df_surv_list[["x_df"]])
+  
+  label_info$y = max(label_info$y)
+  
   scatter_urb_ag <- ggplot() +
-    geom_point(data = sub_df_sub,
+    geom_point(data = graph_data,
                aes(x = sumEAR, y = fit)) +
-    geom_text(data = filter(sub_df_sub, sumEAR == max(sumEAR)),
+    geom_text(data = filter(graph_data, sumEAR == max(sumEAR)),
               aes(x = sumEAR, y = fit, label = shortName),
               vjust = 1, hjust = 1) +
-    geom_ribbon(data = sub_df_sub,
-                aes(x = sumEAR,
-                    ymin = lwr,
-                    ymax = upr),
-                alpha=0.3) +
     geom_abline(slope = 1, 
                 linetype = "solid", color = "red") +
-    geom_text(aes(label = dirty_eqn,
-                  x = 0.0,
-                  y = max(sub_df_sub$upr)*1.01),
+    facet_wrap(. ~ model) +
+    geom_text(data = label_info,
+              aes(x = x, y = y, label = label),
               hjust = 0) +
     xlab("Observed") + ylab("Predicted") +
     theme_bw()
-  
+
   if(log){
     scatter_urb_ag <- scatter_urb_ag +
       scale_y_log10() +
@@ -276,7 +353,7 @@ plot_lm <- function(form, sub_df, sumEAR = "sumEAR", log=FALSE){
 
 get_formula <- function(sub_df, variables_to_use, 
                         sumEAR = "sumEAR", log=FALSE,
-                        lasso = FALSE){
+                        lasso = FALSE, survival = TRUE){
   
   predictors_df <- sub_df[,variables_to_use]
   response_df <- sub_df[,sumEAR]
@@ -307,21 +384,39 @@ get_formula <- function(sub_df, variables_to_use,
     coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
   } else {
     
-    if(log){
-      form <- formula(paste("log10(sumEAR_shifted) ~ ",
-                                     paste(variables_to_use,
-                                           collapse = " + ")))
+    if(!survival){
+      if(log){
+        form <- formula(paste("log10(",sumEAR,") ~ ",
+                                       paste(variables_to_use,
+                                             collapse = " + ")))
+      } else {
+        form <- formula(paste(sumEAR, "~",
+                                   paste(variables_to_use,
+                                         collapse = " + ")))
+      }
+      lm_high <- lm(form, data = sub_df)
+      step_return <- MASS::stepAIC(lm_high, k = log(nrow(sub_df)), trace = FALSE)
+
     } else {
-      form <- formula(paste("sumEAR ~ ",
-                                 paste(variables_to_use,
-                                       collapse = " + ")))
+      # TODO: figure this out
+
+      form <- reformulate(termlabels = variables_to_use, 
+                          response = 'survival::Surv(lowEAR,
+                             highEAR, 
+                             type="interval2")')
+
+      surv_high <- survival::survreg(form,
+                                     data = sub_df,
+                                     dist=ifelse(log,
+                                                 "lognormal",
+                                                 "weibull"))
+      step_return <- MASS::stepAIC(surv_high, k = log(nrow(sub_df)), trace = FALSE)
+
     }
-    
-    lm_high <- lm(form, data = sub_df)
-    step_return <- MASS::stepAIC(lm_high, k = log(nrow(sub_df)), trace = FALSE)
     coefs_to_save <- coefficients(step_return)
     coefs_to_save <- names(coefs_to_save)
     coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
+
   }
   
   if(length(coefs_to_save) == 0){
@@ -337,20 +432,49 @@ get_formula <- function(sub_df, variables_to_use,
 }
 
 variable_summary <- function(chem, endpoint, x_df, x_df2){
-  df_temp <- data.frame(chems_endpoint = paste(
-    paste(unlist(chem),
-          collapse = ",\n"),endpoint, sep=",\n"),
-    tree_return = paste(tree_return,
-                        collapse = ",\n"),
-    linear_return = paste(x_df$coef[x_df$coef != "(Intercept)"],
-                          collapse = ",\n"),
-    log_return = paste(x_df2$coef[x_df2$coef != "(Intercept)"],
-                       collapse = ",\n"),
-    stringsAsFactors = FALSE)
   
-  df_temp$log_return <- gsub("_"," ", df_temp$log_return)
-  df_temp$linear_return <- gsub("_"," ", df_temp$linear_return)
-  df_temp$tree_return <- gsub("_"," ", df_temp$tree_return)
+  chems <- unlist(chem)
+  lm_lin <- x_df[["lm"]]$coef[x_df[["lm"]]$coef != "(Intercept)"]
+  lm_lin <- gsub("_", " ", lm_lin)
+  lm_log <- x_df2[["lm"]]$coef[x_df2[["lm"]]$coef != "(Intercept)"]
+  lm_log <- gsub("_", " ", lm_log)
+  surv_lin <- x_df[["surv"]]$coef[x_df[["surv"]]$coef != "(Intercept)"]
+  surv_lin <- gsub("_", " ", surv_lin)
+  surv_log <- x_df2[["surv"]]$coef[x_df2[["surv"]]$coef != "(Intercept)"]
+  surv_log <- gsub("_", " ", surv_log)
+  
+  df_temp <- data.frame(matrix("", ncol = 5, 
+                               nrow = max(sapply(list(lm_lin,
+                                                      lm_log,
+                                                      surv_lin,
+                                                      surv_log,
+                                                      c(chems, endpoint)), length))
+                               ),
+                        stringsAsFactors = FALSE
+                        )
+  
+  names(df_temp) <- c("Chem/Endpoint", "lm", "lm_log", "surv", "surv_log")
+  
+  
+  df_temp$`Chem/Endpoint`[1:length(chems)] <- chems
+  df_temp$`Chem/Endpoint`[length(chems) + 1] <- endpoint
+  df_temp$lm[1:length(lm_lin)] <- lm_lin
+  df_temp$lm_log[1:length(lm_log)] <- lm_log
+  df_temp$surv[1:length(surv_lin)] <- surv_lin
+  df_temp$surv_log[1:length(surv_log)] <- surv_log
   
   return(df_temp)
+}
+
+
+create_censor <- function(df){
+  # TODO: actually us MDL EARS!!!
+  offset <- 0.5*min(df$sumEAR[df$sumEAR > 0])
+  
+  df$lowEAR <- df$sumEAR + offset
+  df$highEAR <- df$sumEAR + offset
+  
+  # Linear:
+  df$highEAR[df$sumEAR == 0] <- 2*offset
+  return(df)
 }

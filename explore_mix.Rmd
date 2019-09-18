@@ -226,9 +226,15 @@ As you can see by Figure \@ref(fig:regularBP)
 
 ```{r party2, results="asis"}
 
+library(officer)
+big_border = fp_border(color="orange", width = 2)
+border_v = fp_border(color="gray")
+border_h = fp_border(color="gray")
+
 form_lm <- formula(sumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2)
 
-form2_lm <- formula(log10(sumEAR_shifted) ~ Urban + Agriculture + Urban^2 + Agriculture^2)
+form2_lm <- reformulate(termlabels = c("Urban","Agriculture"),
+            response = "log10(highEAR)")
 
 form_survival <- formula(survival::Surv(lowEAR,
                                 highEAR,
@@ -236,17 +242,14 @@ form_survival <- formula(survival::Surv(lowEAR,
                                  Urban + Agriculture +
                                  Urban^2 + Agriculture^2)
 
-form_survival_log <- formula(survival::Surv(log10(lowEAR),
-                                log10(highEAR),
+#The log goes into the distribution term in the model function:
+form_survival_log <- formula(survival::Surv(lowEAR, 
+                                highEAR,
                                  type="interval2") ~
                                  Urban + Agriculture +
                                  Urban^2 + Agriculture^2)
 
-df_1 <- data.frame(chems_endpoint = character(),
-                   tree_return = character(),
-                   linear_return = character(),
-                   log_return = character(),
-                   stringsAsFactors = FALSE)
+df_1 <- data.frame()
 
 for(i in seq_len(nrow(top_mixes))){
     
@@ -266,24 +269,33 @@ for(i in seq_len(nrow(top_mixes))){
   cat("\n")
   
   cat("\n### Linear\n")
-  x_df <- plot_lm(form_survival, sub_df)
+  x_df <- plot_lm(form_lm, form_survival, sub_df)
   
   cat("\n")
   cat("\n### Log\n")
-  x_df2 <- plot_lm(form_survival_log, sub_df, 
-                  log=TRUE)
+  x_df2 <- plot_lm(form2_lm,
+                   form_survival_log, 
+                   sub_df, 
+                   log=TRUE)
   cat("\n")
-    
-  df_1 <- bind_rows(df_1,
-                    variable_summary(chem, endpoint,
-                                     x_df, x_df2))
+  cat("\n### Summarize variables\n")
+  
+  df_1 <- variable_summary(chem, endpoint, x_df, x_df2)
+  table_mix <- flextable(df_1)
+  table_mix <- width(table_mix, width = 1.5)
+  table_mix <- border_remove(x = table_mix)
+  table_mix <- border_outer(table_mix, 
+                            part="all", 
+                            border = big_border)
+  table_mix <- border_inner_h(table_mix, part="all",
+                            border = border_h )
+  table_mix <- border_inner_v(table_mix, part="all",
+                            border = border_v )
+  cat(knitr::knit_print(table_mix))
 }
 
-cat("\n## Summarize variables\n")
 
-table_mix <- flextable(df_1)
-table_mix <- width(table_mix, width = 1.5)
-table_mix
+
 cat("\n")
 
 ```
@@ -511,33 +523,43 @@ for(i in seq_len(nrow(top_mixes))){
   tree_return <- plot_trees(form_bigger_lm, sub_df, endpoint)
   cat("\n")
 
-  new_form <- get_formula(sub_df, variables_to_use, 
-                          lasso = FALSE)
+  new_form_lm <- get_formula(sub_df, variables_to_use, 
+                          lasso = FALSE, survival = FALSE)
+  new_form_surv <- get_formula(sub_df, variables_to_use, 
+                        lasso = FALSE)
   
   cat("\n### Linear\n")
 
-  form <- reformulate(termlabels = attr(terms(new_form),"term.labels"),
+  form_surv <- reformulate(termlabels = attr(terms(new_form_surv),"term.labels"),
               response = 'survival::Surv(lowEAR,
                                       highEAR,
                                       type="interval2")')
 
-  x_df <- plot_lm(form, sub_df = sub_df, survival = TRUE)
+  x_df <- plot_lm(new_form_lm, 
+                  form_surv, 
+                  sub_df = sub_df)
   cat("\n")
   
   cat("\n### Log\n")
   new_form2 <- get_formula(sub_df,
                            variables_to_use,
+                           survival = FALSE,
                            sumEAR = "highEAR",
                            log=TRUE)
+  new_form_surv <- get_formula(sub_df,
+                         variables_to_use,
+                         sumEAR = "highEAR",
+                         log=TRUE)
   
-  new_form2 <- reformulate(termlabels = attr(terms(new_form2),"term.labels"),
-              response = 'survival::Surv(log10(lowEAR),
-                                      log10(highEAR),
+  new_form_surv_log <- reformulate(termlabels = attr(terms(new_form_surv),"term.labels"),
+              response = 'survival::Surv(lowEAR,
+                                      highEAR,
                                       type="interval2")')
-  
-  x_df2 <- plot_lm(new_form2, sub_df,
-                  sumEAR = "sumEAR",
-                  log=TRUE, survival = TRUE)
+
+  x_df2 <- plot_lm(new_form2,
+                   new_form_surv_log, 
+                   sub_df,
+                  log=TRUE)
   
   df_temp <- variable_summary(chem, endpoint, x_df, x_df2)
     
@@ -546,6 +568,14 @@ for(i in seq_len(nrow(top_mixes))){
   cat("\n")
   table_mix <- flextable(df_temp)
   table_mix <- width(table_mix, width = 1.5)
+  table_mix <- border_remove(x = table_mix)
+  table_mix <- border_outer(table_mix, 
+                            part="all", 
+                            border = big_border)
+  table_mix <- border_inner_h(table_mix, part="all",
+                            border = border_h )
+  table_mix <- border_inner_v(table_mix, part="all",
+                            border = border_v )
   cat(knitr::knit_print(table_mix))
   cat("\n")
 
@@ -599,39 +629,49 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
   cat("\n#### Linear\n")
   cat("\n")
   
-  new_form <- get_formula(sub_df, variables_to_use)
+  new_form_lm <- get_formula(sub_df,
+                             variables_to_use,
+                             survival = FALSE)
+  new_form_surv <- get_formula(sub_df, variables_to_use)
   
-  if(is.null(new_form)){
+  if(is.null(new_form_lm)){
     message("No linear")
     x_df <- data.frame()
   } else {
-    new_form <- reformulate(termlabels = attr(terms(new_form), "term.labels"), 
+    new_form_surv <- reformulate(termlabels = attr(terms(new_form_surv), "term.labels"), 
     response = 'survival::Surv(lowEAR,
                                highEAR,
                                type="interval2")')
-    x_df <- plot_lm(new_form, sub_df, survival = TRUE)
+    x_df <- plot_lm(new_form_lm,
+                    new_form_surv, sub_df)
   }
   
   cat("\n")
   cat("\n#### Log\n")
   cat("\n")
 
-  new_form_log <- get_formula(sub_df,
+  new_form_lm_log <- get_formula(sub_df,
                               variables_to_use,
+                              survival = FALSE,
                               sumEAR = "highEAR",
                               log = TRUE)
-  if(is.null(new_form_log)){
+  new_form_surv_log <- get_formula(sub_df,
+                            variables_to_use,
+                            sumEAR = "highEAR",
+                            log = TRUE)
+  if(is.null(new_form_lm_log)){
     message("No log")
     x_df2 <- data.frame()
   } else {
-    new_form_log <- reformulate(termlabels = attr(terms(new_form_log), "term.labels"), 
-    response = 'survival::Surv(log10(lowEAR),
-                               log10(highEAR), 
+    
+    new_form_log_surv <- reformulate(termlabels = attr(terms(new_form_surv_log), "term.labels"), 
+    response = 'survival::Surv(lowEAR,
+                               highEAR, 
                                type="interval2")')
     
-    x_df2 <- plot_lm(new_form_log, sub_df,
-                     survival = TRUE,
-                     sumEAR = "sumEAR",
+    
+    x_df2 <- plot_lm(new_form_lm_log,
+                     new_form_log_surv, sub_df,
                      log = TRUE)
   }
 
@@ -644,6 +684,14 @@ for(i in seq_len(nrow(top_mixes_per_ep))){
   cat("\n")
   table_mix <- flextable(df_temp)
   table_mix <- width(table_mix, width = 1.5)
+  table_mix <- border_remove(x = table_mix)
+  table_mix <- border_outer(table_mix, 
+                            part="all", 
+                            border = big_border)
+  table_mix <- border_inner_h(table_mix, part="all",
+                            border = border_h )
+  table_mix <- border_inner_v(table_mix, part="all",
+                            border = border_v )
   cat(knitr::knit_print(table_mix))
   cat("\n")
 

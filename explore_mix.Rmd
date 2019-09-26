@@ -8,6 +8,10 @@ editor_options:
   chunk_output_type: console
 ---
 
+Here we explore land use and chemical mixture relationships.
+
+We will look at mixtures based on unique chemical/endpoint combinations. The way we prioritize mixutres is summing EARs for each endpoint, and then only look at endpoints that have at least an sumEAR of 0.001. Then, we go back and figure out which mixtures occur at at least 10 sites. The only mixtures that fit those 2 critiera are:
+
 ```{r setup, echo=FALSE, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,
                       message = FALSE,
@@ -15,67 +19,26 @@ knitr::opts_chunk$set(echo = FALSE,
                       fig.width = 7,
                       fig.height = 5)
 
-library(tidyverse)
-library(rpart)
-library(party)
-library(partykit)
-library(rpartScore)
-library(readxl)
-library(flextable)
+library(tidyverse, quiet = TRUE)
+library(rpart, quiet = TRUE)
+library(party, quiet = TRUE)
+library(partykit, quiet = TRUE)
+library(rpartScore, quiet = TRUE)
+library(readxl, quiet = TRUE)
+library(flextable, quiet = TRUE)
 # library(subselect) #sim annealing
-library(leaps) #regsubsets
-library(glmnet)
+library(leaps, quiet = TRUE) #regsubsets
+library(glmnet, quiet = TRUE)
 
 source("R/mixtures/mix_script.R")
 drake::loadd(chemicalSummary)
 drake::loadd(chem_info)
+```
 
+```{r getData, results="asis"}
 EARsum_endpoint <- sum_endpoints(chemicalSummary)
 
 contributing_chems <- calc_contr_chems(EARsum_endpoint)
-
-df_lu <- read_xlsx(path = file.path("data",
-                                    "raw",
-                                    "GLRItox_summary.xlsx"),
-                           sheet = 1, skip=1) %>% 
-    rename(site = STAID, 
-           Basin_Area_mi2 = `Basin Area (mi2)`,
-           Basin_area_km2 = `Basin Area (km2)`,
-           Urban = `Urban (%)...6`, 
-           Parking_lot = `Parking Lot (%)`,
-           Agriculture = `Agriculture (%)...7`) %>% 
-    mutate(Developed = Urban + Agriculture)
-
-names(df_lu) <- gsub("\\s*\\([^\\)]+\\)",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "\\...",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = ", ",
-                     replacement = "_",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "/",
-                     replacement = "_",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = " ",
-                     replacement = "_",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "\\[",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "]",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "-",
-                     replacement = "_",
-                     names(df_lu))
-
-not_all_na <- function(x) all(!is.na(x))
-
-df_lu <- 
-    df_lu %>% 
-    select_if(not_all_na)
 
 chm_key <- contributing_chems %>% 
     select(contr_chems) %>% 
@@ -184,15 +147,23 @@ if(all(c("Benz(a)anthracene,Indeno(1,2,3-cd)pyrene",
 
 check_mix <- check_mix[!duplicated(check_mix$chemicals),]
 
+top_mixes_select <- top_mixes %>% 
+  ungroup() %>% 
+  select(chemicals = contr_chems_st, 
+         endPoint, n_samples, unique_sites)
+
+
+mix_ft <- flextable(top_mixes_select)
+autofit(mix_ft)
+
 ```
 
 # Overview
 
 ```{r regularBP, fig.cap="Urban hits"}
-n_fun <- function(x){
-  return(data.frame(y = 0,
-                    label = length(x)))
-}
+
+df_lu <- open_land_use() %>% 
+  filter(site %in% unique(chemicalSummary$site))
 
 mix_graph_data_lu <- mix_graph_data %>% 
     left_join(df_lu[,c("site","Urban","Agriculture")],
@@ -204,6 +175,11 @@ mix_graph_data_lu <- mix_graph_data %>%
 # TODO: actually us MDL EARS!!!
 
 mix_graph_data_lu <- create_censor(mix_graph_data_lu)
+
+n_fun <- function(x){
+  return(data.frame(y = 0,
+                    label = length(x)))
+}
 
 urban <- ggplot(data = mix_graph_data_lu,
                 aes(x = thresh, y = Urban)) +
@@ -306,9 +282,9 @@ Variables available:
 
 ```{r table_of_categories}
 
-df <- data.frame(a = c(names(df_lu)[2:11], NA),
-                 b = names(df_lu)[12:22],
-                 c = names(df_lu)[23:33],
+df <- data.frame(a = names(df_lu)[2:12],
+                 b = names(df_lu)[13:23],
+                 c = names(df_lu)[24:34],
                  stringsAsFactors = FALSE)
 
 autofit(flextable(df))
@@ -326,13 +302,16 @@ big_enough <- function(x, thresh = 2){
 
 df_lu_filtered <- df_lu %>% 
   select(-site) %>% 
-  select_if(big_enough)
+  select_if(big_enough) 
+
+df_lu_filtered <- df_lu_filtered%>% 
+  bind_cols(select(df_lu, frac_2010, frac_2014))
 
 M <- cor(df_lu_filtered)
 corrplot(M, type="upper", tl.cex = 0.5)
 ```
 
-Reduce the variables by those that have a corrolation coefficient >0.9 or <-0.9.
+Reduce the variables by those that have a corrolation coefficient > 0.9 or < -0.9.
 
 ```{r corLU_reduced, results="asis"}
 lu_vars <- colnames(M)
@@ -380,9 +359,9 @@ corrplot(M2, type="upper", tl.cex = 0.5)
 The variables left by the 0.9 threshold:
 
 ```{r resultingVars, results="asis"}
-df <- data.frame(a = names(df_lu_filtered)[1:7],
-                 b = names(df_lu_filtered)[8:14],
-                 c = names(df_lu_filtered)[15:21],
+df <- data.frame(a = names(df_lu_filtered)[1:6],
+                 b = names(df_lu_filtered)[7:12],
+                 c = c(names(df_lu_filtered)[13:16],"",""),
                  stringsAsFactors = FALSE)
 cat("\n")
 ft <- flextable(df)
@@ -406,6 +385,7 @@ key2 <- chemicalSummary %>%
          Class = as.character(Class))
 
 check_mix$title <- NA
+
 for(i in seq_len(nrow(check_mix))){
   chemicals <- unlist(check_mix$chem_list[i])
   class <- key2$Class[key2$chnm %in% unlist(chemicals)]
@@ -495,6 +475,8 @@ cat("\n")
 
 ```{r moreLandUse, results="asis"}
 
+not_all_na <- function(x) all(!is.na(x))
+
 mix_graph_data_lu <- 
   mix_graph_data_lu %>%
   select(-mix) %>% 
@@ -504,6 +486,7 @@ mix_graph_data_lu <-
 
 for(i in seq_len(nrow(top_mixes))){
     
+  chems <- unlist(top_mixes$contr_chems_lt[i])
   mixture <- top_mixes$contr_chems_st[i]
   endpoint <- top_mixes$endPoint[i]
   
@@ -561,7 +544,7 @@ for(i in seq_len(nrow(top_mixes))){
                    sub_df,
                   log=TRUE)
   
-  df_temp <- variable_summary(chem, endpoint, x_df, x_df2)
+  df_temp <- variable_summary(chems, endpoint, x_df, x_df2)
     
   cat("\n")
   cat("\n### Summarize variables\n")

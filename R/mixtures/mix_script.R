@@ -198,10 +198,10 @@ plot_trees <- function(form, sub_df, endpoint){
 
 get_lm_stuff <- function(form, sub_df, sumEAR, log){
   
-  if(length(attr(terms(form),"term.labels")) == 0){
-    return(list(data_lm = data.frame()), label = NA)
-    message("No terms in lm")
-  }
+  # if(length(attr(terms(form),"term.labels")) == 0){
+  #   return(list(data_lm = data.frame()), label = NA)
+  #   message("No terms in lm")
+  # }
   
   basic_lm <- lm(data = sub_df, formula = form)
   predictions <- predict(basic_lm, 
@@ -420,7 +420,12 @@ get_formula <- function(sub_df, variables_to_use,
   }
   
   if(length(coefs_to_save) == 0){
-    return(NULL)
+    if(log){
+      new_form <- formula(paste0("log10(",sumEAR, ") ~ 1"))
+    } else {
+      new_form <- formula(paste0(sumEAR, " ~ 1"))
+    }
+    return(new_form)
   } else {
     if(log){
       new_form <- formula(paste0("log10(",sumEAR, ") ~ ", paste(coefs_to_save, collapse = " + ")))
@@ -436,12 +441,28 @@ variable_summary <- function(chem, endpoint, x_df, x_df2){
   chems <- unlist(chem)
   lm_lin <- x_df[["lm"]]$coef[x_df[["lm"]]$coef != "(Intercept)"]
   lm_lin <- gsub("_", " ", lm_lin)
+
   lm_log <- x_df2[["lm"]]$coef[x_df2[["lm"]]$coef != "(Intercept)"]
   lm_log <- gsub("_", " ", lm_log)
+
   surv_lin <- x_df[["surv"]]$coef[x_df[["surv"]]$coef != "(Intercept)"]
   surv_lin <- gsub("_", " ", surv_lin)
+  
   surv_log <- x_df2[["surv"]]$coef[x_df2[["surv"]]$coef != "(Intercept)"]
   surv_log <- gsub("_", " ", surv_log)
+  
+  if(length(lm_lin) == 0){
+    lm_lin <- ""
+  }
+  if(length(lm_log) == 0){
+    lm_log <- ""
+  }
+  if(length(surv_lin) == 0){
+    surv_lin <- ""
+  }
+  if(length(surv_log) == 0){
+    surv_log <- ""
+  }
   
   df_temp <- data.frame(matrix("", ncol = 5, 
                                nrow = max(sapply(list(lm_lin,

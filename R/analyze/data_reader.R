@@ -179,6 +179,8 @@ clean_names <- function(cas_df){
   cas_final$CAS[cas_final$chnm == "Tri(2-chloroethyl) phosphate (TCEP)"] <- "115-96-8"
 
   cas_final$CAS[cas_final$CAS == "30306-93-5"] <- "77-93-0"
+  cas_final$CAS[cas_final$CAS == "53-07-3"] <- "53-70-3"
+  
   cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Ethyl Citrate"
 
   cas_final$chnm[cas_final$CAS == "73590-58-6"] <- "Omeprazole + Esomprazole"

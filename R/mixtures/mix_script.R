@@ -62,6 +62,33 @@ calc_top_mixtures <- function(EAR_sum_endpoint, max_only = TRUE) {
   
   return(top_mixtures)
 }
+
+top_mixes_fn <- function(contributing_chems, n_site_thresh ) {
+  
+  chm_key <- contributing_chems %>% 
+    select(contr_chems) %>% 
+    distinct() %>% 
+    left_join(unique(select(contributing_chems,
+                            contr_chems,
+                            contr_chems_lt)), 
+              by="contr_chems")
+  
+  top_mixes <- contributing_chems %>% 
+    group_by(contr_chems, endPoint) %>% 
+    summarise(n_samples = n(),
+              unique_sites = length(unique(site))) %>% 
+    filter(unique_sites > {{n_site_thresh}}) %>% 
+    arrange(desc(n_samples)) %>% 
+    left_join(chm_key, by="contr_chems") %>% 
+    mutate(contr_chems_st =
+             paste(unique(unlist(contr_chems_lt)),
+                   collapse = ",\n")) %>% 
+    filter(!duplicated(contr_chems)) %>% 
+    ungroup()
+  
+  return(top_mixes)
+}
+
 # calculate metrics by chemical
 # calculate the number of times a chemical was in a mixture
 # exclude 1-compound mixtures first

@@ -81,7 +81,7 @@ library(cowplot)
 
 l2 <- get_legend(toxPlot_no_match)
 
-pdf("plots/triple_graph_v3_new_colors.pdf", width = 9, height = 11, onefile=FALSE)
+pdf("plots/triple_graph.pdf", width = 9, height = 11, onefile=FALSE)
 plot_grid(
   matches$site_graph,
   matches$no_axis,

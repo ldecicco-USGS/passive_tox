@@ -37,17 +37,46 @@ drake::loadd(chem_info)
 ```
 
 ```{r getData}
+gene_info <- select(end_point_info,
+                    endPoint = assay_component_endpoint_name,
+                    geneID = intended_target_gene_id,
+                    geneName = intended_target_gene_name,
+                    geneSymbol = intended_target_gene_symbol)
+
+multiple_genes <- unique(gene_info$geneSymbol[grep(pattern = "\\|",
+                                                   x = gene_info$geneSymbol)])
+gene_info_wide <- gene_info %>%
+  mutate(orig_symbol = geneSymbol) %>% 
+  separate(geneSymbol, into = c("a","b","c","d"),
+           sep = "\\|") %>% 
+  separate(geneID, into = c("IDa","IDb","IDc","IDd"),
+           sep = "\\|") %>% 
+  separate(geneName, into = c("Namea","Nameb","Namec","Named"),
+           sep = "\\|")
+
+gene_info_long <- gene_info_wide %>% 
+  select(endPoint, geneID = IDa, geneSymbol = a, geneName = Namea) %>% 
+  rbind(gene_info_wide %>% 
+          select(endPoint, geneID = IDb, geneSymbol = b, geneName = Nameb) %>% 
+          filter(!is.na(geneID))) %>% 
+  rbind(gene_info_wide %>% 
+          select(endPoint, geneID = IDc, geneSymbol = c, geneName = Namec) %>% 
+          filter(!is.na(geneID))) %>% 
+  rbind(gene_info_wide %>% 
+          select(endPoint, geneID = IDd, geneSymbol = d, geneName = Named) %>% 
+          filter(!is.na(geneID)))
+
+gene <- select(gene_info_long,
+               endPoint,
+               gene = geneSymbol)
+
 panther <- data.table::fread("panther_data/joined_genes.csv")
-end_point_info <- end_point_info
 
 panther_df <- panther %>% 
   select(gene = gene_abbr,
          pathway_accession,
          pathway_name) %>% 
-  left_join(select(end_point_info,
-                   endPoint = assay_component_endpoint_name,
-                   gene = intended_target_gene_symbol),
-            by="gene")
+  left_join(gene, by="gene")
 
 chemicalSummary_panther <- chemicalSummary %>% 
   left_join(panther_df, by="endPoint") %>% 
@@ -56,8 +85,8 @@ chemicalSummary_panther <- chemicalSummary %>%
   filter(!is.na(endPoint),
          endPoint != "")
 
-ear_thresh <- 0.001
-n_site_thresh <- 4
+ear_thresh <- 0.0001
+n_site_thresh <- 10
 
 ```
 
@@ -86,30 +115,11 @@ chnm_miss <- missing_chemicals %>%
 
 cs <- chemicalSummary_panther
 
-
 EARsum_endpoint <- sum_endpoints(cs, ear_cutoff = ear_thresh)
 
 contributing_chems <- calc_contr_chems(EARsum_endpoint)
 
-chm_key <- contributing_chems %>% 
-    select(contr_chems) %>% 
-    distinct() %>% 
-    left_join(unique(select(contributing_chems,
-                            contr_chems,
-                            contr_chems_lt)), 
-              by="contr_chems")
-
-top_mixes <- contributing_chems %>% 
-    group_by(contr_chems, endPoint) %>% 
-    summarise(n_samples = n(),
-              unique_sites = length(unique(site))) %>% 
-    filter(unique_sites > {{n_site_thresh}}) %>% 
-    arrange(desc(n_samples)) %>% 
-    left_join(chm_key, by="contr_chems") %>% 
-    mutate(contr_chems_st =
-             paste(unique(unlist(contr_chems_lt)),
-                   collapse = ",")) %>% 
-  filter(!duplicated(contr_chems))
+top_mixes <- top_mixes_fn(contributing_chems, n_site_thresh)
 
 # Let's only take the top endPoint of single chem mixtures:
 
@@ -358,7 +368,7 @@ df_lu_filtered <- df_lu %>%
   select(-site) %>% 
   select_if(big_enough) 
 
-df_lu_filtered <- df_lu_filtered%>% 
+df_lu_filtered <- df_lu_filtered %>% 
   bind_cols(select(df_lu, frac_2010, frac_2014))
 
 M <- cor(df_lu_filtered)

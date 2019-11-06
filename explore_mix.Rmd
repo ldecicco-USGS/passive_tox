@@ -1,11 +1,16 @@
 ---
 title: "Explore Mixtures"
-output:
-  word_document:
+output: 
+  bookdown::word_document2:
+    fig_caption: yes
     toc: yes
 editor_options: 
   chunk_output_type: console
 ---
+
+Here we explore land use and chemical mixture relationships.
+
+
 
 ```{r setup, echo=FALSE, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,
@@ -14,59 +19,77 @@ knitr::opts_chunk$set(echo = FALSE,
                       fig.width = 7,
                       fig.height = 5)
 
-library(tidyverse)
-library(rpart)
-library(party)
-library(partykit)
-library(rpartScore)
-library(readxl)
-library(flextable)
+library(tidyverse, quiet = TRUE)
+library(rpart, quiet = TRUE)
+library(party, quiet = TRUE)
+library(partykit, quiet = TRUE)
+library(rpartScore, quiet = TRUE)
+library(readxl, quiet = TRUE)
+library(flextable, quiet = TRUE)
 # library(subselect) #sim annealing
-library(leaps) #regsubsets
-library(glmnet)
+library(leaps, quiet = TRUE) #regsubsets
+library(glmnet, quiet = TRUE)
+library(toxEval)
 
 source("R/mixtures/mix_script.R")
 drake::loadd(chemicalSummary)
+drake::loadd(chem_info)
+```
 
-EARsum_endpoint <- sum_endpoints(chemicalSummary)
+```{r getData}
+panther <- data.table::fread("panther_data/joined_genes.csv")
+end_point_info <- end_point_info
+
+panther_df <- panther %>% 
+  select(gene = gene_abbr,
+         pathway_accession,
+         pathway_name) %>% 
+  left_join(select(end_point_info,
+                   endPoint = assay_component_endpoint_name,
+                   gene = intended_target_gene_symbol),
+            by="gene")
+
+chemicalSummary_panther <- chemicalSummary %>% 
+  left_join(panther_df, by="endPoint") %>% 
+  select(-endPoint) %>% 
+  rename(endPoint = pathway_name) %>% 
+  filter(!is.na(endPoint),
+         endPoint != "")
+
+ear_thresh <- 0.001
+n_site_thresh <- 4
+
+```
+
+We will look at mixtures based on unique chemical/endpoint combinations. The way we prioritize mixutres is summing EARs for each endpoint, and then only look at endpoints that have at least an sumEAR of `r ear_thresh`. Then, we go back and figure out which mixtures occur at at least `r n_site_thresh` sites. The only mixtures that fit those 2 critiera are:
+
+There are `r length(unique(filter(chemicalSummary, EAR>0) %>% pull(CAS)))` detected chemicals associated with ToxCast endpoints. There are `r length(unique(filter(chemicalSummary_panther, EAR>0) %>% pull(CAS)))` detected chemicals associated with Panther pathways. The chemicals that we lose are:
+
+```{r missingChems, results='asis'}
+missing_chemicals <- chemicalSummary %>% 
+  filter(EAR > 0) %>% 
+  filter(!(CAS %in% unique(chemicalSummary_panther$CAS))) 
+
+plot_tox_boxplots(missing_chemicals, category = "Chemical")
+
+chnm_miss <- missing_chemicals %>% 
+  select(chnm) %>% 
+  mutate(chnm = as.character(chnm)) %>% 
+  distinct() %>% 
+  pull(chnm)
+
+# chnm_miss
+
+```
+
+```{r getMixtures, results="asis"}
+
+cs <- chemicalSummary_panther
+
+
+EARsum_endpoint <- sum_endpoints(cs, ear_cutoff = ear_thresh)
 
 contributing_chems <- calc_contr_chems(EARsum_endpoint)
-
-df_lu <- read_xlsx(path = file.path("data",
-                                    "raw",
-                                    "GLRItox_summary.xlsx"),
-                           sheet = 1, skip=1) %>% 
-    rename(site = STAID, 
-           Urban = `Urban (%)...6`, 
-           Parking_lot = `Parking Lot (%)`,
-           Agriculture = `Agriculture (%)...7`) %>% 
-    mutate(Developed = Urban + Agriculture)
-
-names(df_lu) <- gsub(pattern = " \\(\\%\\)",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "\\...",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = ", ",
-                     replacement = "_",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "/",
-                     replacement = "_",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = " ",
-                     replacement = "_",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "\\[",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "]",
-                     replacement = "",
-                     names(df_lu))
-names(df_lu) <- gsub(pattern = "-",
-                     replacement = "_",
-                     names(df_lu))
-
 
 chm_key <- contributing_chems %>% 
     select(contr_chems) %>% 
@@ -76,17 +99,20 @@ chm_key <- contributing_chems %>%
                             contr_chems_lt)), 
               by="contr_chems")
 
-n_sample_thresh <- 10
-
 top_mixes <- contributing_chems %>% 
     group_by(contr_chems, endPoint) %>% 
-    summarise(n_samples = n()) %>% 
-    filter(n_samples > {{n_sample_thresh}}) %>% 
+    summarise(n_samples = n(),
+              unique_sites = length(unique(site))) %>% 
+    filter(unique_sites > {{n_site_thresh}}) %>% 
     arrange(desc(n_samples)) %>% 
     left_join(chm_key, by="contr_chems") %>% 
     mutate(contr_chems_st =
              paste(unique(unlist(contr_chems_lt)),
-                   collapse = ","))
+                   collapse = ",")) %>% 
+  filter(!duplicated(contr_chems))
+
+# Let's only take the top endPoint of single chem mixtures:
+
 
 mix_graph_data <- data.frame()
 
@@ -95,14 +121,12 @@ for(i in 1:nrow(top_mixes)){
     chem <- top_mixes$contr_chems_lt[i]
     endpoint <- top_mixes$endPoint[i]
     
-    mix_EAR_sum <- chemicalSummary %>%
+    mix_EAR_sum <- cs %>%
         mutate(chnm = as.character(chnm)) %>% 
         filter(chnm %in% unlist(chem),
                endPoint == endpoint) %>% 
-        group_by(site, date, endPoint) %>% 
+        group_by(site, date, endPoint, shortName) %>% 
         summarise(sumEAR = sum(EAR)) %>%
-        group_by(site, endPoint) %>% 
-        summarize(maxSumEAR = max(sumEAR)) %>% 
         mutate(mix_st = paste(unlist(chem),
                               collapse = ","),
                mix = list(unlist(chem)),
@@ -117,24 +141,99 @@ for(i in 1:nrow(top_mixes)){
                                 mix_EAR_sum)
 }
 
-mix_graph_data_lu <- mix_graph_data %>% 
-    left_join(df_lu, by = "site") %>% 
-    mutate(thresh = maxSumEAR > 0.001)
+priority_endpoints <- top_mixes$endPoint
+
+mixtures_in_ep <-
+  cs %>% 
+  filter(endPoint %in% priority_endpoints) %>% 
+  group_by(site, shortName, date, endPoint) %>%
+  mutate(sum_ear_endpoint = sum(EAR)) %>%
+  ungroup() %>%
+  mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
+  filter(chem_mix_contribution > 1) %>% 
+  group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
+  summarize(n_contr_chems = n(),
+            contr_chems_lt = list(as.character(unique(chnm))),
+            contr_cas_lt = list(as.character(unique(CAS))),
+            contr_chems_st = paste(as.character(unique(chnm)),
+                                collapse = ","),
+            contr_chems = paste(as.character(unique(CAS)),
+                                collapse = ","),
+            max_individual_contr = max(EAR)) 
+
+key <- mixtures_in_ep %>% 
+              ungroup() %>%
+              select(contr_chems,
+                     contr_chems_st,
+                     contr_chems_lt) 
+
+key <- key[!duplicated(key$contr_chems), ]
+
+top_mixes_per_ep <- mixtures_in_ep %>% 
+  group_by(endPoint, contr_chems) %>% 
+  summarize(n_sites = length(unique(site)),
+            sumEAR = sum(sum_ear_endpoint)) %>% 
+  filter(sumEAR == max(sumEAR)) %>% 
+  ungroup() %>% 
+  left_join(key,
+            by="contr_chems")
+
+# Mixtures to look at:
+check_mix <- top_mixes %>% 
+  ungroup() %>% 
+  select(chemicals = contr_chems_st,
+         chem_list = contr_chems_lt) %>% 
+  bind_rows(select(top_mixes_per_ep, 
+                   chemicals = contr_chems_st,
+                   chem_list = contr_chems_lt))
+
+if(all(c("Atrazine,DEET", "DEET,Atrazine") %in% check_mix$chemicals)){
+  check_mix <- check_mix[check_mix$chemicals !=
+                         "Atrazine,DEET", ]  
+}
+
+if(all(c("Benz(a)anthracene,Indeno(1,2,3-cd)pyrene",
+         "Indeno(1,2,3-cd)pyrene,Benz(a)anthracene") %in% check_mix$chemicals)){
+  
+  check_mix <- check_mix[check_mix$chemicals !=                        "Indeno(1,2,3-cd)pyrene,Benz(a)anthracene", ]  
+}
+
+check_mix <- check_mix[!duplicated(check_mix$chemicals),]
+
+top_mixes_select <- top_mixes %>% 
+  ungroup() %>% 
+  select(chemicals = contr_chems_st, 
+         endPoint, n_samples, unique_sites) %>% 
+  filter(!duplicated(chemicals))
+
+
+mix_ft <- flextable(top_mixes_select)
+autofit(mix_ft)
 
 ```
 
 # Overview
 
-```{r regularBP}
+```{r regularBP, fig.cap="Urban hits"}
+
+df_lu <- open_land_use() %>% 
+  filter(site %in% unique(cs$site))
+
+mix_graph_data_lu <- mix_graph_data %>% 
+    left_join(df_lu[,c("site","Urban","Agriculture")],
+              by = "site") %>% 
+    mutate(thresh = sumEAR > 0.001,
+           facet = paste(mix_st, endPoint, sep = "\n"),
+           mixture_id = as.integer(as.factor(facet)))
+
+# TODO: actually us MDL EARS!!!
+
+mix_graph_data_lu <- create_censor(mix_graph_data_lu)
+
 n_fun <- function(x){
   return(data.frame(y = 0,
                     label = length(x)))
 }
-
-mix_graph_data_lu$facet <-
-  paste(mix_graph_data_lu$mix_st,
-        mix_graph_data_lu$endPoint,
-        sep = "\n")
 
 urban <- ggplot(data = mix_graph_data_lu,
                 aes(x = thresh, y = Urban)) +
@@ -145,20 +244,42 @@ urban <- ggplot(data = mix_graph_data_lu,
     facet_wrap(. ~ facet, ncol = 4) +
     theme_bw() +
     theme(strip.text = element_text(size = 8)) +
-    xlab("EAR > 0.001")
-urban
+    xlab(paste0("EAR > ", ear_thresh))
 
+# As you can see by Figure \@ref(fig:regularBP)
 ```
+
+
 
 
 # Trees by Urban/Ag
 
 ```{r party2, results="asis"}
-mix_graph_data_lu$mixture_id <-
-  as.integer(as.factor(mix_graph_data_lu$facet))
 
-form <- formula("maxSumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2")
+library(officer)
+big_border = fp_border(color="orange", width = 2)
+border_v = fp_border(color="gray")
+border_h = fp_border(color="gray")
 
+form_lm <- formula(sumEAR ~ Urban + Agriculture + Urban^2 + Agriculture^2)
+
+form2_lm <- reformulate(termlabels = c("Urban","Agriculture"),
+            response = "log10(highEAR)")
+
+form_survival <- formula(survival::Surv(lowEAR,
+                                highEAR,
+                                 type="interval2") ~
+                                 Urban + Agriculture +
+                                 Urban^2 + Agriculture^2)
+
+#The log goes into the distribution term in the model function:
+form_survival_log <- formula(survival::Surv(lowEAR, 
+                                highEAR,
+                                 type="interval2") ~
+                                 Urban + Agriculture +
+                                 Urban^2 + Agriculture^2)
+
+df_1 <- data.frame()
 
 for(i in seq_len(nrow(top_mixes))){
     
@@ -172,123 +293,242 @@ for(i in seq_len(nrow(top_mixes))){
     
   cat('\n##', unique(sub_df$mix_st), '\n')
   
-  tree_2 <- rpart(formula = form,
-                  data = sub_df,
-                  control = rpart.control(minsplit = 10,
-                                          minbucket = 10,
-                                          cp = 0.001))
-  
-  tree_2.Prune <- prune(tree_2,
-                        cp = tree_2$cptable[
-                            which.min(tree_2$cptable[,"xerror"]), "CP"])
-    
-  plot(as.party(tree_2.Prune),
-       tp_args = list(id=FALSE),
-       main = paste(endpoint,"\n",
-                    unique(sub_df$mix_st)))
-  
-  cat("\n")
+  cat("\n### Tree\n")
+  tree_return <- plot_trees(form_lm, sub_df, endpoint)
 
-  basic_lm <- lm(data = sub_df, formula = form)
+  cat("\n")
   
-  predictions <- predict(basic_lm, 
-                         interval = 'confidence')
-  
-  predictions <- data.frame(predictions)
-  
-  sub_df_sub <- 
-    sub_df %>% 
-    bind_cols(predictions) %>% 
-    select(maxSumEAR, lwr, upr, fit)
-  
-  x <- coef(basic_lm)
-  dirty_eqn <- paste(format(x, digits = 2),
-                     names(x), collapse = " +", sep = "*")
-  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
-  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
-  dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
-  
-  scatter_urb_ag <- ggplot() +
-    geom_point(data = sub_df_sub,
-               aes(x = maxSumEAR, y = fit)) +
-    geom_abline(slope = 1, 
-                linetype = "solid", color = "red") +
-    geom_ribbon(data = sub_df_sub,
-                aes(x = maxSumEAR,
-                    ymin = lwr,
-                    ymax = upr),
-                alpha=0.3) +
-    geom_text(aes(label = dirty_eqn,
-                  x = 0.0,
-                  y = max(sub_df_sub$upr)*1.01),
-              hjust = 0) +
-    xlab("Observed") + ylab("Predicted") +
-    theme_bw()
-  
-  print(scatter_urb_ag)
+  cat("\n### Linear\n")
+  x_df <- plot_lm(form_lm, form_survival, sub_df)
   
   cat("\n")
-    
+  cat("\n### Log\n")
+  x_df2 <- plot_lm(form2_lm,
+                   form_survival_log, 
+                   sub_df, 
+                   log=TRUE)
+  cat("\n")
+  cat("\n### Summarize variables\n")
+  
+  df_1 <- variable_summary(chem, endpoint, x_df, x_df2)
+  table_mix <- flextable(df_1)
+  table_mix <- width(table_mix, width = 1.5)
+  table_mix <- border_remove(x = table_mix)
+  table_mix <- border_outer(table_mix, 
+                            part="all", 
+                            border = big_border)
+  table_mix <- border_inner_h(table_mix, part="all",
+                            border = border_h )
+  table_mix <- border_inner_v(table_mix, part="all",
+                            border = border_v )
+  cat(knitr::knit_print(table_mix))
 }
+
+
+
+cat("\n")
 
 ```
 
-# Trees by more complicated land use options
+# Variable trimming
 
 Variables available:
 
 ```{r table_of_categories}
 
-not_all_na <- function(x) any(!is.na(x))
-
-df_lu <- 
-    df_lu %>% 
-    select_if(not_all_na)
-
-df <- data.frame(a = names(df_lu)[1:20],
-                 b = names(df_lu)[21:40],
-                 c = c(names(df_lu)[41:53], rep(NA, 7)),
+df <- data.frame(a = names(df_lu)[2:12],
+                 b = names(df_lu)[13:23],
+                 c = names(df_lu)[24:34],
                  stringsAsFactors = FALSE)
 
 autofit(flextable(df))
 
 ```
 
-Variables included:
+Variables that have at least 1 site with at least 2 percent:
+
+```{r corLU, results="asis"}
+library(corrplot)
+
+big_enough <- function(x, thresh = 2){
+  max(x, na.rm = TRUE) > thresh
+}
+
+df_lu_filtered <- df_lu %>% 
+  select(-site) %>% 
+  select_if(big_enough) 
+
+df_lu_filtered <- df_lu_filtered%>% 
+  bind_cols(select(df_lu, frac_2010, frac_2014))
+
+M <- cor(df_lu_filtered)
+corrplot(M, type="upper", tl.cex = 0.5)
+```
+
+Reduce the variables by those that have a corrolation coefficient > 0.9 or < -0.9.
+
+```{r corLU_reduced, results="asis"}
+lu_vars <- colnames(M)
+lu_vars_rev <- rev(lu_vars)
+
+exclude <- c()
+exclude_rev <- c()
+
+for(i in seq_along(lu_vars)){
+  
+  check_var <- lu_vars[i]
+  
+  if(check_var %in% exclude){
+    next
+  } else {
+    check_cor <- names(which(M[,check_var] > 0.9 | 
+                        M[,check_var] < -0.9))
+    check_cor <- check_cor[check_cor != check_var]
+    exclude <- c(exclude, check_cor)
+  }
+
+}
+
+# for(i in seq_along(lu_vars_rev)){
+#   
+#   check_var_rev <- lu_vars_rev[i]
+#   
+#   if(check_var_rev %in% exclude_rev){
+#     next
+#   } else {
+#     check_cor <- names(which(M[,check_var_rev] > 0.95 | 
+#                         M[,check_var_rev] < -0.95))
+#     check_cor <- check_cor[check_cor != check_var_rev]
+#     exclude_rev <- c(exclude_rev, check_cor)
+#   }
+# 
+# }
+
+df_lu_filtered <- df_lu_filtered[,-which(names(df_lu_filtered) %in% exclude)]
+
+M2 <- cor(df_lu_filtered)
+corrplot(M2, type="upper", tl.cex = 0.5)
+```
+
+The variables left by the 0.9 threshold:
+
+```{r resultingVars, results="asis"}
+df <- data.frame(a = names(df_lu_filtered)[1:6],
+                 b = names(df_lu_filtered)[7:12],
+                 c = c(names(df_lu_filtered)[13:16],"",""),
+                 stringsAsFactors = FALSE)
+cat("\n")
+ft <- flextable(df)
+ft <- delete_part(x = ft, part = "header")
+autofit(ft)
+cat("\n")
+```
+
+Now, we use the sites with detections and filter out variables that don't have a single site left that doesn't have 10% of that category.
+
+```{r corLU_manual, results="asis"}
+
+df_lu_filtered <- bind_cols(df_lu[,c("site","Urban","Crops")],
+                            df_lu_filtered) %>% 
+  select(-Basin_Area_mi2, -Population_Density)
+
+key2 <- cs %>% 
+  select(chnm, Class) %>% 
+  distinct() %>% 
+  mutate(chnm = as.character(chnm),
+         Class = as.character(Class))
+
+check_mix$title <- NA
+
+for(i in seq_len(nrow(check_mix))){
+  chemicals <- unlist(check_mix$chem_list[i])
+  class <- key2$Class[key2$chnm %in% unlist(chemicals)]
+  check_mix$title[i] <- paste0(chemicals,":",class, collapse = "\n")
+}
+
+x <- data.frame(matrix(NA,
+                  nrow = length(names(df_lu_filtered)), 
+                  ncol = nrow(check_mix)))
+names(x) <- check_mix$title
+
+for(i in 1:ncol(x)){
+  x[[i]] <- names(df_lu_filtered)
+}
+ 
+x <- x[-1,]
+
+big_enough5 <- function(x, thresh = 10){
+  max(x, na.rm = TRUE) > thresh
+}
+
+top_mixes$variables_to_use <- list(NA)
+top_mixes_per_ep$variables_to_use <- list(NA)
+# Get rid of variables with small influence:
+for(i in 1:ncol(x)){
+  
+  chems <- unlist(check_mix$chem_list[i])
+  
+  sub_df <- cs %>% 
+    mutate(chnm = as.character(chnm)) %>% 
+    filter(chnm %in% chems) %>%
+    filter(EAR > 0) 
+  
+  sites <- unique(sub_df$site)
+  
+  sub_df_lu <- df_lu_filtered %>% 
+    filter(site %in% sites) %>% 
+    select(-site) %>% 
+    select_if(big_enough5)
+  
+  x[!(x[[i]] %in% names(sub_df_lu)),i] <- ""
+  
+  index_tm <- sapply(top_mixes$contr_chems_lt, function(x){
+    all(x %in% chems) 
+  })
+  
+  index_tm_ep <- sapply(top_mixes_per_ep$contr_chems_lt, function(x){
+    all(x %in% chems) 
+  })
+  
+  top_mixes$variables_to_use[index_tm] <- list(x[[i]][x[[i]] != ""])
+  top_mixes_per_ep$variables_to_use[index_tm_ep] <- list(x[[i]][x[[i]] != ""])
+  
+}
+
+x <- x[rowSums(x == "") != ncol(x), ]
+
+# data.table::fwrite(x, "table_of_landuse.csv")
+
+```
+
+
+Now we can think about individual categories to remove. For now...I'm taking out Basin Area, pulling Crops back in, and substituting Urban for Population Density.
+
+
+
+# Trees by more complicated land use options
+
+
 
 ```{r moreLandUse, results="asis"}
 
-not_all_na <- function(x) any(!is.na(x))
+not_all_na <- function(x) all(!is.na(x))
 
 mix_graph_data_lu <- 
   mix_graph_data_lu %>%
   select(-mix) %>% 
-  select_if(not_all_na) %>% 
-  distinct()
-
-variables_to_use <- names(mix_graph_data_lu)[9:37]
-
-exclude_cols <- c("Urban9","Other8",
-                  "Agriculture10","Other11",
-                  "Impervious_Area13", "Water14","Urban_Interface_High",
-                  "Recreation","Very_Low_Use_Conservation",
-                  "Developed_Other","Developed",
-                  "Residential_Low_Medium_Density",
-                  "Outside_of_dataset_extent")
-
-variables_to_use <- variables_to_use[!(variables_to_use %in%
-                                       exclude_cols)]
-print(variables_to_use)
-
-form_bigger <- formula(paste("maxSumEAR ~ ",
-                             paste(variables_to_use,
-                                   collapse = " + ")))
+  left_join(select(df_lu_filtered,
+                   -Urban, -Agriculture),
+            by="site")
 
 for(i in seq_len(nrow(top_mixes))){
     
+  chems <- unlist(top_mixes$contr_chems_lt[i])
   mixture <- top_mixes$contr_chems_st[i]
   endpoint <- top_mixes$endPoint[i]
   
+  variables_to_use <- top_mixes$variables_to_use[[i]]
+
   sub_df <- 
       mix_graph_data_lu %>% 
       filter(mixID == i) %>%
@@ -296,90 +536,70 @@ for(i in seq_len(nrow(top_mixes))){
   
   cat('\n##', unique(sub_df$mix_st), '\n')
   
-  predictors_df <- sub_df[,variables_to_use]
-  response_df <- sub_df[,"maxSumEAR"]
+  cat("\n### Tree\n")
+  form_bigger_lm <- formula(paste("sumEAR ~ ",
+                               paste(variables_to_use,
+                                     collapse = " + ")))
   
-  # from leaps package:
-  # regsubsetsObj <- regsubsets(x=predictors_df,
-  #                             y=response_df,
-  #                             nbest = 2, really.big = T)
-  # plot(regsubsetsObj, scale = "adjr2")
-###############################################################
-    # from glmnet
-  x <- as.matrix(predictors_df) # Removes class
-  y <- as.double(sub_df[["maxSumEAR"]]) # Only class
-  
-  # Fitting the model (Lasso: Alpha = 1)
-  set.seed(999)
-  cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
-                        alpha=1, 
-                        standardize=TRUE, type.measure='auc')
-  coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
-  coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
-  
-  # plot(cv.lasso)
-  bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+  tree_return <- plot_trees(form_bigger_lm, sub_df, endpoint)
+  cat("\n")
 
-  lasso_coef = predict(cv.lasso,
-                       type = "coefficients",
-                       s = bestlam)
-  coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
-  new_form <- formula(paste0("maxSumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
+  new_form_lm <- get_formula(sub_df, variables_to_use, 
+                          lasso = FALSE, survival = FALSE)
   
-  basic_lm <- lm(data = sub_df, formula = new_form)
+  new_form_surv <- get_formula(sub_df, variables_to_use, 
+                        lasso = FALSE)
+  
+  cat("\n### Linear\n")
+
+  form_surv <- reformulate(termlabels = attr(terms(new_form_surv),"term.labels"),
+              response = 'survival::Surv(lowEAR,
+                                      highEAR,
+                                      type="interval2")')
+
+ x_df <- plot_lm(new_form_lm, 
+                form_surv, 
+                sub_df = sub_df)
+ 
+ cat("\n")   
+
+  cat("\n### Log\n")
+  new_form2 <- get_formula(sub_df,
+                           variables_to_use,
+                           survival = FALSE,
+                           sumEAR = "highEAR",
+                           log=TRUE)
+  new_form_surv <- get_formula(sub_df,
+                         variables_to_use,
+                         sumEAR = "highEAR",
+                         log=TRUE)
+  
+  new_form_surv_log <- reformulate(termlabels = attr(terms(new_form_surv),"term.labels"),
+              response = 'survival::Surv(lowEAR,
+                                      highEAR,
+                                      type="interval2")')
+
+  x_df2 <- plot_lm(new_form2,
+                   new_form_surv_log, 
+                   sub_df,
+                  log=TRUE)
+  
+  df_temp <- variable_summary(chems, endpoint, x_df, x_df2)
     
-  predictions <- predict(basic_lm, 
-                         interval = 'confidence')
-    
-  predictions <- data.frame(predictions)
-  
-  sub_df_sub <- 
-    sub_df %>% 
-    bind_cols(predictions) %>% 
-    select(maxSumEAR, lwr, upr, fit)
-  
-  x <- coef(basic_lm)
-  dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
-  dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
-  dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
-  dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
-  
-  tree_2 <- rpart(formula = form_bigger,
-                  data = sub_df,
-                  control = rpart.control(minsplit = 10,
-                                          minbucket = 10,
-                                          cp = 0.001))
-  
-  tree_2.Prune <- prune(tree_2,
-                        cp = tree_2$cptable[
-                            which.min(tree_2$cptable[,"xerror"]), "CP"])
-  
-  plot(as.party(tree_2.Prune),
-       tp_args = list(id=FALSE),
-       main = paste(endpoint,
-                    unique(sub_df$mix_st),
-                    sep = "\n"))
-  
-  scatter_new <- ggplot() +
-    geom_point(data = sub_df_sub,
-               aes(x = maxSumEAR, y = fit)) +
-    geom_abline(slope = 1, 
-                linetype = "solid", color = "red") +
-    geom_ribbon(data = sub_df_sub,
-                aes(x = maxSumEAR,
-                    ymin = lwr,
-                    ymax = upr),
-                alpha=0.3) +
-    geom_text(aes(label = dirty_eqn,
-                  x = 0.0,
-                  y = max(sub_df_sub$upr)*1.01),
-              hjust = 0) +
-    xlab("Observed") + ylab("Predicted") +
-    theme_bw()
-  
-  
-  print(scatter_new)
-  
+  cat("\n")
+  cat("\n### Summarize variables\n")
+  cat("\n")
+  table_mix <- flextable(df_temp)
+  table_mix <- width(table_mix, width = 1.5)
+  table_mix <- border_remove(x = table_mix)
+  table_mix <- border_outer(table_mix, 
+                            part="all", 
+                            border = big_border)
+  table_mix <- border_inner_h(table_mix, part="all",
+                            border = border_h )
+  table_mix <- border_inner_v(table_mix, part="all",
+                            border = border_v )
+  cat(knitr::knit_print(table_mix))
   cat("\n")
 
 }
@@ -389,153 +609,145 @@ for(i in seq_len(nrow(top_mixes))){
 
 # All EARs for our top endpoints:
 
-```{r allEARs, results ='asis'}
+```{r allEARs, results ='asis', eval=FALSE}
 
-priority_endpoints <- top_mixes$endPoint
-
-mixtures_in_ep <-
-  chemicalSummary %>% 
-  filter(endPoint %in% priority_endpoints) %>% 
-  group_by(site, shortName, date, endPoint) %>%
-  mutate(sum_ear_endpoint = sum(EAR)) %>%
-  ungroup() %>%
-  mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
-  group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
-  summarize(n_contr_chems = n(),
-            contr_chems_lt = list(as.character(unique(chnm))),
-            contr_cas_lt = list(as.character(unique(CAS))),
-            contr_chems = paste(as.character(unique(chnm)),
-                                collapse = ","),
-            contr_chems = paste(as.character(unique(CAS)),
-                                collapse = ","),
-            max_individual_contr = max(EAR)) 
-
-# unifying mixures
-
-for(ep in priority_endpoints){
+for(i in seq_len(nrow(top_mixes_per_ep))){
   
-  sub_df <- 
-    mixtures_in_ep %>% 
-    filter(endPoint %in% ep) %>% 
-    group_by(site) %>% 
-    summarise(maxSumEAR = max(sum_ear_endpoint),
-              chems = list(unique(unlist(contr_chems_lt)))) %>% 
-    distinct()
+  ep <- top_mixes_per_ep$endPoint[i]
+  chems <- top_mixes_per_ep$contr_chems_lt[[i]]
   
   cat('\n##', ep, '\n')
-  
-  cat(ep,"has", length(unique(sub_df$chems)), "unique mixtures\n\n")
-  
-  for(mix in unique(sub_df$chems)){
-    mix <- unlist(mix)
-    
-    cat('\n###', paste(mix, collapse = ", "), '\n')
-    
-    mix_df <- 
-      chemicalSummary %>% 
-      mutate(chnm = as.character(chnm)) %>% 
-      filter(endPoint %in% ep,
-             chnm %in% mix) %>% 
-      group_by(site, date) %>% 
-      summarise(sumEAR = sum(EAR)) %>% 
-      group_by(site) %>% 
-      summarise(maxSumEAR = max(sumEAR)) %>%
-      distinct() %>% 
-      left_join(df_lu, by="site") %>% 
-      select_if(not_all_na)
-    
-    variables_to_use <- names(mix_df)
-    variables_to_use <- variables_to_use[c(-1:-5)]
-    variables_to_use <- variables_to_use[!(variables_to_use %in%
-                                           exclude_cols)]
-    
 
-    form_bigger <- formula(paste("maxSumEAR ~ ",
-                             paste(variables_to_use,
-                                   collapse = " + ")))
-    tree_2 <- rpart(formula = form_bigger,
-                    data = mix_df,
-                    control = rpart.control(minsplit = 10,
-                                            minbucket = 10,
-                                            cp = 0.001))
-    
-    tree_2.Prune <- prune(tree_2,
-                          cp = tree_2$cptable[
-                              which.min(tree_2$cptable[,"xerror"]), "CP"])
-    
-    plot(as.party(tree_2.Prune),
-         tp_args = list(id=FALSE),
-         main = paste(ep, sep = "\n"))
-    
-################################################################
-        # from glmnet
-    predictors_df <- mix_df[,variables_to_use]  
-    
-    x <- as.matrix(predictors_df) # Removes class
-    y <- as.double(mix_df[["maxSumEAR"]]) # Only class
-    
-    # Fitting the model (Lasso: Alpha = 1)
-    set.seed(999)
-    cv.lasso <- cv.glmnet(x, y, #, family='multinomial',
-                          alpha=1, 
-                          standardize=TRUE, type.measure='auc')
-    coefs_lasso <- as.matrix(coef(cv.lasso, s = "lambda.min"))
-    coefs_to_save <- row.names(coefs_lasso)[which(coefs_lasso !=0)]
-    
-    # plot(cv.lasso)
-    bestlam = cv.lasso$lambda.min # Select lamda that minimizes training MSE
+  cat('\n###', paste(chems, collapse = ", "), '\n')
   
-    lasso_coef = predict(cv.lasso,
-                         type = "coefficients",
-                         s = bestlam)
-    coefs_to_save <- coefs_to_save[coefs_to_save != "(Intercept)"]
-    new_form <- formula(paste0("maxSumEAR ~ ", paste(coefs_to_save, collapse = " + ")))
-    
-    basic_lm <- lm(data = mix_df, formula = new_form)
-      
-    predictions <- predict(basic_lm, 
-                           interval = 'confidence')
-      
-    predictions <- data.frame(predictions)
-    
-    sub_df_sub <- 
-      mix_df %>% 
-      bind_cols(predictions) %>% 
-      select(maxSumEAR, lwr, upr, fit)
-    
-    x <- coef(basic_lm)
-    dirty_eqn <- paste(format(x, digits = 2), names(x), collapse = " +", sep = "*")
-    dirty_eqn <- gsub("\\*\\(Intercept\\)", "", dirty_eqn)
-    dirty_eqn <- gsub("+ -", "- ", dirty_eqn)
-    dirty_eqn <- paste0("maxSumEAR = ", dirty_eqn)
-      
-    scatter_new <- ggplot() +
-      geom_point(data = sub_df_sub,
-                 aes(x = maxSumEAR, y = fit)) +
-      geom_abline(slope = 1, 
-                  linetype = "solid", color = "red") +
-      geom_ribbon(data = sub_df_sub,
-                  aes(x = maxSumEAR,
-                      ymin = lwr,
-                      ymax = upr),
-                  alpha=0.3) +
-      geom_text(aes(label = dirty_eqn,
-                    x = 0.0,
-                    y = max(sub_df_sub$upr)*1.01),
-                hjust = 0) +
-      xlab("Observed") + ylab("Predicted") +
-      theme_bw()
-    
-    
-    print(scatter_new)
-    
-    cat("\n")
+  sub_df <- 
+    cs %>% 
+    mutate(chnm = as.character(chnm)) %>% 
+    filter(endPoint %in% ep,
+           chnm %in% chems) %>% 
+    group_by(site, date, shortName) %>% 
+    summarise(sumEAR = sum(EAR),
+              mix_st = paste(unique(chnm),
+                             collapse = ",")) %>%
+    ungroup() %>% 
+    left_join(df_lu_filtered, by="site") %>% 
+    select_if(not_all_na)
+  
+  if(length(unique(sub_df$site)) < 10){
+    break
+  }
+  
+  sub_df <- create_censor(sub_df)
+  
+  variables_to_use <- top_mixes_per_ep$variables_to_use[[i]]
+
+  form_bigger <- formula(paste("sumEAR ~ ",
+                           paste(variables_to_use,
+                                 collapse = " + ")))
+  
+  cat("\n#### Tree\n")
+  tree_return <- plot_trees(form_bigger, sub_df, ep)
+  cat("\n")
+
+  cat("\n#### Linear\n")
+  cat("\n")
+  
+  new_form_lm <- get_formula(sub_df,
+                             variables_to_use,
+                             survival = FALSE)
+  new_form_surv <- get_formula(sub_df, variables_to_use)
+  
+  if(is.null(new_form_lm)){
+    message("No linear")
+    x_df <- data.frame()
+  } else {
+    new_form_surv <- reformulate(termlabels = attr(terms(new_form_surv), "term.labels"), 
+    response = 'survival::Surv(lowEAR,
+                               highEAR,
+                               type="interval2")')
+    x_df <- plot_lm(new_form_lm,
+                    new_form_surv, sub_df)
   }
   
   cat("\n")
+  cat("\n#### Log\n")
+  cat("\n")
+
+  new_form_lm_log <- get_formula(sub_df,
+                              variables_to_use,
+                              survival = FALSE,
+                              sumEAR = "highEAR",
+                              log = TRUE)
+  new_form_surv_log <- get_formula(sub_df,
+                            variables_to_use,
+                            sumEAR = "highEAR",
+                            log = TRUE)
+  if(is.null(new_form_lm_log)){
+    message("No log")
+    x_df2 <- data.frame()
+  } else {
+    
+    new_form_log_surv <- reformulate(termlabels = attr(terms(new_form_surv_log), "term.labels"), 
+    response = 'survival::Surv(lowEAR,
+                               highEAR, 
+                               type="interval2")')
+    
+    
+    x_df2 <- plot_lm(new_form_lm_log,
+                     new_form_log_surv, sub_df,
+                     log = TRUE)
+  }
+
+  cat("\n")
+  
+  df_temp <- variable_summary(chems, ep,
+                              x_df, x_df2)
+  
+  cat("\n#### Summarize variables\n")
+  cat("\n")
+  table_mix <- flextable(df_temp)
+  table_mix <- width(table_mix, width = 1.5)
+  table_mix <- border_remove(x = table_mix)
+  table_mix <- border_outer(table_mix, 
+                            part="all", 
+                            border = big_border)
+  table_mix <- border_inner_h(table_mix, part="all",
+                            border = border_h )
+  table_mix <- border_inner_v(table_mix, part="all",
+                            border = border_v )
+  cat(knitr::knit_print(table_mix))
+  cat("\n")
+
   
 }
 
+
+```
+
+# Class Exploration
+
+```{r classStuff}
+class_sum <- cs %>% 
+  left_join(df_lu_filtered, by = "site")
+
+graph_class <- class_sum %>% 
+  group_by(Class, site, date, Urban, Agriculture) %>% 
+  summarize(sumEAR = sum(EAR, na.rm = TRUE)) %>% 
+  group_by(Class, site, Urban, Agriculture) %>% 
+  summarise(maxSumEAR = max(sumEAR)) %>% 
+  ungroup()
+
+ggplot(data = graph_class) +
+  geom_point(aes(x = Urban, y = maxSumEAR)) +
+  facet_wrap(. ~ Class, nrow = 3, scale = "free_y") +
+  theme_bw() +
+  theme(axis.text = element_blank())
+
+ggplot(data = graph_class) +
+  geom_point(aes(x = Agriculture, y = maxSumEAR)) +
+  facet_wrap(. ~ Class, nrow = 3, scale = "free_y") +
+  theme_bw() +
+  theme(axis.text = element_blank())
 
 ```
 

@@ -45,7 +45,7 @@ chemicalSummary_no_ep <- get_chemical_summary(tox_list = tox_list_no_ep)
 
 #################################################
 # AOP
-AOP_crosswalk <- data.table::fread("D:/LADData/toxManuscript/AOP_crosswalk_Dec_2018.csv")%>%
+AOP_crosswalk <- data.table::fread(here("data/supplemental/AOP_crosswalk_Dec_2018.csv")) %>%
     data.frame() %>%
     select(endPoint=Component.Endpoint.Name, ID=AOP.., KE = KE., everything()) %>%
     distinct()
@@ -87,14 +87,18 @@ gene_info <- select(end_point_info,
 
 multiple_genes <- unique(gene_info$geneSymbol[grep(pattern = "\\|",
                                                    x = gene_info$geneSymbol)])
-gene_info_wide <- gene_info %>%
-    mutate(orig_symbol = geneSymbol) %>% 
-    separate(geneSymbol, into = c("a","b","c","d"),
-             sep = "\\|") %>% 
-    separate(geneID, into = c("IDa","IDb","IDc","IDd"),
-             sep = "\\|") %>% 
-    separate(geneName, into = c("Namea","Nameb","Namec","Named"),
-             sep = "\\|")
+
+suppressWarnings({
+    gene_info_wide <- gene_info %>%
+        mutate(orig_symbol = geneSymbol) %>% 
+        separate(geneSymbol, into = c("a","b","c","d"),
+                 sep = "\\|") %>% 
+        separate(geneID, into = c("IDa","IDb","IDc","IDd"),
+                 sep = "\\|") %>% 
+        separate(geneName, into = c("Namea","Nameb","Namec","Named"),
+                 sep = "\\|")  
+})
+
 
 gene_info_long <- gene_info_wide %>% 
     select(endPoint, geneID = IDa, geneSymbol = a, geneName = Namea) %>% 
@@ -120,33 +124,10 @@ gene_summary <- chemicalSummary %>%
     summarise(n_genes = length(unique(gene)),
               n_sites_det = length(unique(shortName[EAR > 0])))
 
-gene_summary <- chemicalSummary %>% 
-    left_join(gene, by="endPoint") %>%  
-    mutate(chnm = as.character(chnm)) %>% 
-    filter(!is.na(gene)) %>% 
-    group_by(chnm, CAS) %>%
-    summarise(n_genes = length(unique(gene)),
-              n_sites_det = length(unique(shortName[EAR > 0])))  
-
 missing_chem_gene <- ep_summary$chnm[!(ep_summary$chnm %in% unique(gene_summary$chnm))]
 missing_cas_gene <- ep_summary$CAS[!(ep_summary$CAS %in% unique(gene_summary$CAS))]
 
-no_path_chem_info <- drake::readd(chem_info) %>% 
-    filter(CAS %in% missing_cas_gene)
 
-no_path_chem_data = drake::readd(all_data_fixed_cas) %>% 
-    filter(CAS %in% no_path_chem_info$CAS)
-
-tox_list_no_path <- list(chem_data = no_path_chem_data,
-                         chem_info = no_path_chem_info,
-                         chem_site = drake::readd(site_info),
-                         exclude = drake::readd(exclude)) %>% 
-    as.toxEval()
-
-
-chemicalSummary_no_gene <- get_chemical_summary(tox_list = tox_list_no_path,
-                                                   ACC = ACC_all, 
-                                                   filtered_ep = filtered_ep)
 #######################################
 # Panther
 panther <- data.table::fread(here("panther_data/joined_genes.csv")) %>% 

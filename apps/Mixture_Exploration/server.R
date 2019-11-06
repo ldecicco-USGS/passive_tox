@@ -41,6 +41,7 @@ tox_list_no_ep <- list(chem_data = no_ep_chem_data,
                        benchmarks = drake::readd(benchmarks)) %>% 
     as.toxEval()
 
+# Chemicals we lose with toxCast:
 chemicalSummary_no_ep <- get_chemical_summary(tox_list = tox_list_no_ep)
 
 #################################################
@@ -116,10 +117,12 @@ gene <- select(gene_info_long,
                endPoint,
                gene = geneSymbol)
 
-gene_summary <- chemicalSummary %>% 
+chemicalSummary_gene <- chemicalSummary %>% 
     left_join(gene, by="endPoint") %>%  
     mutate(chnm = as.character(chnm)) %>% 
-    filter(!is.na(gene)) %>% 
+    filter(!is.na(gene)) 
+
+gene_summary <- chemicalSummary_gene %>% 
     group_by(chnm, CAS) %>%
     summarise(n_genes = length(unique(gene)),
               n_sites_det = length(unique(shortName[EAR > 0])))
@@ -127,6 +130,13 @@ gene_summary <- chemicalSummary %>%
 missing_chem_gene <- ep_summary$chnm[!(ep_summary$chnm %in% unique(gene_summary$chnm))]
 missing_cas_gene <- ep_summary$CAS[!(ep_summary$CAS %in% unique(gene_summary$CAS))]
 
+missing_eps_gene <- chemicalSummary_gene %>% 
+    select(endPoint) %>% 
+    distinct() %>% 
+    pull(endPoint)
+
+chemicalSummary_no_gene <- chemicalSummary %>% 
+    filter(endPoint %in% missing_eps_gene)
 
 #######################################
 # Panther
@@ -171,25 +181,62 @@ shinyServer(function(input, output) {
 
     output$tox_missing <- renderPlot({ 
         conc_plot <- plot_tox_boxplots(chemicalSummary_no_ep,
-                                       category = "Chemical")
+                                       category = "Chemical",
+                                       title = "Chemicals lost by ToxCast",
+                                       x_label = "Concentration [ug/L]")
         return(conc_plot)
     })
     
+    plotHeight <- reactive({
+        plot_chems <- input$chemical == "Chemicals"
+        if(plot_chems){
+            return("300px")
+        } else {
+            return("600px")
+        }
+    })
+    
+    output$plot.ui <- renderUI({
+        plotOutput("aop_missing", height = plotHeight())
+                   
+    })
+    
     output$aop_missing <- renderPlot({ 
-        aop_plot <- plot_tox_boxplots(chemicalSummary_no_aop,
-                                       category = "Chemical")
+        plot_chems <- input$chemical == "Chemicals"
+        if(plot_chems){
+            aop_plot <- plot_tox_boxplots(chemicalSummary_no_aop,
+                                          title = "Chemicals lost by AOP",
+                                          category = "Chemical")            
+        } else {
+            aop_plot <- plot_tox_endpoints(chemicalSummary_no_aop, 
+                                           category = "Chemical",
+                                          title = "Endpoints lost by AOP")
+        }
+
         return(aop_plot)
     })
     
     output$gene_missing <- renderPlot({ 
-        gene_plot <- plot_tox_boxplots(chemicalSummary_no_gene,
-                                          category = "Chemical")
+        plot_chems <- input$chemicalGene == "Chemicals"
+        
+        if(plot_chems){
+            gene_plot <- plot_tox_boxplots(chemicalSummary_no_gene,
+                                           title = "Lost EARs",
+                                           category = "Chemical")            
+        } else {
+            gene_plot <- plot_tox_endpoints(chemicalSummary_no_gene,
+                                            title = "Lost EARs",
+                                           category = "Chemical")
+        }
+        
+
         return(gene_plot)
     })
     
     output$panther_missing <- renderPlot({ 
         panther_plot <- plot_tox_boxplots(chemicalSummary_no_panther,
-                                      category = "Chemical")
+                                          title = "Chemicals lost by Kegg Pathway",
+                                          category = "Chemical")
         return(panther_plot)
     })
     

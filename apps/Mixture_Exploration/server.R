@@ -176,11 +176,15 @@ shinyServer(function(input, output) {
                                                plot_ND = FALSE) +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else {
-            aop_plot <- plot_tox_endpoints(filter(chemicalSummary_aop_split,
-                                                  guide_side == "Lose"), 
-                                           hit_threshold = input$hit_thresh, 
-                                           category = "Chemical",
-                                          title = "Endpoints lost by AOP")
+            
+            ch <- chemicalSummary_aop_split %>% 
+                filter(guide_side %in% c("Lose","Keep")) 
+            
+            aop_plot <- plot_tox_endpoints2(ch, guide_side, 
+                                             hit_threshold = input$hit_thresh,
+                                             title = "Lost EARs going to AOP",
+                                             category = "Chemical") +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         }
 
         return(aop_plot)
@@ -196,11 +200,17 @@ shinyServer(function(input, output) {
                                                 plot_ND = FALSE) +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else {
-            gene_plot <- plot_tox_endpoints(filter(chemicalSummary_gene_split,
-                                                   guide_side == "Lose"), 
-                                            hit_threshold = input$hit_thresh,
-                                            title = "Lost EARs",
-                                           category = "Chemical")
+            
+            
+            ch <- chemicalSummary_gene_split %>% 
+                filter(guide_side %in% c("Lose","Keep")) 
+            
+            gene_plot <- plot_tox_endpoints2(ch, guide_side, 
+                                                hit_threshold = input$hit_thresh,
+                                                title = "Lost EARs going to genes",
+                                                category = "Chemical") +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
+
         }
         
 
@@ -216,19 +226,23 @@ shinyServer(function(input, output) {
                                                    plot_ND = FALSE) +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else if (input$chemicalPath == "Endpoints") {
-            panther_plot <- plot_tox_endpoints(filter(chemicalSummary_panther_split,
-                                                      guide_side == "Lose"), 
-                                               hit_threshold = input$hit_thresh,
-                                               title = "Lost EARs since gene plot",
-                                               category = "Chemical")
+            
+            ch <- chemicalSummary_panther_split %>% 
+                filter(guide_side %in% c("Lose","Keep")) 
+            
+            panther_plot <- plot_tox_endpoints2(ch, guide_side, 
+                                            hit_threshold = input$hit_thresh,
+                                            title = "Lost EARs going to Panther",
+                                            category = "Chemical") +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
+            
         } else {
             
             ch <- chemicalSummary_gene_split %>% 
                 filter(guide_side == "Keep") %>% 
                 select(-guide_side) %>% 
                 left_join(gene, by="endPoint") %>% 
-                left_join(select(panther, -gene), by="endPoint") %>%  
-                # filter(pathway_accession != "") %>%
+                left_join(select(panther, -gene), by="endPoint") %>%
                 select(-endPoint) %>% 
                 rename(endPoint = gene) 
             

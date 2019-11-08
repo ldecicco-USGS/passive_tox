@@ -3,10 +3,16 @@ library(toxEval)
 library(tidyverse)
 library(here)
 source(here("R/mixtures/mix_script.R"))
+source(here("R/plot_endpoints_facet.R"))
 
 drake::loadd(chemicalSummary)
+site_info <- drake::readd(site_info)
+chem_info <- drake::readd(chem_info) %>% 
+    rename(Chemical = chnm)
+chem_data <- drake::readd(all_data_fixed_cas)
+exclude <- drake::readd(exclude)
 
-ACC_all = get_ACC(drake::readd(chem_info)$CAS) %>%
+ACC_all = get_ACC(chem_info$CAS) %>%
     remove_flags()
 
 end_point_info <- end_point_info
@@ -28,21 +34,19 @@ ep_summary <- chemicalSummary %>%
               n_sites_det = length(unique(shortName[EAR > 0])))
 
 # What we lose:
-no_ep_chem_info <- drake::readd(chem_info) %>% 
+no_ep_chem_info <- chem_info %>% 
     filter(!(CAS %in% unique(ep_summary$CAS)))
 
-no_ep_chem_data = drake::readd(all_data_fixed_cas) %>% 
+no_ep_chem_data = chem_data %>% 
     filter(CAS %in% no_ep_chem_info$CAS)
-
 
 tox_list_no_ep <- list(chem_data = no_ep_chem_data,
                        chem_info = no_ep_chem_info,
-                       chem_site = drake::readd(site_info),
-                       benchmarks = drake::readd(benchmarks)) %>% 
+                       chem_site = site_info) %>% 
     as.toxEval()
 
 # Chemicals we lose with toxCast:
-chemicalSummary_no_ep <- get_chemical_summary(tox_list = tox_list_no_ep)
+chemicalSummary_no_ep <- get_concentration_summary(tox_list = tox_list_no_ep)
 
 #################################################
 # AOP
@@ -51,33 +55,22 @@ AOP_crosswalk <- data.table::fread(here("data/supplemental/AOP_crosswalk_Dec_201
     select(endPoint=Component.Endpoint.Name, ID=AOP.., KE = KE., everything()) %>%
     distinct()
 
-aop_summary <- chemicalSummary %>% 
+missing_endpoints_aop <- chemicalSummary %>% 
     left_join(select(AOP_crosswalk, endPoint, ID), by="endPoint") %>% 
-    filter(!is.na(ID)) %>% 
-    mutate(chnm = as.character(chnm)) %>% 
-    group_by(chnm, CAS) %>%
-    summarise(n_AOP = length(unique(ID)),
-              n_sites_det = length(unique(shortName[EAR > 0])))  
+    filter(is.na(ID)) %>% 
+    select(endPoint) %>% 
+    distinct() %>% 
+    pull(endPoint)
 
-missing_chem <- ep_summary$chnm[!(ep_summary$chnm %in% unique(aop_summary$chnm))]
-missing_cas <- ep_summary$CAS[!(ep_summary$CAS %in% unique(aop_summary$CAS))]
+chemicalSummary_aop_split <- chemicalSummary
 
-# What we lose:
-no_aop_chem_info <- drake::readd(chem_info) %>% 
-    filter(CAS %in% missing_cas)
+chemicalSummary_aop_split$guide_side <- "Keep"
+chemicalSummary_aop_split$guide_side[chemicalSummary_aop_split$endPoint %in% missing_endpoints_aop] <- "Lose"
 
-no_aop_chem_data = drake::readd(all_data_fixed_cas) %>% 
-    filter(CAS %in% no_aop_chem_info$CAS)
+chemicalSummary_aop_split <- chemicalSummary_aop_split %>% 
+    bind_rows(mutate(chemicalSummary, guide_side = "All")) %>% 
+    mutate(guide_side = factor(guide_side, levels = c("All","Keep","Lose")))
 
-tox_list_no_AOPs <- list(chem_data = no_aop_chem_data,
-                         chem_info = no_aop_chem_info,
-                         chem_site = drake::readd(site_info),
-                         exclude = drake::readd(exclude)) %>% 
-    as.toxEval()
-
-chemicalSummary_no_aop <- get_chemical_summary(tox_list = tox_list_no_AOPs,
-                                               ACC = ACC_all, 
-                                               filtered_ep = filtered_ep)
 ##########################################
 # Gene targets
 gene_info <- select(end_point_info,
@@ -117,26 +110,20 @@ gene <- select(gene_info_long,
                endPoint,
                gene = geneSymbol)
 
-chemicalSummary_gene <- chemicalSummary %>% 
-    left_join(gene, by="endPoint") %>%  
-    mutate(chnm = as.character(chnm)) %>% 
-    filter(!is.na(gene)) 
-
-gene_summary <- chemicalSummary_gene %>% 
-    group_by(chnm, CAS) %>%
-    summarise(n_genes = length(unique(gene)),
-              n_sites_det = length(unique(shortName[EAR > 0])))
-
-missing_chem_gene <- ep_summary$chnm[!(ep_summary$chnm %in% unique(gene_summary$chnm))]
-missing_cas_gene <- ep_summary$CAS[!(ep_summary$CAS %in% unique(gene_summary$CAS))]
-
-missing_eps_gene <- chemicalSummary_gene %>% 
+missing_endpoints_genes <- chemicalSummary %>% 
+    left_join(gene, by="endPoint") %>% 
+    filter(is.na(gene)) %>% 
     select(endPoint) %>% 
-    distinct() %>% 
-    pull(endPoint)
+    distinct() %>% pull(endPoint)
 
-chemicalSummary_no_gene <- chemicalSummary %>% 
-    filter(endPoint %in% missing_eps_gene)
+chemicalSummary_gene_split <- chemicalSummary
+
+chemicalSummary_gene_split$guide_side <- "Keep"
+chemicalSummary_gene_split$guide_side[chemicalSummary_gene_split$endPoint %in% missing_endpoints_genes] <- "Lose"
+
+chemicalSummary_gene_split <- chemicalSummary_gene_split %>% 
+    bind_rows(mutate(chemicalSummary, guide_side = "All")) %>% 
+    mutate(guide_side = factor(guide_side, levels = c("All","Keep","Lose")))
 
 #######################################
 # Panther
@@ -147,68 +134,51 @@ panther <- data.table::fread(here("panther_data/joined_genes.csv")) %>%
            pathway_name) %>% 
     left_join(gene,  by="gene")
 
-panther_summary <- chemicalSummary %>% 
+missing_ep_panther <- chemicalSummary_gene_split %>% 
+    filter(guide_side == "Keep") %>% 
+    select(-guide_side) %>% 
     left_join(panther, by="endPoint") %>%  
-    filter(!is.na(gene)) %>% 
-    filter(pathway_accession != "") %>% 
-    group_by(chnm, CAS) %>%
-    summarise(n_pathways = length(unique(pathway_accession)),
-              n_sites_det = length(unique(shortName[EAR > 0])))  
-
-missing_chem <- ep_summary$chnm[!(ep_summary$chnm %in% unique(panther_summary$chnm))]
-missing_cas <- ep_summary$CAS[!(ep_summary$CAS %in% unique(panther_summary$CAS))]
-
-# What we lose:
-no_path_chem_info <- drake::readd(chem_info) %>% 
-    filter(CAS %in% missing_cas)
-
-no_path_chem_data = drake::readd(all_data_fixed_cas) %>% 
-    filter(CAS %in% no_path_chem_info$CAS)
-
-tox_list_no_path <- list(chem_data = no_path_chem_data,
-                         chem_info = no_path_chem_info,
-                         chem_site = drake::readd(site_info),
-                         exclude = drake::readd(exclude)) %>% 
-    as.toxEval()
+    filter(pathway_accession == "") %>% 
+    select(endPoint) %>% distinct() %>% pull(endPoint)
 
 
-chemicalSummary_no_panther <- get_chemical_summary(tox_list = tox_list_no_path,
-                                               ACC = ACC_all, 
-                                               filtered_ep = filtered_ep)
+chemicalSummary_panther_split <- chemicalSummary_gene_split %>% 
+    filter(guide_side == "Keep") %>% 
+    select(-guide_side)
+
+chemicalSummary_panther_split$guide_side <- "Keep"
+chemicalSummary_panther_split$guide_side[chemicalSummary_panther_split$endPoint %in% missing_ep_panther] <- "Lose"
+
+chemicalSummary_panther_split <- chemicalSummary_panther_split %>% 
+    bind_rows(chemicalSummary_gene_split %>% 
+                   filter(guide_side == "Keep") %>% 
+                   mutate(guide_side = "All from Genes")) %>% 
+    mutate(guide_side = factor(guide_side, levels = c("All from Genes","Keep","Lose")))
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
 
     output$tox_missing <- renderPlot({ 
         conc_plot <- plot_tox_boxplots(chemicalSummary_no_ep,
-                                       category = "Chemical",
+                                       category = "Chemical", 
+                                       hit_threshold = input$hit_thresh,
                                        title = "Chemicals lost by ToxCast",
                                        x_label = "Concentration [ug/L]")
         return(conc_plot)
     })
     
-    plotHeight <- reactive({
-        plot_chems <- input$chemical == "Chemicals"
-        if(plot_chems){
-            return("300px")
-        } else {
-            return("600px")
-        }
-    })
-    
-    output$plot.ui <- renderUI({
-        plotOutput("aop_missing", height = plotHeight())
-                   
-    })
-    
     output$aop_missing <- renderPlot({ 
         plot_chems <- input$chemical == "Chemicals"
         if(plot_chems){
-            aop_plot <- plot_tox_boxplots(chemicalSummary_no_aop,
-                                          title = "Chemicals lost by AOP",
-                                          category = "Chemical")            
+            aop_plot <- plot_chemical_boxplots(chemicalSummary_aop_split,
+                                               guide_side, 
+                                               hit_threshold = input$hit_thresh, 
+                                               plot_ND = FALSE) +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else {
-            aop_plot <- plot_tox_endpoints(chemicalSummary_no_aop, 
+            aop_plot <- plot_tox_endpoints(filter(chemicalSummary_aop_split,
+                                                  guide_side == "Lose"), 
+                                           hit_threshold = input$hit_thresh, 
                                            category = "Chemical",
                                           title = "Endpoints lost by AOP")
         }
@@ -220,11 +190,15 @@ shinyServer(function(input, output) {
         plot_chems <- input$chemicalGene == "Chemicals"
         
         if(plot_chems){
-            gene_plot <- plot_tox_boxplots(chemicalSummary_no_gene,
-                                           title = "Lost EARs",
-                                           category = "Chemical")            
+            gene_plot <- plot_chemical_boxplots(chemicalSummary_gene_split,
+                                                guide_side, 
+                                                hit_threshold = input$hit_thresh, 
+                                                plot_ND = FALSE) +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else {
-            gene_plot <- plot_tox_endpoints(chemicalSummary_no_gene,
+            gene_plot <- plot_tox_endpoints(filter(chemicalSummary_gene_split,
+                                                   guide_side == "Lose"), 
+                                            hit_threshold = input$hit_thresh,
                                             title = "Lost EARs",
                                            category = "Chemical")
         }
@@ -234,9 +208,40 @@ shinyServer(function(input, output) {
     })
     
     output$panther_missing <- renderPlot({ 
-        panther_plot <- plot_tox_boxplots(chemicalSummary_no_panther,
-                                          title = "Chemicals lost by Kegg Pathway",
-                                          category = "Chemical")
+
+        if(input$chemicalPath == "Chemicals"){
+            panther_plot <- plot_chemical_boxplots(chemicalSummary_panther_split,
+                                                   guide_side, 
+                                                   hit_threshold = input$hit_thresh,
+                                                   plot_ND = FALSE) +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
+        } else if (input$chemicalPath == "Endpoints") {
+            panther_plot <- plot_tox_endpoints(filter(chemicalSummary_panther_split,
+                                                      guide_side == "Lose"), 
+                                               hit_threshold = input$hit_thresh,
+                                               title = "Lost EARs since gene plot",
+                                               category = "Chemical")
+        } else {
+            
+            ch <- chemicalSummary_gene_split %>% 
+                filter(guide_side == "Keep") %>% 
+                select(-guide_side) %>% 
+                left_join(gene, by="endPoint") %>% 
+                left_join(select(panther, -gene), by="endPoint") %>%  
+                # filter(pathway_accession != "") %>%
+                select(-endPoint) %>% 
+                rename(endPoint = gene) 
+            
+            ch$guide_side <- "Keep"
+            ch$guide_side[ch$pathway_accession == ""] <- "Lose"
+
+            panther_plot <- plot_tox_endpoints2(ch, guide_side, 
+                                                hit_threshold = input$hit_thresh,
+                                                title = "Lost Genes going to Panther",
+                                                category = "Chemical") +
+                ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
+                
+        }
         return(panther_plot)
     })
     
@@ -348,3 +353,5 @@ shinyServer(function(input, output) {
         return(top_mixes_panther_dt)
     })
 })
+
+

@@ -10,22 +10,8 @@ site_info <- drake::readd(site_info)
 chem_info <- drake::readd(chem_info) %>% 
     rename(Chemical = chnm)
 chem_data <- drake::readd(all_data_fixed_cas)
-exclude <- drake::readd(exclude)
-
-ACC_all = get_ACC(chem_info$CAS) %>%
-    remove_flags()
 
 end_point_info <- end_point_info
-cleaned_ep <- clean_endPoint_info(end_point_info)
-
-filtered_ep <- filter_groups(cleaned_ep, 
-                            groupCol = 'intended_target_family',
-                            assays = c('ATG','NVS','OT',
-                                       'TOX21','CEETOX','APR',
-                                       'CLD','TANGUAY','NHEERL_PADILLA',
-                                       'NCCT_SIMMONS','ACEA'),
-                            remove_groups = c('Background Measurement',
-                                              'Undefined'))
 
 ep_summary <- chemicalSummary %>% 
     mutate(chnm = as.character(chnm)) %>% 
@@ -155,6 +141,13 @@ chemicalSummary_panther_split <- chemicalSummary_panther_split %>%
                    mutate(guide_side = "All from Genes")) %>% 
     mutate(guide_side = factor(guide_side, levels = c("All from Genes","Keep","Lose")))
 
+join_everything <- chemicalSummary %>% 
+    left_join(select(AOP_crosswalk, endPoint, ID), by="endPoint") %>% 
+    left_join(gene, by="endPoint") %>% 
+    left_join(panther, by=c("endPoint","gene")) %>% 
+    select(endPoint, gene, AOP_id = ID, pathway_name) %>% 
+    distinct()
+
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
 
@@ -257,6 +250,26 @@ shinyServer(function(input, output) {
                 
         }
         return(panther_plot)
+    })
+    
+    output$overallSummary <- DT::renderDataTable({
+        ear_thresh <- input$ear_thresh
+        n_site_thresh <- input$n_sites
+        
+        EARsum_endpoint <- sum_endpoints(chemicalSummary,
+                                         ear_cutoff = ear_thresh)
+        contributing_chems <- calc_contr_chems(EARsum_endpoint)
+        top_mixes <- top_mixes_fn(contributing_chems, n_site_thresh)
+
+        
+        df <- join_everything %>% 
+            group_by(endPoint) %>% 
+            summarise(AOP_ids = paste(unique(AOP_id[!is.na(AOP_id)]), collapse = ","),
+                      genes = paste(unique(gene[!is.na(gene)]), collapse = ","),
+                      pathways = paste(unique(pathway_name[!is.na(pathway_name)]), collapse = ",")) %>% 
+            filter(endPoint %in% top_mixes$endPoint)
+        
+        return(df)
     })
     
     output$epMixes <- DT::renderDataTable({ 

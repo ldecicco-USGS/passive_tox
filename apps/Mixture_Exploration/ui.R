@@ -67,7 +67,10 @@ body <- dashboardBody(
                     plotOutput("panther_missing",
                                width = "100%",
                                height = "900px")                      
-           )
+           ),
+           tabPanel(title = "Table", value = "sum_table",
+                    DT::dataTableOutput(outputId = "overallSummary")
+            )
     )
 )
 

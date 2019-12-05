@@ -40,11 +40,21 @@ site_exceed_by_EP <- group_by(max_by_EP,chnm,endPoint) %>%
   summarize(num_sites_exceeded = sum(max_EAR_EP > thresh)) %>%
   filter(num_sites_exceeded >= site_thresh)
 
+ggplot(data = site_exceed_by_EP,aes(x=chnm,y=num_sites_exceeded)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(data = site_exceed_by_EP,aes(x=endPoint,y=num_sites_exceeded)) +
+  geom_col() +
+  facet_wrap(~chnm) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_flip()
+
 
 
 #Number of endpoints that exceed thresh for each chemical
 exceed_by_EP <- group_by(max_by_EP,site,chnm) %>%
-  summarize(num_sites_exceed = sum(max_EAR_EP > thresh)) %>%
+  summarize(num_sites_exceed = sum(max_EAR_EP >= thresh)) %>%
   filter(num_sites_exceed > 0) %>%
   group_by(chnm) %>%
   tally()
@@ -52,6 +62,12 @@ exceed_by_EP <- group_by(max_by_EP,site,chnm) %>%
 
 
 
-plot(max_by_EP$chnm,max_by_EP$max_EAR_EP)
+
+
+DL <- filter(chemical_summary,chnm == "D-Limonene") %>%
+  filter(EAR >= thresh)
+
+
+plot(as.factor(as.character(site_exceed_by_EP$chnm)),site_exceed_by_EP$num_sites_exceeded,las=2)
 
 plot(exceed_by_EP$

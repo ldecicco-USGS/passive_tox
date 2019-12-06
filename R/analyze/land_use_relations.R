@@ -1,9 +1,16 @@
-#NOTE: Add path to path_to_file!!!
+#Explore land cover relations with different contaminant classes
+
 library(toxEval)
 library(dplyr)
 library(readxl)
 library(ggplot2)
 library(ggpubr)
+
+# -Classes that are likely to have EAR > 0.001
+#   -Endpoints that are important for these classes
+# -Full mixtures
+#   -Endpoints that are important for full mixtures
+#   -Chemicals/classes that play prominent roles in the EARs from mixtures
 
 df_lu <- read_xlsx(path = file.path("data","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
 names(df_lu) <- make.names(names(df_lu))
@@ -29,9 +36,9 @@ chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
 # 1). Determine EARs summation for this analysis using by endpoints within chemical classes 
 # 2). Find max of those EAR summations
 
-# Determine EAR_sum by endpoint/class/site
+# Determine EAR_sum by site/class/endpoint
 class_EP_summary <- chemical_summary %>%
-  group_by(site,date, endPoint,Class) %>%
+  group_by(site,date,Class, endPoint) %>%
   summarize(EAR_sum = sum(EAR)) %>%
   group_by(site,Class) 
 
@@ -42,13 +49,13 @@ class_EP_max <- class_EP_summary %>%
             EP_max = endPoint[which.max(EAR_sum)])
 
 # Add land use
-lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7")
-names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture")
+lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.")
+names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density")
 class_EP_max <- left_join(class_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
-names(class_EP_max)[c(1,5:7)] <- names(lu_columns)
+names(class_EP_max)[c(1,5:11)] <- names(lu_columns)
 
 
-lu_eval <- "Urban"
+lu_eval <- "Wetlands"
 class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
 gg.summary <- group_by(class_EP_max, Class,gtthresh) %>% summarise(length=length(EP_max))  
 p_urban <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
@@ -61,11 +68,28 @@ p_urban <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
   ylab(paste("%",lu_eval,"Land Cover")) + 
   #  ylim(c(0,120)) +
   theme(axis.text.x = element_text(angle = 90)) +
-  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150))
-#  stat_compare_means()
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150)) +
+  stat_compare_means()
 
 p_urban
 
+lu_eval <- "Crops"
+class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
+gg.summary <- group_by(class_EP_max, Class,gtthresh) %>% summarise(length=length(EP_max))  
+p_crops <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
+  geom_boxplot() +
+  #  scale_y_continuous(trans='log10') +
+  facet_wrap(~Class,nrow = 3) +
+  geom_text(data = gg.summary,
+            aes(gtthresh, Inf, label = length), size=3,vjust = 3,) +
+  ggtitle(lu_eval) +
+  ylab(paste("%",lu_eval,"Land Cover")) +
+  #  ylim(c(0,120)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150)) +
+  stat_compare_means()
+
+p_crops
 
 lu_eval <- "Agriculture"
 class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
@@ -131,6 +155,41 @@ for (i in 1:length(class_list)) {
 }
 dev.off()
 shell.exec(filenm)
+
+
+####################################
+## LU vs EAR by Class Regressions ##
+
+
+df <- class_EP_max %>% 
+  filter(Class == "PAHs")
+
+
+summary(lm(EAR_max~Urban + Agriculture + Water + Wetlands, data=df))
+summary(lm(EAR_max~Urban + Agriculture, data=df))
+summary(lm(EAR_max~Urban , data=df))
+summary(lm(EAR_max~Urban + Crops, data=df))
+summary(lm(EAR_max~ Crops, data=df))
+summary(lm(EAR_max~Crops + Water + Wetlands, data=df))
+summary(lm(EAR_max~Urban + Agriculture, data=df))
+summary(lm(EAR_max~Population_density, data=df))
+summary(lm(EAR_max~Parking_lot, data=df))
+
+lu_variables <- names(lu_columns[-1])
+form <- as.formula(paste("EAR_max ~ ",paste(lu_variables,collapse = " + ")))
+
+classes_reg <- c("Herbicide","Fire retardant", "Pharmaceuticals","PAHs")
+for (i in 1:length(classes_reg)){
+  df <- class_EP_max %>% 
+    filter(Class == classes_reg[i])
+  m <- lm(EAR_max~1,data=df)
+  
+  m_step <- step(m,scope = form,data = df,k = log(dim(df)[1]))
+  
+
+
+
+
   # Graph EAR summaries vs land use
 # Compute EAR summaries by Class regardless of endpoint
 

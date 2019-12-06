@@ -34,22 +34,42 @@ max_by_EP <-group_by(chemical_summary,site,chnm,endPoint) %>%
 
 thresh <- 0.001
 site_thresh <- 5
+site_occur_thresh <- 10
 
 #Number of sites per endpoint per chemical that exceed thresh
 site_exceed_by_EP <- group_by(max_by_EP,chnm,endPoint) %>%
-  summarize(num_sites_exceeded = sum(max_EAR_EP > thresh)) %>%
-  filter(num_sites_exceeded >= site_thresh)
+  summarize(num_sites_exceeded = sum(max_EAR_EP > thresh),
+            num_sites_present = sum(max_EAR_EP > 0)) %>%
+  filter(num_sites_exceeded >= site_thresh & num_sites_present >= site_occur_thresh)
 
 ggplot(data = site_exceed_by_EP,aes(x=chnm,y=num_sites_exceeded)) +
   geom_point() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+plot_title <- paste("Chemicals and endpoints present at", site_occur_thresh,
+                    "or more sites with EAR > 0.001 at", site_thresh, "or more sites")
 ggplot(data = site_exceed_by_EP,aes(x=endPoint,y=num_sites_exceeded)) +
   geom_col() +
   facet_wrap(~chnm) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  coord_flip()
+  coord_flip() +
+  ggtitle(label = plot_title)
 
+site_exceed_by_EP$endPoint %in% x$assay_component_name
+
+x_CellCycle <- toxEval::end_point_info %>% filter(intended_target_family == "cell cycle")
+site_exceed_by_EP$endPoint %in% x_CellCycle$assay_component_endpoint_name
+
+x_all <- toxEval::end_point_info 
+y <- left_join(site_exceed_by_EP,x_all,by=c("endPoint" = "assay_component_endpoint_name"))
+y$intended_target_family
+
+site_exceed_by_EP$endPoint %in% x_all$assay_component_endpoint_name
+
+
+y <- left_join(site_exceed_by_EP,x,by=c("endPoint" = "assay_component_endpoint_name"))
+
+y$intended_target_family
 
 
 #Number of endpoints that exceed thresh for each chemical

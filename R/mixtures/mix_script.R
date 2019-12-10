@@ -133,6 +133,8 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
               n_sites = length(unique(shortName))) %>% 
     ungroup()
   
+  df$n_chems <- sapply(strsplit(df$chems, ","), length)
+  
   return(df)
   
 }

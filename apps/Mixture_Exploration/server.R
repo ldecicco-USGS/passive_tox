@@ -327,7 +327,6 @@ shinyServer(function(input, output) {
                                   ear_thresh_aop)
     })
     
-    
     output$aopMixes <- DT::renderDataTable({
       
         n_site_thresh_aop <- input$n_sites
@@ -384,7 +383,7 @@ shinyServer(function(input, output) {
         n_site_thresh_panther <- input$n_sites
 
         top_mixes_panther <- top_panters() %>% 
-                filter(n_sites >= n_site_thresh_panther)
+                filter(n_sites >= n_site_thresh_panther) %>% 
                 rename(Panther_Name = endPoint) %>% 
                 arrange(desc(n_sites))
         

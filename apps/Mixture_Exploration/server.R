@@ -41,6 +41,13 @@ AOP_crosswalk <- data.table::fread(here("data/supplemental/AOP_crosswalk_Dec_201
     select(endPoint=Component.Endpoint.Name, ID=AOP.., KE = KE., everything()) %>%
     distinct()
 
+aop_summary <- chemicalSummary %>% 
+    left_join(select(AOP_crosswalk, 
+                     endPoint, ID), by="endPoint") %>% 
+    filter(!is.na(ID)) %>% 
+    select(-endPoint) %>% 
+    mutate(endPoint = as.character(ID))
+
 missing_endpoints_aop <- chemicalSummary %>% 
     left_join(select(AOP_crosswalk, endPoint, ID), by="endPoint") %>% 
     filter(is.na(ID)) %>% 
@@ -102,6 +109,12 @@ missing_endpoints_genes <- chemicalSummary %>%
     select(endPoint) %>% 
     distinct() %>% pull(endPoint)
 
+gene_summary <- chemicalSummary %>% 
+    left_join(gene, by="endPoint") %>%
+    filter(!is.na(gene)) %>% 
+    select(-endPoint) %>% 
+    mutate(endPoint = gene)
+
 chemicalSummary_gene_split <- chemicalSummary
 
 chemicalSummary_gene_split$guide_side <- "Keep"
@@ -127,6 +140,12 @@ missing_ep_panther <- chemicalSummary_gene_split %>%
     filter(pathway_accession == "") %>% 
     select(endPoint) %>% distinct() %>% pull(endPoint)
 
+panther_summary <- chemicalSummary %>% 
+    left_join(panther, by="endPoint") %>%
+    filter(!is.na(gene)) %>% 
+    filter(pathway_accession != "") %>% 
+    select(-endPoint) %>% 
+    mutate(endPoint = pathway_name)
 
 chemicalSummary_panther_split <- chemicalSummary_gene_split %>% 
     filter(guide_side == "Keep") %>% 
@@ -146,7 +165,11 @@ join_everything <- chemicalSummary %>%
     left_join(gene, by="endPoint") %>% 
     left_join(panther, by=c("endPoint","gene")) %>% 
     select(endPoint, gene, AOP_id = ID, pathway_name) %>% 
-    distinct()
+    distinct() %>% 
+    group_by(endPoint) %>% 
+    summarise(AOP_ids = paste(unique(AOP_id[!is.na(AOP_id)]), collapse = ","),
+              genes = paste(unique(gene[!is.na(gene)]), collapse = ","),
+              pathways = paste(unique(pathway_name[!is.na(pathway_name)]), collapse = ","))
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -154,7 +177,7 @@ shinyServer(function(input, output) {
     output$tox_missing <- renderPlot({ 
         conc_plot <- plot_tox_boxplots(chemicalSummary_no_ep,
                                        category = "Chemical", 
-                                       hit_threshold = input$hit_thresh,
+                                       hit_threshold = input$ear_thresh,
                                        title = "Chemicals lost by ToxCast",
                                        x_label = "Concentration [ug/L]")
         return(conc_plot)
@@ -165,7 +188,7 @@ shinyServer(function(input, output) {
         if(plot_chems){
             aop_plot <- plot_chemical_boxplots(chemicalSummary_aop_split,
                                                guide_side, 
-                                               hit_threshold = input$hit_thresh, 
+                                               hit_threshold = input$ear_thresh, 
                                                plot_ND = FALSE) +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else {
@@ -174,7 +197,7 @@ shinyServer(function(input, output) {
                 filter(guide_side %in% c("Lose","Keep")) 
             
             aop_plot <- plot_tox_endpoints2(ch, guide_side, 
-                                             hit_threshold = input$hit_thresh,
+                                             hit_threshold = input$ear_thresh,
                                              title = "Lost EARs going to AOP",
                                              category = "Chemical") +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
@@ -189,7 +212,7 @@ shinyServer(function(input, output) {
         if(plot_chems){
             gene_plot <- plot_chemical_boxplots(chemicalSummary_gene_split,
                                                 guide_side, 
-                                                hit_threshold = input$hit_thresh, 
+                                                hit_threshold = input$ear_thresh, 
                                                 plot_ND = FALSE) +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else {
@@ -199,7 +222,7 @@ shinyServer(function(input, output) {
                 filter(guide_side %in% c("Lose","Keep")) 
             
             gene_plot <- plot_tox_endpoints2(ch, guide_side, 
-                                                hit_threshold = input$hit_thresh,
+                                                hit_threshold = input$ear_thresh,
                                                 title = "Lost EARs going to genes",
                                                 category = "Chemical") +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
@@ -215,7 +238,7 @@ shinyServer(function(input, output) {
         if(input$chemicalPath == "Chemicals"){
             panther_plot <- plot_chemical_boxplots(chemicalSummary_panther_split,
                                                    guide_side, 
-                                                   hit_threshold = input$hit_thresh,
+                                                   hit_threshold = input$ear_thresh,
                                                    plot_ND = FALSE) +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
         } else if (input$chemicalPath == "Endpoints") {
@@ -224,7 +247,7 @@ shinyServer(function(input, output) {
                 filter(guide_side %in% c("Lose","Keep")) 
             
             panther_plot <- plot_tox_endpoints2(ch, guide_side, 
-                                            hit_threshold = input$hit_thresh,
+                                            hit_threshold = input$ear_thresh,
                                             title = "Lost EARs going to Panther",
                                             category = "Chemical") +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
@@ -243,7 +266,7 @@ shinyServer(function(input, output) {
             ch$guide_side[ch$pathway_accession == ""] <- "Lose"
 
             panther_plot <- plot_tox_endpoints2(ch, guide_side, 
-                                                hit_threshold = input$hit_thresh,
+                                                hit_threshold = input$ear_thresh,
                                                 title = "Lost Genes going to Panther",
                                                 category = "Chemical") +
                 ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
@@ -252,38 +275,40 @@ shinyServer(function(input, output) {
         return(panther_plot)
     })
     
-    output$overallSummary <- DT::renderDataTable({
+    overall_mixes <- reactive({
         ear_thresh <- input$ear_thresh
-        n_site_thresh <- input$n_sites
-        
         EARsum_endpoint <- sum_endpoints(chemicalSummary,
                                          ear_cutoff = ear_thresh)
-        contributing_chems <- calc_contr_chems(EARsum_endpoint)
-        top_mixes <- top_mixes_fn(contributing_chems, n_site_thresh)
-
+        top_mixes <- all_mixes_fn(EARsum_endpoint, ear_thresh)
+    })
+    
+    output$overallSummary <- DT::renderDataTable({
         
-        df <- join_everything %>% 
-            group_by(endPoint) %>% 
-            summarise(AOP_ids = paste(unique(AOP_id[!is.na(AOP_id)]), collapse = ","),
-                      genes = paste(unique(gene[!is.na(gene)]), collapse = ","),
-                      pathways = paste(unique(pathway_name[!is.na(pathway_name)]), collapse = ",")) %>% 
+        n_site_thresh <- input$n_sites
+        
+        top_mixes <- overall_mixes() %>% 
+            filter(n_sites >= n_site_thresh)
+        
+        df <- join_everything  %>% 
             filter(endPoint %in% top_mixes$endPoint)
         
         return(df)
     })
     
-    output$epMixes <- DT::renderDataTable({ 
+    ep_mix_all <- reactive({
         ear_thresh <- input$ear_thresh
-        n_site_thresh <- input$n_sites
-        
         EARsum_endpoint <- sum_endpoints(chemicalSummary,
                                          ear_cutoff = ear_thresh)
-        contributing_chems <- calc_contr_chems(EARsum_endpoint)
-        top_mixes <- top_mixes_fn(contributing_chems, n_site_thresh)
+        top_mixes <- all_mixes_fn(EARsum_endpoint, ear_thresh)
+    })
+    
+    output$epMixes <- DT::renderDataTable({ 
         
-        top_mixes <- top_mixes %>% 
-            select(contr_chems_st, endPoint,
-                   n_samples, unique_sites)
+        n_site_thresh <- input$n_sites
+        
+        top_mixes <- ep_mix_all() %>% 
+            filter(n_sites >= n_site_thresh) %>% 
+            arrange(desc(n_sites))
         
         top_mixes_dt <- DT::datatable(top_mixes, caption = "ToxCast",
                                       rownames = FALSE,
@@ -294,27 +319,23 @@ shinyServer(function(input, output) {
     })
     
     
-    output$aopMixes <- DT::renderDataTable({
-        
+    aop_mix_all <- reactive({
         ear_thresh_aop <- input$ear_thresh
-        n_site_thresh_aop <- input$n_sites
-        
-        aop_summary <- chemicalSummary %>% 
-            left_join(select(AOP_crosswalk, 
-                             endPoint, ID), by="endPoint") %>% 
-            filter(!is.na(ID)) %>% 
-            select(-endPoint) %>% 
-            mutate(endPoint = as.character(ID))
-        
         EARsum_endpoint_aop <- sum_endpoints(aop_summary,
                                              ear_cutoff = ear_thresh_aop)
-        
-        contributing_chems_aop <- calc_contr_chems(EARsum_endpoint_aop)
-        
-        top_mixes_aop <- top_mixes_fn(contributing_chems_aop,
-                                      n_site_thresh_aop) %>% 
-            select(contr_chems_st, AOP_id = endPoint,
-                   n_samples, unique_sites)
+        top_mixes <- all_mixes_fn(EARsum_endpoint_aop,
+                                  ear_thresh_aop)
+    })
+    
+    
+    output$aopMixes <- DT::renderDataTable({
+      
+        n_site_thresh_aop <- input$n_sites
+
+        top_mixes_aop <- aop_mix_all() %>% 
+            filter(n_sites >= n_site_thresh_aop) %>% 
+            rename(`AOP ID` = endPoint) %>% 
+            arrange(desc(n_sites))
         
         top_mixes_aop_dt <- DT::datatable(top_mixes_aop, caption = "AOP",
                                           rownames = FALSE,
@@ -323,25 +344,23 @@ shinyServer(function(input, output) {
         return(top_mixes_aop_dt)
     })
     
-    output$geneMixes <- DT::renderDataTable({
+    gene_mixes <- reactive({
         ear_thresh_gene <- input$ear_thresh
-        n_site_thresh_gene <- input$n_sites
-        
-        gene_summary <- chemicalSummary %>% 
-            left_join(gene, by="endPoint") %>%
-            filter(!is.na(gene)) %>% 
-            select(-endPoint) %>% 
-            mutate(endPoint = gene)
-        
         EARsum_endpoint_gene <- sum_endpoints(gene_summary,
                                               ear_cutoff = ear_thresh_gene)
+        gene_mixes <- all_mixes_fn(EARsum_endpoint_gene,
+                                   ear_thresh_gene)
         
-        contributing_chems_gene <- calc_contr_chems(EARsum_endpoint_gene)
+    })
+    
+    output$geneMixes <- DT::renderDataTable({
         
-        top_mixes_gene <- top_mixes_fn(contributing_chems_gene,
-                                       n_site_thresh_gene) %>% 
-            select(contr_chems_st, Gene_Name = endPoint,
-                   n_samples, unique_sites)
+        n_site_thresh_gene <- input$n_sites
+        
+        top_mixes_gene <- gene_mixes() %>%
+            filter(n_sites > n_site_thresh_gene) %>% 
+            rename(Gene = endPoint) %>% 
+            arrange(desc(n_sites))
         
         top_mixes_gene_dt <- DT::datatable(top_mixes_gene, caption = "Gene",
                                               rownames = FALSE,
@@ -351,26 +370,23 @@ shinyServer(function(input, output) {
         return(top_mixes_gene_dt)
     })
     
-    output$pantherMixes <- DT::renderDataTable({
+    top_panters <- reactive({
         ear_thresh_panther <- input$ear_thresh
-        n_site_thresh_panther <- input$n_sites
-        
-        panther_summary <- chemicalSummary %>% 
-            left_join(panther, by="endPoint") %>%
-            filter(!is.na(gene)) %>% 
-            filter(pathway_accession != "") %>% 
-            select(-endPoint) %>% 
-            mutate(endPoint = pathway_name)
-        
         EARsum_endpoint_panther <- sum_endpoints(panther_summary,
                                                  ear_cutoff = ear_thresh_panther)
+        top_panters <- all_mixes_fn(EARsum_endpoint_panther,
+                     ear_thresh_panther)
         
-        contributing_chems_panther <- calc_contr_chems(EARsum_endpoint_panther)
+    })
+    
+    output$pantherMixes <- DT::renderDataTable({
         
-        top_mixes_panther <- top_mixes_fn(contributing_chems_panther,
-                                          n_site_thresh_panther) %>% 
-            select(contr_chems_st, Panther_Name = endPoint,
-                   n_samples, unique_sites)
+        n_site_thresh_panther <- input$n_sites
+
+        top_mixes_panther <- top_panters() %>% 
+                filter(n_sites >= n_site_thresh_panther)
+                rename(Panther_Name = endPoint) %>% 
+                arrange(desc(n_sites))
         
         top_mixes_panther_dt <- DT::datatable(top_mixes_panther, caption = "Panther",
                                               rownames = FALSE,

@@ -20,11 +20,6 @@ sidebar <- dashboardSidebar(
                       label = "EAR threshold:",
                       min = 0.000001,
                       max = 0.001,
-                     value = 0.0001),
-        numericInput("hit_thresh",
-                     label = "Hit threshold:",
-                     min = 0.000001,
-                     max = 0.1,
                      value = 0.001)
     )
 )

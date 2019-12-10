@@ -18,9 +18,9 @@ sum_endpoints <- function(all_EARs, ear_cutoff = 0.001) {
     group_by(site, shortName, date, endPoint) %>%
     mutate(sum_ear_endpoint = sum(EAR)) %>%
     ungroup() %>%
-    mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>%
-    filter(sum_ear_endpoint > ear_cutoff) %>%  
-    filter(chem_mix_contribution > 1)
+    mutate(chem_mix_contribution = (EAR/sum_ear_endpoint)*100) %>% 
+    filter(sum_ear_endpoint > ear_cutoff,
+            chem_mix_contribution > 1)
   
   return(summed_EARs)
 }
@@ -28,7 +28,8 @@ sum_endpoints <- function(all_EARs, ear_cutoff = 0.001) {
 calc_contr_chems <- function(summed_EARs) {
   
   EAR_sum_endpoint <- summed_EARs %>%
-    arrange(CAS) %>% 
+    filter(EAR > 0) %>% 
+    # arrange(CAS) %>% 
     group_by(site, shortName, date, endPoint, sum_ear_endpoint) %>%
     summarize(n_contr_chems = n(),
               contr_chems_lt = list(as.character(unique(chnm))),
@@ -63,7 +64,7 @@ calc_top_mixtures <- function(EAR_sum_endpoint, max_only = TRUE) {
   return(top_mixtures)
 }
 
-top_mixes_fn <- function(contributing_chems, n_site_thresh ) {
+top_mixes_fn <- function(contributing_chems, n_site_thresh) {
   
   chm_key <- contributing_chems %>% 
     select(contr_chems) %>% 
@@ -72,7 +73,7 @@ top_mixes_fn <- function(contributing_chems, n_site_thresh ) {
                             contr_chems,
                             contr_chems_lt)), 
               by="contr_chems")
-  
+
   top_mixes <- contributing_chems %>% 
     group_by(contr_chems, endPoint) %>% 
     summarise(n_samples = n(),
@@ -85,8 +86,55 @@ top_mixes_fn <- function(contributing_chems, n_site_thresh ) {
                    collapse = ",\n")) %>% 
     filter(!duplicated(contr_chems)) %>% 
     ungroup()
-  
+
   return(top_mixes)
+}
+
+get_combos <- function(chnm, EAR, ear_cutoff){
+  
+  unique_chems <- unique(as.character(chnm))
+  length_chems <- length(unique_chems)
+  EAR <- setNames(EAR, unique_chems)
+  n_combos <- sapply(seq_len(length_chems), function(x) factorial(length_chems)/(factorial(x)*factorial(length_chems-x)))
+  n_sums <- cumsum(n_combos)
+  df_tots <- data.frame(chems = rep(NA_character_, sum(n_combos)),
+                        EARsum = rep(NA, sum(n_combos)), stringsAsFactors = FALSE)
+  
+  for(n_chems in seq_len(length(unique_chems))){
+    chems <- combn(unique_chems, n_chems, simplify = FALSE)
+    y <- sapply(chems, function(x) sum(EAR[x]))
+    chems_char <- sapply(chems, function(x) paste0(x, collapse = ",")  )
+    if(n_chems == 1){
+      df_tots$chems[1:n_sums[n_chems]] <- chems_char
+      df_tots$EARsum[1:n_sums[n_chems]] <- y
+    } else {
+      df_tots$chems[(n_sums[n_chems-1]+1):n_sums[n_chems]] <- chems_char
+      df_tots$EARsum[(n_sums[n_chems-1]+1):n_sums[n_chems]] <- y
+    }
+  }
+  
+  df_tots <- df_tots %>% 
+    filter(EARsum > {{ear_cutoff}}) %>% 
+    pull(chems)
+  
+  return(df_tots)
+}
+
+all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
+  
+  df <- EAR_sum_endpoint %>% 
+    ungroup() %>% 
+    filter(EAR > 0) %>% 
+    group_by(endPoint, shortName, date) %>% 
+    summarize(chems = list(get_combos(chnm, EAR, {{ear_cutoff}}))) %>% 
+    unnest(chems) %>% 
+    group_by(endPoint, chems) %>% 
+    summarize(n_samples = n(),
+              n_sites = length(unique(shortName))) %>% 
+    ungroup()
+  
+  return(df)
+  
 }
 
 # calculate metrics by chemical

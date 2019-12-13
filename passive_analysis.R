@@ -20,7 +20,7 @@ data_analysis_plan <- drake_plan(
   filtered_ep = filter_groups(cleaned_ep, 
                                groupCol = 'intended_target_family',
                                assays = c('ATG','NVS','OT','TOX21','CEETOX','APR','CLD','TANGUAY','NHEERL_PADILLA','NCCT_SIMMONS','ACEA'),
-                               remove_groups = c('Background Measurement','Undefined')),
+                               remove_groups = c('Background Measurement','Undefined','Cell Cycle','NA')),
   
   chemicalSummary = get_chemical_summary(tox_list, ACC, filtered_ep),
   benchmarks = tox_list$chem_data %>%
@@ -81,7 +81,7 @@ data_analysis_plan <- drake_plan(
                                           category = "Chemical Class")
 
 )
-
+make(data_analysis_plan, trigger = trigger(condition=TRUE))
 
 # drake_config(data_analysis_plan)
 # In R console:

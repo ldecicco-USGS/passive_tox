@@ -171,6 +171,12 @@ join_everything <- chemicalSummary %>%
               genes = paste(unique(gene[!is.na(gene)]), collapse = ","),
               pathways = paste(unique(pathway_name[!is.na(pathway_name)]), collapse = ","))
 
+class_key <- chemicalSummary %>% 
+  select(chnm, Class) %>% 
+  distinct() %>% 
+  mutate(chnm = as.character(chnm),
+         Class = as.character(Class))
+
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
 
@@ -280,19 +286,54 @@ shinyServer(function(input, output) {
         EARsum_endpoint <- sum_endpoints(chemicalSummary,
                                          ear_cutoff = ear_thresh)
         top_mixes <- all_mixes_fn(EARsum_endpoint, ear_thresh)
+        
+        top_mixes_wide <- top_mixes %>% 
+          mutate(index = 1:nrow(top_mixes)) %>% 
+          separate(chems, sep = ",\n", into = letters[1:max(top_mixes$n_chems)]) %>% 
+          pivot_longer(cols = c(-endPoint, -n_chems, -n_samples, -n_sites, -index)) %>% 
+          filter(!is.na(value)) %>% 
+          left_join(class_key, by = c("value"="chnm")) %>% 
+          pivot_wider(names_from = "name", values_from = "value") %>% 
+          unite(col = "Chemicals", letters[1:max(top_mixes$n_chems)], sep = ",", remove = TRUE) %>% 
+          mutate(Chemicals = gsub(pattern = "NA,", 
+                                  replacement = "", 
+                                  x = Chemicals),
+                 Chemicals = gsub(pattern = ",NA", 
+                                  replacement = "", 
+                                  x = Chemicals))
+        
+    })
+    
+    output$download_overallSummary <- downloadHandler(
+      
+      filename = "boxPlot.csv",
+      
+      content = function(file) {
+        write.csv(join_all(), file, row.names = FALSE)
+      }
+    )
+    
+    join_all <- reactive({
+      n_site_thresh <- input$n_sites
+      
+      top_mixes <- overall_mixes() %>% 
+        filter(n_sites >= n_site_thresh)
+      
+      df <- join_everything  %>% 
+        left_join(select(top_mixes, endPoint, Class, Chemicals, n_chems), by = "endPoint") %>% 
+        filter(endPoint %in% top_mixes$endPoint) %>% 
+        group_by(endPoint, AOP_ids, genes, pathways) %>% 
+        filter(n_chems == max(n_chems)) %>%
+        summarize(Class = paste(unique(Class), collapse = ","),
+                  Chemicals = paste(Chemicals, collapse = ","),
+                  max_n_chems = max(n_chems)) %>% 
+        ungroup()
+      
     })
     
     output$overallSummary <- DT::renderDataTable({
-        
-        n_site_thresh <- input$n_sites
-        
-        top_mixes <- overall_mixes() %>% 
-            filter(n_sites >= n_site_thresh)
-        
-        df <- join_everything  %>% 
-            filter(endPoint %in% top_mixes$endPoint)
-        
-        return(df)
+      join_all()
+
     })
     
     ep_mix_all <- reactive({
@@ -313,7 +354,7 @@ shinyServer(function(input, output) {
         top_mixes_dt <- DT::datatable(top_mixes, caption = "ToxCast",
                                       rownames = FALSE,
                                       options = list(scrollX = TRUE,
-                                                     pageLength = 5))
+                                                     pageLength = 10))
         
         return(top_mixes_dt)
     })
@@ -339,7 +380,7 @@ shinyServer(function(input, output) {
         top_mixes_aop_dt <- DT::datatable(top_mixes_aop, caption = "AOP",
                                           rownames = FALSE,
                                           options = list(scrollX = TRUE,
-                                                         pageLength = 5)) 
+                                                         pageLength = 10)) 
         return(top_mixes_aop_dt)
     })
     
@@ -364,7 +405,7 @@ shinyServer(function(input, output) {
         top_mixes_gene_dt <- DT::datatable(top_mixes_gene, caption = "Gene",
                                               rownames = FALSE,
                                               options = list(scrollX = TRUE,
-                                                             pageLength = 5))
+                                                             pageLength = 10))
         
         return(top_mixes_gene_dt)
     })
@@ -390,7 +431,7 @@ shinyServer(function(input, output) {
         top_mixes_panther_dt <- DT::datatable(top_mixes_panther, caption = "Panther",
                                               rownames = FALSE,
                                               options = list(scrollX = TRUE,
-                                                             pageLength = 5))
+                                                             pageLength = 10))
         
         return(top_mixes_panther_dt)
     })

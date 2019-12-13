@@ -105,7 +105,7 @@ get_combos <- function(chnm, EAR, ear_cutoff){
   for(n_chems in seq_len(length(unique_chems))){
     chems <- combn(unique_chems, n_chems, simplify = FALSE)
     y <- sapply(chems, function(x) sum(EAR[x]))
-    chems_char <- sapply(chems, function(x) paste0(x, collapse = ",")  )
+    chems_char <- sapply(chems, function(x) paste0(x, collapse = ",\n")  )
     if(n_chems == 1){
       df_tots$chems[1:n_sums[n_chems]] <- chems_char
       df_tots$EARsum[1:n_sums[n_chems]] <- y

@@ -306,7 +306,7 @@ shinyServer(function(input, output) {
     
     output$download_overallSummary <- downloadHandler(
       
-      filename = "boxPlot.csv",
+      filename = "overall_table.csv",
       
       content = function(file) {
         write.csv(join_all(), file, row.names = FALSE)

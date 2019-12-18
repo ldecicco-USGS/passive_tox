@@ -19,6 +19,11 @@ filtered_ep <- filter_groups(cleaned_ep,
 
 chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
 
+## How many chemicals ##
+
+conc_no_zeros <- conc %>% filter(Value > 0)
+detected <- unique(conc_no_zeros$CAS)
+
 
 ## EARchem summations ##
 

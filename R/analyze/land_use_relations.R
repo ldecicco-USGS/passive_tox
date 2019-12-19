@@ -55,7 +55,7 @@ class_EP_max <- left_join(class_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
 names(class_EP_max)[c(1,5:11)] <- names(lu_columns)
 
 
-lu_eval <- "Wetlands"
+lu_eval <- "Urban"
 class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
 gg.summary <- group_by(class_EP_max, Class,gtthresh) %>% summarise(length=length(EP_max))  
 p_urban <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
@@ -68,7 +68,7 @@ p_urban <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
   ylab(paste("%",lu_eval,"Land Cover")) + 
   #  ylim(c(0,120)) +
   theme(axis.text.x = element_text(angle = 90)) +
-  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150)) +
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,120)) +
   stat_compare_means()
 
 p_urban
@@ -86,8 +86,8 @@ p_crops <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
   ylab(paste("%",lu_eval,"Land Cover")) +
   #  ylim(c(0,120)) +
   theme(axis.text.x = element_text(angle = 90)) +
-  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150)) +
-  stat_compare_means()
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,120)) +
+  stat_compare_means(method = "wilcox.test",label = "p.format")
 
 p_crops
 
@@ -104,8 +104,8 @@ p_Ag <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
   ylab(paste("%",lu_eval,"Land Cover")) + 
   #  ylim(c(0,120)) +
   theme(axis.text.x = element_text(angle = 90)) +
-  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150)) +
-  stat_compare_means()
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,120)) +
+  stat_compare_means(method = "wilcox.test",label = "p.format")
 
 p_Ag
 
@@ -124,14 +124,45 @@ p_Dev <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
   ylab(paste("%",lu_eval,"Land Cover")) + 
   #  ylim(c(0,120)) +
   theme(axis.text.x = element_text(angle = 90)) +
-  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,150)) +
-  stat_compare_means()
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,120)) +
+  stat_compare_means(method = "wilcox.test",label = "p.format")
 
 p_Dev
 
 
 
-####################################################################################
+lu_eval <- "Developed"
+class_EP_max$exceed_thresh <- ifelse(class_EP_max$EAR_max >= 0.001,2,1)
+
+#urban_signif <- data.frame(x=abs(rnorm(50)),id1=rep(1:5,10), id2=rep(1:2,25))
+class_EP_max <- tbl_df(class_EP_max[,c("Urban","Class","exceed_thresh")])
+class_EP_max$Class <- as.integer(class_EP_max$Class)
+
+
+# > res <- df %>% group_by(id1) %>% 
+#   +     do(w = wilcox.test(x~id2, data=., paired=FALSE)) %>% 
+#   +     summarise(id1, Wilcox = w$p.value)
+
+df <- data.frame(x=abs(rnorm(50)),id1=rep(1:5,10), id2=rep(1:2,25))
+df <- tbl_df(df)
+res <- df %>% group_by(id1) %>% 
+  do(w = wilcox.test(x~id2, data=., paired=FALSE)) %>% 
+  summarise(id1, Wilcox = w$p.value)
+
+
+#ID1 = Class
+#x = Urban
+#ID2 = Exceed_thresh
+
+urban_signif <- class_EP_max %>%
+  group_by(Class) %>%
+  do(w = wilcox.test(Urban~exceed_thresh,data=.,paired=FALSE)) %>%
+  summarize(Class, p = w$p.value)
+
+wilcox.test(Urban~exceed_thresh,data=class_EP_max,paired=FALSE)
+
+
+warnings()####################################################################################
 ## Explore the endpoints 
 
 

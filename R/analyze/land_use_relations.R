@@ -1,7 +1,7 @@
 #Explore land cover relations with different contaminant classes
 
 library(toxEval)
-library(dplyr)
+library(tidyverse)
 library(readxl)
 library(ggplot2)
 library(ggpubr)
@@ -49,10 +49,10 @@ class_EP_max <- class_EP_summary %>%
             EP_max = endPoint[which.max(EAR_sum)])
 
 # Add land use
-lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.")
-names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density")
+lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.","Pasture.Hay....")
+names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density","Pasture_Hay")
 class_EP_max <- left_join(class_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
-names(class_EP_max)[c(1,5:11)] <- names(lu_columns)
+names(class_EP_max)[c(1,5:12)] <- names(lu_columns)
 
 
 lu_eval <- "Urban"
@@ -69,7 +69,7 @@ p_urban <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
   #  ylim(c(0,120)) +
   theme(axis.text.x = element_text(angle = 90)) +
   scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,120)) +
-  stat_compare_means()
+  stat_compare_means(method = "wilcox.test",label = "p.format")
 
 p_urban
 
@@ -110,6 +110,25 @@ p_Ag <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
 p_Ag
 
 
+lu_eval <- "Pasture_Hay"
+class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
+gg.summary <- group_by(class_EP_max, Class,gtthresh) %>% summarise(length=length(EP_max))  
+p_P_H <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
+  geom_boxplot() + 
+  #  scale_y_continuous(trans='log10') +
+  facet_wrap(~Class,nrow = 3) +
+  geom_text(data = gg.summary,
+            aes(gtthresh, Inf, label = length), size=3,vjust = 3,) + 
+  ggtitle(lu_eval) + 
+  ylab(paste("%",lu_eval,"Land Cover")) + 
+  #  ylim(c(0,120)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,120)) +
+  stat_compare_means(method = "wilcox.test",label = "p.format")
+
+p_P_H
+
+
 class_EP_max$Developed <- class_EP_max$Urban + class_EP_max$Agriculture
 lu_eval <- "Developed"
 class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
@@ -130,39 +149,83 @@ p_Dev <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
 p_Dev
 
 
-
-lu_eval <- "Developed"
-class_EP_max$exceed_thresh <- ifelse(class_EP_max$EAR_max >= 0.001,2,1)
-
-#urban_signif <- data.frame(x=abs(rnorm(50)),id1=rep(1:5,10), id2=rep(1:2,25))
-class_EP_max <- tbl_df(class_EP_max[,c("Urban","Class","exceed_thresh")])
-class_EP_max$Class <- as.integer(class_EP_max$Class)
-
-
-# > res <- df %>% group_by(id1) %>% 
-#   +     do(w = wilcox.test(x~id2, data=., paired=FALSE)) %>% 
-#   +     summarise(id1, Wilcox = w$p.value)
-
-df <- data.frame(x=abs(rnorm(50)),id1=rep(1:5,10), id2=rep(1:2,25))
-df <- tbl_df(df)
-res <- df %>% group_by(id1) %>% 
-  do(w = wilcox.test(x~id2, data=., paired=FALSE)) %>% 
-  summarise(id1, Wilcox = w$p.value)
+# Example
+# df <- data.frame(x=abs(rnorm(50)),id1=rep(1:5,10), id2=rep(1:2,25))
+# df <- tbl_df(df)
+# res <- df %>% group_by(id1) %>% 
+#   do(w = wilcox.test(x~id2, data=., paired=FALSE)) %>% 
+#   summarise(id1, Wilcox = w$p.value)
 
 
-#ID1 = Class
-#x = Urban
-#ID2 = Exceed_thresh
+#Determine exceedance of threshold
+class_EP_max$exceed_thresh <- as.integer(ifelse(class_EP_max$EAR_max >= 0.001,1,0))
 
-urban_signif <- class_EP_max %>%
+### Choose chemical classes that have at least 5% EAR exceedances
+LU <- c("Urban","Crops","Pasture_Hay","Developed","Wetland")
+class_EP_max_tbl <- tbl_df(class_EP_max[,c(LU,"Class","exceed_thresh")])
+classes_exceed <- class_EP_max_tbl %>% group_by(Class) %>%
+  summarise(exceed_pct = mean(exceed_thresh)) %>%
+  filter(exceed_pct > 0.05)
+
+class_EP_max_tbl <- filter(class_EP_max_tbl,(class_EP_max_tbl$Class %in% classes_exceed$Class))
+
+## by lu group
+# Doesn't work...
+# test <- class_EP_max_tbl %>% pivot_longer(LU,names_to = "LU")
+# signif <- test %>%
+#   group_by(Class,LU) %>%
+#   do(w = wilcox.test(what_to_put_here???~exceed_thresh,data=.,paired=FALSE)) %>%
+#   summarize(Class, urban_p = w$p.value)
+# ## Individually
+
+options(scipen = 5)
+urban_signif <- class_EP_max_tbl %>%
   group_by(Class) %>%
   do(w = wilcox.test(Urban~exceed_thresh,data=.,paired=FALSE)) %>%
-  summarize(Class, p = w$p.value)
+  summarize(Class, urban_p = round(w$p.value,5))
 
-wilcox.test(Urban~exceed_thresh,data=class_EP_max,paired=FALSE)
+Crop_signif <- class_EP_max_tbl %>%
+  group_by(Class) %>%
+  do(w = wilcox.test(Crops~exceed_thresh,data=.,paired=FALSE)) %>%
+  summarize(Class, crop_p = round(w$p.value,5))
+
+Ag_signif <- class_EP_max_tbl %>%
+  group_by(Class) %>%
+  do(w = wilcox.test(Pasture_Hay~exceed_thresh,data=.,paired=FALSE)) %>%
+  summarize(Class, P_H_p = round(w$p.value,5))
+
+Dev_signif <- class_EP_max_tbl %>%
+  group_by(Class) %>%
+  do(w = wilcox.test(Developed~exceed_thresh,data=.,paired=FALSE)) %>%
+  summarize(Class, dev_p = round(w$p.value,5))
+
+signif <- left_join(urban_signif,Crop_signif) %>%
+  left_join(Ag_signif) %>%
+  left_join(Dev_signif)
+
+signif_best_landuse <- signif %>% pivot_longer(-Class,names_to = "LU",values_to = "p") %>%
+  group_by(Class) %>%
+  slice(which.min(p)) %>%
+  mutate(significant = ifelse(p <= 0.05,1,0))
 
 
-warnings()####################################################################################
+##!!!!!!!!!!!!!!!!!! Left off here  !!!!!!!!!!!!!!!!!!!!!!
+#Make table with land use as columns and check mark or X for significance?
+LU_signif <- character()
+for(i in 1:dim(signif)[1]) {
+ sig_cols <- which(signif[i,-1] <= 0.05) + 1
+ if(length(sig_cols) > 0) {
+ LU_signif[i] <- paste(names(signif)[sig_cols],collapse = "; ")
+ }else{
+   LU_signif[i] <- ""
+ }
+   
+}
+
+data.frame(signif$Class,LU_signif)
+
+
+####################################################################################
 ## Explore the endpoints 
 
 
@@ -177,7 +240,7 @@ pdf()
 for (i in 1:length(class_list)) {
   
   plot_df <- filter(class_EP_summary_thresh,Class == class_list[i])
-    
+  
   p <- ggplot(data = plot_df,aes(x=EAR_sum,y=endPoint)) +
     geom_boxplot() +
     facet_wrap(~Class) +
@@ -193,14 +256,22 @@ shell.exec(filenm)
 
 
 df <- class_EP_max %>% 
-  filter(Class == "PAHs")
+  filter(Class == "Insecticide")
 
 
-summary(lm(EAR_max~Urban + Agriculture + Water + Wetlands, data=df))
+summary(lm(log(EAR_max)~Urban + Agriculture + Water + Wetlands, data=df))
 summary(lm(EAR_max~Urban + Agriculture, data=df))
 summary(lm(EAR_max~Urban , data=df))
 summary(lm(EAR_max~Urban + Crops, data=df))
-summary(lm(EAR_max~ Crops, data=df))
+summary(lm(EAR_max~Urban + Crops + Pasture_Hay, data=df))
+summary(lm(log10(EAR_max+ 0.00001)~ Crops + Urban + Pasture_Hay, data=df))
+summary(lm(log10(EAR_max+ 0.00001)~ Crops + Urban, data=df))
+summary(lm(log10(EAR_max+ 0.00001)~ Urban, data=df))
+plot(EAR_max~ Crops, data=df)
+plot(log10(EAR_max)~ Crops, data=df)
+plot(EAR_max~ Urban, data=df)
+plot((log10(EAR_max))~ Urban, data=df)
+
 summary(lm(EAR_max~Crops + Water + Wetlands, data=df))
 summary(lm(EAR_max~Urban + Agriculture, data=df))
 summary(lm(EAR_max~Population_density, data=df))
@@ -209,68 +280,76 @@ summary(lm(EAR_max~Parking_lot, data=df))
 lu_variables <- names(lu_columns[-1])
 form <- as.formula(paste("EAR_max ~ ",paste(lu_variables,collapse = " + ")))
 
-classes_reg <- c("Herbicide","Fire retardant", "Pharmaceuticals","PAHs")
+classes_reg <- c("Herbicide","Fire retardant", "Insecticide","Pharmaceuticals","PAHs")
+LU <- c("Urban","Crops","Pasture_Hay")
+
+step_list <- list()
+step_coefs <- list()
 for (i in 1:length(classes_reg)){
   df <- class_EP_max %>% 
     filter(Class == classes_reg[i])
-  m <- lm(EAR_max~1,data=df)
+  m <- lm(log10(EAR_max + 0.00001)~1,data=df)
   
+  form <- as.formula(paste("log10(EAR_max) ~ ",paste(LU,collapse = " + ")))
   m_step <- step(m,scope = form,data = df,k = log(dim(df)[1]))
+  step_list[[i]] <- m_step
+  step_coefs[[i]] <- coef(m_step)
   
-
-
-
-
+}
+  names(step_coefs) <- classes_reg
+  step_coefs
+  
   # Graph EAR summaries vs land use
-# Compute EAR summaries by Class regardless of endpoint
-
-# class_summary <- chemical_summary %>% group_by(site,Class) %>%
-#   summarize(EAR_sum = sum(EAR))
-# 
-# lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7")
-# names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture")
-# 
-# class_summary <- left_join(class_summary,df_lu[,lu_columns],by=c("site"="STAID"))
-# names(class_summary)[c(1,4,5,6)] <- names(lu_columns)
-# 
-# unique(class_summary$Class)
-# 
-# ggplot(data=class_summary,aes(x=Parking_lot,y=EAR_sum)) +
-#   geom_point() + 
-#   scale_y_continuous(trans='log10') +
-#   facet_wrap(~Class)
-# 
-# plot(class_summary$Urban,class_summary$Parking.Lot.....y)
-# 
-# 
-# class_summary$urban_cat_15 <- ifelse(class_summary$Urban > 15,"high_urban","low_urban")
-# ggplot(data=class_summary,aes(x=urban_cat_15,y=EAR_sum)) +
-#   geom_boxplot() + 
-#   scale_y_continuous(trans='log10') +
-#   facet_wrap(~Class)
-# 
-# gg.summary <- group_by(class_summary, Class,gtthresh) %>% summarise(length=length(EAR_sum))  
-# class_summary$gtthresh <- ifelse(class_summary$EAR_sum > 0.001,"exceedance","non-exceedance")
-# ggplot(data=class_summary,aes(x=gtthresh,y=Urban)) +
-#   geom_boxplot() + 
-# #  scale_y_continuous(trans='log10') +
-#   facet_wrap(~Class)+
-#   geom_text(data = gg.summary,
-#             aes(gtthresh, Inf, label = length), size=3,vjust = 0.5)
-# 
-# class_summary$gtthresh <- ifelse(class_summary$EAR_sum > 0.001,"exceedance","non-exceedance")
-# p <- ggplot(data=class_summary,aes(x=gtthresh,y=Agriculture)) +
-#   geom_boxplot() + 
-#   #  scale_y_continuous(trans='log10') +
-#   facet_wrap(~Class)
-# 
-# 
-# gg.summary <- group_by(class_summary, Class,gtthresh) %>% summarise(length=length(EAR_sum))  
-# class_summary$gtthresh <- ifelse(class_summary$EAR_sum > 0.001,"exceedance","non-exceedance")
-# p <- ggplot(data=class_summary,aes(x=gtthresh,y=Agriculture)) +
-#   geom_boxplot() + 
-#   #  scale_y_continuous(trans='log10') +
-#   facet_wrap(~Class) +
-#   geom_text(data = gg.summary,
-#             aes(gtthresh, Inf, label = length), size=3,vjust = 1.1,)
-# p
+  # Compute EAR summaries by Class regardless of endpoint
+  
+  # class_summary <- chemical_summary %>% group_by(site,Class) %>%
+  #   summarize(EAR_sum = sum(EAR))
+  # 
+  # lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7")
+  # names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture")
+  # 
+  # class_summary <- left_join(class_summary,df_lu[,lu_columns],by=c("site"="STAID"))
+  # names(class_summary)[c(1,4,5,6)] <- names(lu_columns)
+  # 
+  # unique(class_summary$Class)
+  # 
+  # ggplot(data=class_summary,aes(x=Parking_lot,y=EAR_sum)) +
+  #   geom_point() + 
+  #   scale_y_continuous(trans='log10') +
+  #   facet_wrap(~Class)
+  # 
+  # plot(class_summary$Urban,class_summary$Parking.Lot.....y)
+  # 
+  # 
+  # class_summary$urban_cat_15 <- ifelse(class_summary$Urban > 15,"high_urban","low_urban")
+  # ggplot(data=class_summary,aes(x=urban_cat_15,y=EAR_sum)) +
+  #   geom_boxplot() + 
+  #   scale_y_continuous(trans='log10') +
+  #   facet_wrap(~Class)
+  # 
+  # gg.summary <- group_by(class_summary, Class,gtthresh) %>% summarise(length=length(EAR_sum))  
+  # class_summary$gtthresh <- ifelse(class_summary$EAR_sum > 0.001,"exceedance","non-exceedance")
+  # ggplot(data=class_summary,aes(x=gtthresh,y=Urban)) +
+  #   geom_boxplot() + 
+  # #  scale_y_continuous(trans='log10') +
+  #   facet_wrap(~Class)+
+  #   geom_text(data = gg.summary,
+  #             aes(gtthresh, Inf, label = length), size=3,vjust = 0.5)
+  # 
+  # class_summary$gtthresh <- ifelse(class_summary$EAR_sum > 0.001,"exceedance","non-exceedance")
+  # p <- ggplot(data=class_summary,aes(x=gtthresh,y=Agriculture)) +
+  #   geom_boxplot() + 
+  #   #  scale_y_continuous(trans='log10') +
+  #   facet_wrap(~Class)
+  # 
+  # 
+  # gg.summary <- group_by(class_summary, Class,gtthresh) %>% summarise(length=length(EAR_sum))  
+  # class_summary$gtthresh <- ifelse(class_summary$EAR_sum > 0.001,"exceedance","non-exceedance")
+  # p <- ggplot(data=class_summary,aes(x=gtthresh,y=Agriculture)) +
+  #   geom_boxplot() + 
+  #   #  scale_y_continuous(trans='log10') +
+  #   facet_wrap(~Class) +
+  #   geom_text(data = gg.summary,
+  #             aes(gtthresh, Inf, label = length), size=3,vjust = 1.1,)
+  # p
+  

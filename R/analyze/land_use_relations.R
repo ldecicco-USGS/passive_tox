@@ -49,10 +49,15 @@ class_EP_max <- class_EP_summary %>%
             EP_max = endPoint[which.max(EAR_sum)])
 
 # Add land use
-lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.","Pasture.Hay....")
-names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density","Pasture_Hay")
+df_lu$Low_use <- df_lu$Low.Use.... + df_lu$Very.Low.Use..Conservation....
+df_lu$Water_and_Wetlands <- df_lu$Water.......14 + df_lu$Wetlands....
+
+lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water_and_Wetlands","Population.Density..people.km2.","Pasture.Hay....","Low_use")
+names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water_and_Wetlands","Population_density","Pasture_Hay","Low_use")
+
 class_EP_max <- left_join(class_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
 names(class_EP_max)[c(1,5:12)] <- names(lu_columns)
+
 
 
 lu_eval <- "Urban"
@@ -149,6 +154,45 @@ p_Dev <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
 p_Dev
 
 
+lu_eval <- "Water_and_Wetlands"
+class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
+gg.summary <- group_by(class_EP_max, Class,gtthresh) %>% summarise(length=length(EP_max))  
+p_WaterandWet <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
+  geom_boxplot() + 
+  #  scale_y_continuous(trans='log10') +
+  facet_wrap(~Class,nrow = 3) +
+  geom_text(data = gg.summary,
+            aes(gtthresh, Inf, label = length), size=3,vjust = 3,) + 
+  ggtitle(lu_eval) + 
+  ylab(paste("%",lu_eval,"Land Cover")) + 
+  #  ylim(c(0,120)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,70)) +
+  stat_compare_means(method = "wilcox.test",label = "p.format")
+
+p_WaterandWet
+
+
+
+lu_eval <- "Low_use"
+class_EP_max$gtthresh <- ifelse(class_EP_max$EAR_max >= 0.001,"EAR >= 0.001","EAR < 0.001")
+gg.summary <- group_by(class_EP_max, Class,gtthresh) %>% summarise(length=length(EP_max))  
+p_Low_use <- ggplot(data=class_EP_max,aes_string(x="gtthresh",y=lu_eval)) +
+  geom_boxplot() + 
+  #  scale_y_continuous(trans='log10') +
+  facet_wrap(~Class,nrow = 3) +
+  geom_text(data = gg.summary,
+            aes(gtthresh, Inf, label = length), size=3,vjust = 3,) + 
+  ggtitle(lu_eval) + 
+  ylab(paste("%",lu_eval,"Land Cover")) + 
+  #  ylim(c(0,120)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_y_continuous(breaks=c(0, 50, 100),limits = c(0,70)) +
+  stat_compare_means(method = "wilcox.test",label = "p.format")
+
+p_Low_use
+
+
 # Example
 # df <- data.frame(x=abs(rnorm(50)),id1=rep(1:5,10), id2=rep(1:2,25))
 # df <- tbl_df(df)
@@ -161,7 +205,7 @@ p_Dev
 class_EP_max$exceed_thresh <- as.integer(ifelse(class_EP_max$EAR_max >= 0.001,1,0))
 
 ### Choose chemical classes that have at least 5% EAR exceedances
-LU <- c("Urban","Crops","Pasture_Hay","Developed","Wetland")
+LU <- c("Urban","Crops","Pasture_Hay")
 class_EP_max_tbl <- tbl_df(class_EP_max[,c(LU,"Class","exceed_thresh")])
 classes_exceed <- class_EP_max_tbl %>% group_by(Class) %>%
   summarise(exceed_pct = mean(exceed_thresh)) %>%
@@ -189,19 +233,28 @@ Crop_signif <- class_EP_max_tbl %>%
   do(w = wilcox.test(Crops~exceed_thresh,data=.,paired=FALSE)) %>%
   summarize(Class, crop_p = round(w$p.value,5))
 
-Ag_signif <- class_EP_max_tbl %>%
+P_H_signif <- class_EP_max_tbl %>%
   group_by(Class) %>%
   do(w = wilcox.test(Pasture_Hay~exceed_thresh,data=.,paired=FALSE)) %>%
   summarize(Class, P_H_p = round(w$p.value,5))
 
-Dev_signif <- class_EP_max_tbl %>%
+Water_signif <- class_EP_max_tbl %>%
   group_by(Class) %>%
-  do(w = wilcox.test(Developed~exceed_thresh,data=.,paired=FALSE)) %>%
-  summarize(Class, dev_p = round(w$p.value,5))
+  do(w = wilcox.test(Water~exceed_thresh,data=.,paired=FALSE)) %>%
+  summarize(Class, P_H_p = round(w$p.value,5))
+
+Wetland_signif <- class_EP_max_tbl %>%
+  group_by(Class) %>%
+  do(w = wilcox.test(Wetlands~exceed_thresh,data=.,paired=FALSE)) %>%
+  summarize(Class, P_H_p = round(w$p.value,5))
+
+# Dev_signif <- class_EP_max_tbl %>%
+#   group_by(Class) %>%
+#   do(w = wilcox.test(Developed~exceed_thresh,data=.,paired=FALSE)) %>%
+#   summarize(Class, dev_p = round(w$p.value,5))
 
 signif <- left_join(urban_signif,Crop_signif) %>%
-  left_join(Ag_signif) %>%
-  left_join(Dev_signif)
+  left_join(P_H_signif)
 
 signif_best_landuse <- signif %>% pivot_longer(-Class,names_to = "LU",values_to = "p") %>%
   group_by(Class) %>%
@@ -209,8 +262,7 @@ signif_best_landuse <- signif %>% pivot_longer(-Class,names_to = "LU",values_to 
   mutate(significant = ifelse(p <= 0.05,1,0))
 
 
-##!!!!!!!!!!!!!!!!!! Left off here  !!!!!!!!!!!!!!!!!!!!!!
-#Make table with land use as columns and check mark or X for significance?
+#Summary correlation tables
 LU_signif <- character()
 for(i in 1:dim(signif)[1]) {
  sig_cols <- which(signif[i,-1] <= 0.05) + 1
@@ -222,7 +274,13 @@ for(i in 1:dim(signif)[1]) {
    
 }
 
-data.frame(signif$Class,LU_signif)
+signif_land_uses <- data.frame(signif$Class,LU_signif)
+
+LU_signif_table <- signif %>%
+  mutate(Urban = ifelse(urban_p <= 0.05,"X","")) %>%
+  mutate(Crops = ifelse(crop_p <= 0.05,"X","")) %>%
+  mutate(Pasture_and_Hay = ifelse(P_H_p <= 0.05,"X","")) %>%
+  select(Class,Urban,Crops,Pasture_and_Hay)
 
 
 ####################################################################################

@@ -64,7 +64,8 @@ body <- dashboardBody(
                                height = "900px")                      
            ),
            tabPanel(title = "Table", value = "sum_table",
-                    DT::dataTableOutput(outputId = "overallSummary")
+                    DT::dataTableOutput(outputId = "overallSummary"),
+                    downloadButton('download_overallSummary', 'Download CSV')
             )
     )
 )

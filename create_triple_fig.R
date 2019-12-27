@@ -57,31 +57,12 @@ no_axis_no_match <- strip_graph(toxPlot_no_match_w_lab)
 site_counts_df_no_match <- site_counts(tox_list$chem_data, no_axis_no_match$data)
 site_graph_no_match <- site_count_plot(site_counts_df_no_match,
                                        axis_size = axis_num)
-
-pdf("plots/triple_graph_full_page_v3.pdf", width = 9, height = 11, onefile=FALSE)
-ggarrange(
-  
-  matches$site_graph,
-  matches$no_axis,
-  ggarrange(
-    site_graph_no_match, 
-    no_axis_no_match,
-    NULL,
-    nrow = 2, ncol = 2,
-    widths = c(1.75,2),
-    heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
-  ),
-  widths =  c(2,4,4),nrow=1,ncol=3,
-  common.legend = TRUE, legend = "bottom"
-)
-dev.off()
-
-
 library(cowplot)
 
 l2 <- get_legend(toxPlot_no_match)
 
-pdf("plots/triple_graph.pdf", width = 9, height = 11, onefile=FALSE)
+# pdf("plots/triple_graph.pdf", width = 9, height = 11, onefile=FALSE)
+pdf("C:/Users/ldecicco/DOI/Corsi, Steven R - Manuscript/Figures/Polished figures/triple_graph.pdf", width = 9, height = 11, onefile=FALSE)
 plot_grid(
   matches$site_graph,
   matches$no_axis,
@@ -105,3 +86,20 @@ plot_grid(
 )
 dev.off()
 
+pdf("plots/triple_graph_full_page_v3.pdf", width = 9, height = 11, onefile=FALSE)
+ggarrange(
+  
+  matches$site_graph,
+  matches$no_axis,
+  ggarrange(
+    site_graph_no_match, 
+    no_axis_no_match,
+    NULL,
+    nrow = 2, ncol = 2,
+    widths = c(1.75,2),
+    heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
+  ),
+  widths =  c(2,4,4),nrow=1,ncol=3,
+  common.legend = TRUE, legend = "bottom"
+)
+dev.off()

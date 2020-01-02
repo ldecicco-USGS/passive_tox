@@ -1,6 +1,6 @@
 #Explore land cover relations with different individual chemicals
 
-#Chem_Individual_correlation_table <- function() {
+Chem_Individual_correlation_table <- function() {
 library(toxEval)
 library(tidyverse)
 library(readxl)
@@ -117,5 +117,5 @@ LU_signif_table <- signif_accum %>%
   mutate(Pasture_and_Hay = ifelse(P_H_p <= 0.05,"X","")) %>%
   select(chnm,Urban,Crops,Pasture_and_Hay)
 
-#   return(LU_signif_table)
-# }
+  return(LU_signif_table)
+}

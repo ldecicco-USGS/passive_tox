@@ -21,7 +21,8 @@ get_chem_info <- function(all_data, chem_info_old){
   
   sites_with_detections <- chem_data %>%
     group_by(CAS) %>%
-    summarise(n_sites = length(unique(SiteID[Value != 0])))
+    summarise(sites_tested = length(unique(SiteID)),
+              sites_det = length(unique(SiteID[Value != 0])))
   
   #DLs:
   dls <- select(all_data, CAS, generic_class, MDL, MQL, Date = `Sample Date`, DL, RL) %>%

@@ -15,28 +15,14 @@ Chem_Class_correlation_table <- function() {
   
   df_lu <- read_xlsx(path = file.path("data","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
   names(df_lu) <- make.names(names(df_lu))
-  
-  path_to_file <- 'passive.xlsx' 
-  tox_list <- create_toxEval(file.path("data","clean",path_to_file))
-  ACC <- get_ACC(tox_list$chem_info$CAS)
-  ACC <- remove_flags(ACC = ACC,
-                      flagsShort = c('Borderline','OnlyHighest','GainAC50','Biochemical'))
-  
-  cleaned_ep <- clean_endPoint_info(end_point_info)
-  filtered_ep <- filter_groups(cleaned_ep, 
-                               groupCol = 'intended_target_family',
-                               assays = c('ATG','NVS','OT','TOX21','CEETOX','APR','CLD','TANGUAY','NHEERL_PADILLA','NCCT_SIMMONS','ACEA'),
-                               remove_groups = c('Background Measurement','Undefined'))
-  
-  chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
-  
+  drake::loadd(chemicalSummary)
   
   ########################################################################################
   # 1). Determine EARs summation for this analysis using by endpoints within chemical classes 
   # 2). Find max of those EAR summations
   
   # Determine EAR_sum by site/class/endpoint
-  class_EP_summary <- chemical_summary %>%
+  class_EP_summary <- chemicalSummary %>%
     group_by(site,date,Class, endPoint) %>%
     summarize(EAR_sum = sum(EAR)) %>%
     group_by(site,Class) 
@@ -60,6 +46,7 @@ Chem_Class_correlation_table <- function() {
   ### Choose chemical classes that have at least 5% EAR exceedances
   LU <- c("Urban","Crops","Pasture_Hay")
   class_EP_max_tbl <- tbl_df(class_EP_max[,c(LU,"Class","exceed_thresh")])
+  
   classes_exceed <- class_EP_max_tbl %>% group_by(Class) %>%
     summarise(exceed_pct = mean(exceed_thresh)) %>%
     filter(exceed_pct > 0.05)
@@ -94,6 +81,7 @@ Chem_Class_correlation_table <- function() {
   
   #Summary correlation tables
   LU_signif <- character()
+  
   for(i in 1:dim(signif)[1]) {
     sig_cols <- which(signif[i,-1] <= 0.05) + 1
     if(length(sig_cols) > 0) {

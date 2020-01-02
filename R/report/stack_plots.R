@@ -150,8 +150,9 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
           strip.text.y = element_text(size = font_size),
           axis.title.y = element_blank(),
           legend.position="bottom",
-          panel.grid.minor = element_blank(),
-          panel.grid.major = element_line(size = 0.1),
+          panel.grid.minor.y = element_blank(),
+          panel.grid.major.x = element_blank(),#element_line(size = 0.1),
+          panel.grid.major.y = element_blank(),
           legend.justification = "left",
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
           legend.title=element_blank(),
@@ -277,7 +278,7 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
               vjust = -0.5, size = font_size/3) +
     facet_grid(site_grouping ~ ., scales="free", space="free") +
     coord_flip(clip = "off") + 
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 2)) +
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
     scale_fill_manual(name = category,
                       values = cbValues, drop=TRUE) +
     theme(strip.background = element_blank(),
@@ -286,7 +287,8 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
           axis.title.y = element_blank(),
           legend.position="bottom",
           panel.grid.minor = element_blank(),
-          panel.grid.major = element_line(size = 0.1),
+          panel.grid.major.x = element_line(size = 0.1),
+          panel.grid.major.y = element_blank(),
           legend.justification = "left",
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
           legend.title=element_blank(),

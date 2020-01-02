@@ -8,6 +8,22 @@ loadd(site_info)
 loadd(tox_list)
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
+source(file = "R/analyze/table_chem_class_Land_use_correlation.R")
+
+lakes_ordered <- c("Lake Superior",
+                   "Lake Michigan",
+                   "Lake Huron",
+                   "Lake Erie",
+                   "Lake Ontario")
+
+df <- Chem_Class_correlation_table()
+
+df <- tibble(x = 0.95,
+             y = 0.95,
+             site_grouping = factor("Lake Superior", 
+                                    levels = lakes_ordered),
+             tb = list(df))
+
 color_map <- class_colors(tox_list)
 font_size <- 5
 
@@ -17,7 +33,16 @@ upperPlot <- plot_tox_stacks_manuscript2(chemical_summary = chemicalSummary,
                                          font_size =  font_size, 
                                          category = "Chemical Class")
 
-ggsave(upperPlot, filename = "plots/new_stack_v3.pdf", height = 8, width = 5)
+library(ggpmisc)
+
+stack2 <- upperPlot +
+  geom_table_npc(data = df,
+                 aes(npcx = x, 
+                     npcy = y,
+                     label = tb), size = 2,
+                 hjust = 1, vjust = 1)
+
+ggsave(stack2, filename = "plots/new_stack_w_table.pdf", height = 8, width = 5)
 
 full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 

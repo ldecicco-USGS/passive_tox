@@ -25,6 +25,16 @@ cat('Your Rprofile has been updated to include PASSIVE_PATH
 ```
 You MUST restart your R session (restart RStudio)!
 
+Then, you can call the chemicalSummary via:
+```
+chemicalSummary <- readRDS(file = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","clean","chemical_summary.rds"))
+```
+
+If you've run the drake plans, this will also work:
+```
+loadd(chemicalSummary)
+```
+
 
 ## Old GoogleDrive stuff:
 

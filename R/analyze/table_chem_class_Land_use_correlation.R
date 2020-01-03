@@ -13,9 +13,9 @@ Chem_Class_correlation_table <- function() {
   #   -Endpoints that are important for full mixtures
   #   -Chemicals/classes that play prominent roles in the EARs from mixtures
   
-  df_lu <- read_xlsx(path = file.path("data","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
+  df_lu <- read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
   names(df_lu) <- make.names(names(df_lu))
-  drake::loadd(chemicalSummary)
+  chemicalSummary <- readRDS(file = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","clean","chemical_summary.rds"))
   
   ########################################################################################
   # 1). Determine EARs summation for this analysis using by endpoints within chemical classes 

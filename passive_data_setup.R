@@ -38,6 +38,8 @@ data_setup_plan <- drake_plan(
                            file_out("data/raw/exclude.csv")),
   exclude = get_exclude(file_in("data/raw/exclude.csv")),
   
+  AOP_crosswalk_copy = file.copy(file_in(!!file.path(path_to_data,"data/data_for_git_repo/raw/AOP_crosswalk.csv")),
+                                 file_out("data/raw/AOP_crosswalk.csv")),
   OC_2014_copy = file.copy(file_in(!!file.path(path_to_data,"data/data_for_git_repo/raw/general_2014.xlsx")),
             file_out("data/raw/general_2014.xlsx")),
   OC_2014 = generic_file_opener(file_in("data/raw/general_2014.xlsx"), cas_df,
@@ -114,13 +116,13 @@ data_setup_plan <- drake_plan(
   all_data_fixed_cas = fix_cas(all_data_chnm, cas_change),
   chem_info = get_chem_info(all_data_fixed_cas, chem_info_old),
   chem_info_fixed_cas = fix_cas(chem_info, cas_change),
-  saveRDS(object = chem_info_fixed_cas, 
+  out_cas = saveRDS(object = chem_info_fixed_cas, 
           file = file_out("data/clean/cas_df.rds")),
-  
+  out_cas_sync = saveRDS(object = chem_info_fixed_cas, 
+          file = file_out(!!file.path(path_to_data,"data/data_for_git_repo/clean/cas_df.rds"))),  
   sites_orig_2014 = readxl::read_excel(file_in("data/raw/general_2014.xlsx"),
                      sheet = "site info",
                      skip = 3),
-  
   sites_OWC_copy = file.copy(file_in(!!file.path(path_to_data,"data/data_for_git_repo/raw/sites_from_OWC.txt")),
                              file_out(file_out("data/raw/sites_from_OWC.txt"))),
   sites_OWC = data.table::fread(file_in("data/raw/sites_from_OWC.txt"),
@@ -132,7 +134,9 @@ data_setup_plan <- drake_plan(
                                        skip = 2),
   sites = get_sites_ready(sites_orig_2014, sites_orig_2010, sites_OWC),
   tox_list_init = create_tox_object(all_data_fixed_cas, chem_info_fixed_cas, sites, exclude),
-  saveOutput = openxlsx::write.xlsx(tox_list_init, file = file_out("data/clean/passive.xlsx"))
+  saveOutput = openxlsx::write.xlsx(tox_list_init, file = file_out("data/clean/passive.xlsx")),
+  saveOutput2 = openxlsx::write.xlsx(tox_list_init, 
+                                     file = file_out(!!file.path(path_to_data,"data/data_for_git_repo/clean/passive.xlsx")))
   
 )
 

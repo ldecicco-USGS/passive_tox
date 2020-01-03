@@ -4,6 +4,30 @@ We're trying the `drake` R package for orchestrating the workflow.
 
 To initially get the datasets and clean up the data, run the `passive_data_setup.R` script. If there are any issues, you can try to diagnose the problems using `vis_drake_graph`.
 
+## Converting to OneDrive
+
+Halfway through this project, we switched from GoogleDrive to OneDrive. We're trying to take advantage of the automatic snycing of the data folders. To do this, each collaborator has to:
+
+1. Go to the canonical shared drive location
+2. Click the "Sync" button and open in Microsoft OneDrive
+3. In Windows Explore* right-click on the shared folder and choose "Alway Keep on this device". (Note: later when you want to remove this, you'll need to right-click -> Settings -> Stop Syncing before you can delete it)
+4. Create a system variable with the path to the local copy of the canonical shared drive:
+
+```
+rprofile_path = file.path(Sys.getenv("HOME"), ".Rprofile")
+
+write('Sys.setenv(PASSIVE_PATH = "C:/Users/ldecicco/DOI/Corsi, Steven R - Manuscript")',
+      rprofile_path, 
+      append =  TRUE)
+
+cat('Your Rprofile has been updated to include PASSIVE_PATH
+    Please restart R for changes to take effect.')
+```
+You MUST restart your R session (restart RStudio)!
+
+
+## Old GoogleDrive stuff:
+
 The next drake workplan is in "passive_analysis.R".
 
 Once that file is run sucessfully, there will be an Excel file: "data/clean/passive.xlsx". This file can be used for regular `toxEval` workflows.

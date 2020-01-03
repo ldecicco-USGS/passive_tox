@@ -103,8 +103,7 @@ Chem_Individual_correlation_table <- function() {
     
   }
   
-  signif_land_uses <- data.frame(signif$chnm,LU_signif)
-  
+
   LU_signif_table <- signif_accum
   
   for(i in 2:dim(LU_signif_table)[2]){

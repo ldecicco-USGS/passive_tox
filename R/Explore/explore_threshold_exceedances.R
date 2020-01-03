@@ -2,7 +2,6 @@
 library(toxEval)
 library(tidyverse)
 
-#NOTE: Add path to path_to_file!!!
 path_to_file <- 'data/clean/passive.xlsx' 
 tox_list <- create_toxEval(path_to_file)
 chems <- tox_list$chem_info
@@ -31,35 +30,40 @@ EAR_sums <- chemical_summary %>%
   group_by(site, date,chnm,CAS) %>%
   summarise(sumEAR = sum(EAR)) %>%
   group_by(site,chnm,CAS) %>% 
-  summarize(maxEAR = max(sumEAR)) %>% 
+  summarize(maxEAR = max(sumEAR))
+
+num_sites_monitored <- EAR_sums %>%
+  group_by(chnm,CAS) %>%
+  summarize(sites_monitored = length(unique(site))) %>%
+  arrange(sites_monitored,chnm)
+
+EAR_sums <- EAR_sums %>% 
   filter(maxEAR > 0)
 
 EAR_exceedances <- filter(EAR_sums, maxEAR > 0.001)
 length(unique(EAR_exceedances$site))
 length(unique(EAR_exceedances$chnm)) #32 chemicals have EARchem > 0.001 for at least one sample
 
-## Determine how many chems have EARchem > 0.001 for at least XX sites
+## Determine how many chems have EARchem > 0.001 for at least XX % of sites
 thresh <- 0.001
-site_thresh <- 10
+Site_proportion_threshold <- 0.1
 
-
-#Number of sites per endpoint per chemical that exceed thresh
 site_exceed <- EAR_sums %>% group_by(chnm, CAS,) %>%
   summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
-  filter(num_sites_exceeded >= site_thresh)
-  # 11 sites have EARchem > 0.001 for 10 or more sites
+  left_join(num_sites_monitored) %>%
+  mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
+  filter(proportion_sites_exceeded > Site_proportion_threshold)
+
+# 12 chemicals have EARchem > 0.001 for 10% or more sites monitored
 site_exceed$chnm
 
 
-unique(chemical_summary$site)
 
-# Why menthol??
-menthol <- chemical_summary %>% 
-  filter(CAS == "89-78-1")
-unique(menthol$endPoint)
 
-## End of EARchem summations ##
+## End of priority chemical determination ##
 #############################################
+
+
 
 
 ## Individual endpoint exploration ##

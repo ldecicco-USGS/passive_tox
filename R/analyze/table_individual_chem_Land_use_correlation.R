@@ -37,21 +37,20 @@ Chem_Individual_correlation_table <- function() {
   
   # Determine EAR_sum by site/chemical/endpoint
   chnm_EP_summary <- chemical_summary %>%
-    group_by(site,date,chnm, endPoint) %>%
+    group_by(site,date,chnm) %>%
     summarize(EAR_sum = sum(EAR)) %>%
     group_by(site,chnm) 
   
   
   # Determine max EAR_sum (summed by endpoint/chnm/site) and the endpoint for that max
   chnm_EP_max <- chnm_EP_summary %>% 
-    summarize(EAR_max = max(EAR_sum),
-              EP_max = endPoint[which.max(EAR_sum)])
+    summarize(EAR_max = max(EAR_sum))
   
   # Add land use
   lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.","Pasture.Hay....")
   names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density","Pasture_Hay")
   chnm_EP_max <- left_join(chnm_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
-  names(chnm_EP_max)[c(1,5:12)] <- names(lu_columns)
+  names(chnm_EP_max)[c(1,4:11)] <- names(lu_columns)
   
   
   #Determine exceedance of threshold
@@ -62,7 +61,7 @@ Chem_Individual_correlation_table <- function() {
   chnm_EP_max_tbl <- tbl_df(chnm_EP_max[,c(LU,"chnm","exceed_thresh")])
   chnm_exceed <- chnm_EP_max_tbl %>% group_by(chnm) %>%
     summarise(exceed_pct = mean(exceed_thresh)) %>%
-    filter(exceed_pct > 0.05)
+    filter(exceed_pct > 0.1)
   
   chnm_EP_max_tbl <- filter(chnm_EP_max_tbl,(chnm_EP_max_tbl$chnm %in% chnm_exceed$chnm))
   
@@ -91,19 +90,17 @@ Chem_Individual_correlation_table <- function() {
     mutate(significant = ifelse(p <= 0.05,1,0))
   
   
-  #Summary correlation tables
-  LU_signif <- character()
-  for(i in 1:dim(signif_accum)[1]) {
-    sig_cols <- which(signif_accum[i,-1] <= 0.05) + 1
-    if(length(sig_cols) > 0) {
-      LU_signif[i] <- paste(names(signif_accum)[sig_cols],collapse = "; ")
-    }else{
-      LU_signif[i] <- ""
-    }
-    
-  }
-  
-  signif_land_uses <- data.frame(signif$chnm,LU_signif)
+  # #Summary correlation tables
+  # LU_signif <- character()
+  # for(i in 1:dim(signif_accum)[1]) {
+  #   sig_cols <- which(signif_accum[i,-1] <= 0.05) + 1
+  #   if(length(sig_cols) > 0) {
+  #     LU_signif[i] <- paste(names(signif_accum)[sig_cols],collapse = "; ")
+  #   }else{
+  #     LU_signif[i] <- ""
+  #   }
+  #   
+  # }
   
   LU_signif_table <- signif_accum
   

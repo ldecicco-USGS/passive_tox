@@ -108,5 +108,7 @@ Chem_Individual_correlation_table <- function() {
     LU_signif_table[,i] <- ifelse(signif_accum[,i] <= 0.05,"X","")
   }
   
+  trimmed_signif_table <- LU_signif_table[,c("chnm","Urban","Crops","Pasture_Hay")]
+  
   return(LU_signif_table)
 }

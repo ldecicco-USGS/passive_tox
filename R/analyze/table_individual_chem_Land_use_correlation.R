@@ -90,18 +90,20 @@ Chem_Individual_correlation_table <- function() {
     mutate(significant = ifelse(p <= 0.05,1,0))
   
   
-  # #Summary correlation tables
-  # LU_signif <- character()
-  # for(i in 1:dim(signif_accum)[1]) {
-  #   sig_cols <- which(signif_accum[i,-1] <= 0.05) + 1
-  #   if(length(sig_cols) > 0) {
-  #     LU_signif[i] <- paste(names(signif_accum)[sig_cols],collapse = "; ")
-  #   }else{
-  #     LU_signif[i] <- ""
-  #   }
-  #   
-  # }
+
+  #Summary correlation tables
+  LU_signif <- character()
+  for(i in 1:dim(signif_accum)[1]) {
+    sig_cols <- which(signif_accum[i,-1] <= 0.05) + 1
+    if(length(sig_cols) > 0) {
+      LU_signif[i] <- paste(names(signif_accum)[sig_cols],collapse = "; ")
+    }else{
+      LU_signif[i] <- ""
+    }
+    
+  }
   
+
   LU_signif_table <- signif_accum
   
   for(i in 2:dim(LU_signif_table)[2]){

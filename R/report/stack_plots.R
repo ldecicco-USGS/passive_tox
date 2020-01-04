@@ -63,7 +63,7 @@ prep_site_list <- function(Sites){
                      "Manistique","Escanaba","Ford","Menominee",
                      "Peshtigo","Oconto","Fox","Manitowoc",
                      "Sheboygan #4","Sheboygan #3","Sheboygan #2","Sheboygan #1",
-                     "MilwaukeeMouth","IndianaHC #1","IndianaHC #2",
+                     "MilwaukeeMouth","IndianaHC #2", "IndianaHC #1",
                      "Burns","StJoseph","PawPaw","Kalamazoo",
                      "GrandMI #1","GrandMI #2","GrandMI #3","GrandMI #4",
                      "Muskegon","WhiteMI","PereMarquette","Manistee",

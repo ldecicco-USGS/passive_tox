@@ -43,6 +43,9 @@ stack2 <- upperPlot +
                  hjust = 1, vjust = 1)
 
 ggsave(stack2, filename = "plots/new_stack_w_table.pdf", height = 8, width = 5)
+ggsave(stack2, filename = file.path(Sys.getenv("PASSIVE_PATH"),
+                                    "Figures/Polished figures/new_stack_w_table.pdf"),
+       height = 8, width = 5)
 
 full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 

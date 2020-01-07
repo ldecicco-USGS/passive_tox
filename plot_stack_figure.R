@@ -3,12 +3,13 @@ library(tidyverse)
 library(toxEval)
 library(ggpubr)
 
-loadd(chemicalSummary)
-loadd(site_info)
-loadd(tox_list)
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
 source(file = "R/analyze/table_chem_class_Land_use_correlation.R")
+source(file = "read_chemicalSummary.R")
+
+loadd(site_info)
+loadd(tox_list)
 
 lakes_ordered <- c("Lake Superior",
                    "Lake Michigan",

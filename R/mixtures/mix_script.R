@@ -105,7 +105,7 @@ get_combos <- function(chnm, EAR, ear_cutoff){
   for(n_chems in seq_len(length(unique_chems))){
     chems <- combn(unique_chems, n_chems, simplify = FALSE)
     y <- sapply(chems, function(x) sum(EAR[x]))
-    chems_char <- sapply(chems, function(x) paste0(x, collapse = ",\n")  )
+    chems_char <- sapply(chems, function(x) paste0(x, collapse = "|")  )
     if(n_chems == 1){
       df_tots$chems[1:n_sums[n_chems]] <- chems_char
       df_tots$EARsum[1:n_sums[n_chems]] <- y
@@ -143,13 +143,45 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
   
 }
 
-clean_top_mixes <- function(join_everything, top_mixes, n_sites){
+get_final_mixtures <- function(chemicalSummary,
+                               EAR_thresh,
+                               site_thresh){
+  
+  EARsum_endpoint <- sum_endpoints(chemicalSummary,
+                                   ear_cutoff = EAR_thresh)
+  
+  top_mixes <- all_mixes_fn(EARsum_endpoint, EAR_thresh)
+  
+  join_everything <- join_everything_fnx(chemicalSummary)
+  
+  mix_df <- clean_top_mixes(join_everything, 
+                            chemicalSummary,
+                            top_mixes, 
+                            site_thresh)
+  return(mix_df)
+}
+
+class_key_fnx <- function(chemicalSummary){
+  x <- chemicalSummary %>%
+    select(chnm, Class) %>%
+    distinct() %>%
+    mutate(chnm = as.character(chnm),
+           Class = as.character(Class))
+  return(x)
+}
+
+clean_top_mixes <- function(join_everything, 
+                            chemicalSummary,
+                            top_mixes, 
+                            n_sites){
   
   library(tidyverse)
   
+  class_key <- class_key_fnx(chemicalSummary)
+  
   top_mixes_wide <- top_mixes %>% 
     mutate(index = 1:nrow(top_mixes)) %>% 
-    separate(chems, sep = ",\n", 
+    separate(chems, sep = "\\|", 
              into =  letters[1:max(top_mixes$n_chems)]) %>% 
     pivot_longer(cols = c(-endPoint, -n_chems, 
                           -n_samples, -n_sites, -index)) %>% 
@@ -163,8 +195,8 @@ clean_top_mixes <- function(join_everything, top_mixes, n_sites){
     mutate(Chemicals = gsub(pattern = "|NA", 
                             replacement = "", 
                             x = Chemicals),
-           Chemicals = stringr::str_replace_all(pattern = "\\|\\|", 
-                                                replacement = "", 
+           Chemicals = stringr::str_replace_all(pattern = "(\\|)\\1+", 
+                                                replacement = "\\1", 
                                                 string = Chemicals)) %>% 
     filter(n_sites >= !!n_sites)
   
@@ -175,12 +207,13 @@ clean_top_mixes <- function(join_everything, top_mixes, n_sites){
     group_by(endPoint, AOP_ids, genes, pathways) %>%
     filter(n_chems == max(n_chems)) %>%
     summarize(Class = paste(unique(Class), collapse = "|"),
-              Chemicals = paste(Chemicals, collapse = "|"),
-              max_n_chems = max(n_chems)) %>% 
+              Chemicals = paste(unique(Chemicals), collapse = "|")) %>% 
     ungroup() %>% 
     mutate(chem_list = c(strsplit(Chemicals, split = "\\|")),
-           chem_list = sapply(chem_list, function(x) x[!(x %in% "")]))
-  
+           chem_list = sapply(chem_list, function(x) x[!(x %in% "")]),
+           chem_list = sapply(chem_list, function(x) unique(x)),
+           max_n_chems = sapply(chem_list, function(x) length(x)))
+  browser()
   return(df)
 }
 

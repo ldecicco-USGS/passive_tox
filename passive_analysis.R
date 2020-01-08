@@ -97,62 +97,61 @@ make(data_analysis_plan, trigger = trigger(condition=TRUE))
 # In R console:
 # r_make("passive_data_setup.R")
 
-make(data_analysis_plan)
 
-loadd(aop_graph)
-pdf("plots/AOP_v3.pdf", width = 4.5, height = 4.5)
-ggarrange(
-  aop_graph$count_plot, aop_graph$stackedPlot,
-  aop_graph$chem_plot, aop_graph$aop_plot,nrow = 1,ncol = 4,
-  widths =  c(4/10,4/10,1/10,1/10)
-)
-dev.off()
-
-loadd(toxPlot_ear_conc)
-pdf("plots/EAR_Conc_all.pdf", width = 4.5, height = 22, onefile=FALSE)
-ggarrange(
-  toxPlot_ear_conc$site_graph, 
-  toxPlot_ear_conc$no_axis,
-  widths =  c(3.25/9, 5.75/9),
-  common.legend = TRUE, legend = "bottom"
-)
-dev.off()
-
-loadd(toxPlot_ear_conc_detects)
-pdf("plots/EAR_Conc_detects.pdf", width = 4.5, height = 11, onefile=FALSE)
-ggarrange(
-  toxPlot_ear_conc_detects$site_graph, 
-  toxPlot_ear_conc_detects$no_axis,
-  widths =  c(3.25/9, 5.75/9),
-  common.legend = TRUE, legend = "bottom"
-)
-dev.off()
-
-loadd(toxPlot_ear_conc_matches)
-pdf("plots/EAR_Conc_detects_match.pdf", width = 4.75, height = 9, onefile=FALSE)
-ggarrange(
-  toxPlot_ear_conc_matches$site_graph, 
-  toxPlot_ear_conc_matches$no_axis,
-  widths =  c(3.25/9, 5.75/9),
-  common.legend = TRUE, legend = "bottom"
-)
-dev.off()
-
-
-###########################
-loadd(graphData_tox_det)
-loadd(graphData_conc_det_match)
-loadd(tox_list)
-source(file = "R/report/combo_plot2.R")
-toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
-                                       graphData_conc_det_match,
-                                       tox_list)
-
-pdf("plots/EAR_Conc_detects_match.pdf", width = 4.5, height = 9, onefile=FALSE)
-ggarrange(
-  toxPlot_ear_conc_matches$site_graph, 
-  toxPlot_ear_conc_matches$no_axis,
-  widths =  c(3.25/9, 5.75/9),
-  common.legend = TRUE, legend = "bottom"
-)
-dev.off()
+# loadd(aop_graph)
+# pdf("plots/AOP_v3.pdf", width = 4.5, height = 4.5)
+# ggarrange(
+#   aop_graph$count_plot, aop_graph$stackedPlot,
+#   aop_graph$chem_plot, aop_graph$aop_plot,nrow = 1,ncol = 4,
+#   widths =  c(4/10,4/10,1/10,1/10)
+# )
+# dev.off()
+# 
+# loadd(toxPlot_ear_conc)
+# pdf("plots/EAR_Conc_all.pdf", width = 4.5, height = 22, onefile=FALSE)
+# ggarrange(
+#   toxPlot_ear_conc$site_graph, 
+#   toxPlot_ear_conc$no_axis,
+#   widths =  c(3.25/9, 5.75/9),
+#   common.legend = TRUE, legend = "bottom"
+# )
+# dev.off()
+# 
+# loadd(toxPlot_ear_conc_detects)
+# pdf("plots/EAR_Conc_detects.pdf", width = 4.5, height = 11, onefile=FALSE)
+# ggarrange(
+#   toxPlot_ear_conc_detects$site_graph, 
+#   toxPlot_ear_conc_detects$no_axis,
+#   widths =  c(3.25/9, 5.75/9),
+#   common.legend = TRUE, legend = "bottom"
+# )
+# dev.off()
+# 
+# loadd(toxPlot_ear_conc_matches)
+# pdf("plots/EAR_Conc_detects_match.pdf", width = 4.75, height = 9, onefile=FALSE)
+# ggarrange(
+#   toxPlot_ear_conc_matches$site_graph, 
+#   toxPlot_ear_conc_matches$no_axis,
+#   widths =  c(3.25/9, 5.75/9),
+#   common.legend = TRUE, legend = "bottom"
+# )
+# dev.off()
+# 
+# 
+# ###########################
+# loadd(graphData_tox_det)
+# loadd(graphData_conc_det_match)
+# loadd(tox_list)
+# source(file = "R/report/combo_plot2.R")
+# toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
+#                                        graphData_conc_det_match,
+#                                        tox_list)
+# 
+# pdf("plots/EAR_Conc_detects_match.pdf", width = 4.5, height = 9, onefile=FALSE)
+# ggarrange(
+#   toxPlot_ear_conc_matches$site_graph, 
+#   toxPlot_ear_conc_matches$no_axis,
+#   widths =  c(3.25/9, 5.75/9),
+#   common.legend = TRUE, legend = "bottom"
+# )
+# dev.off()

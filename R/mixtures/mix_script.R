@@ -630,17 +630,22 @@ open_land_use <- function(){
   
   not_all_na <- function(x) all(!is.na(x))
 
-  df_lu <- readxl::read_xlsx(path = file.path("data",
-                                      "raw",
-                                      "GLRItox_summary.xlsx"),
+  df_lu <- readxl::read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),
+                                              "data","data_for_git_repo","raw",
+                                              "GLRItox_summary.xlsx"),
                      sheet = 1, skip=1) %>% 
     rename(site = STAID, 
            Basin_Area_mi2 = `Basin Area (mi2)`,
            Basin_area_km2 = `Basin Area (km2)`,
-           Urban = `Urban (%)...6`, 
+           Urban = `Urban (%)...9`, 
            Parking_lot = `Parking Lot (%)`,
-           Agriculture = `Agriculture (%)...7`) %>% 
+           Agriculture = `Agriculture (%)...10`) %>% 
     mutate(Developed = Urban + Agriculture) %>% 
+    select(-`Urban (%)...6`,   # this is getting rid of 2011 data
+           -`Agriculture (%)...7`, 
+           -`Other (%)...8`,
+           -`Impervious Area (%)...12`,
+           -`[Outside of dataset extent]`) %>% 
     select_if(not_all_na)
   
   names(df_lu) <- gsub("\\s*\\([^\\)]+\\)",
@@ -669,20 +674,24 @@ open_land_use <- function(){
                        names(df_lu))
   
   # open other stuff:
-  watershed2010 <- data.table::fread("data/raw/WatershedSummary2010.csv", 
+  watershed2010 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),
+                                               "data","data_for_git_repo","raw",
+                                               "WatershedSummary2010.csv"), 
                                  colClasses = c("USGS_STAID"="character"),
                                  data.table = FALSE) %>% 
-    select(DWfrac_2010 = DW_FlowFraction_mgalperday,
-           frac_2010 = FlowFraction_mgalperday,
-           effluent_2010 = Total_Effluent_mgalperday,
+    select(DWfrac_2010 = DW_FlowFraction,
+           frac_2010 = FlowFraction,
+           effluent_2010 = Effluent_mgalperday,
            site = USGS_STAID)
   
-  watershed2014 <- data.table::fread("data/raw/WatershedSummary2014.csv", 
+  watershed2014 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),
+                                               "data","data_for_git_repo","raw",
+                                                "WatershedSummary2014.csv"), 
                                      colClasses = c("USGS_STAID"="character"),
                                      data.table = FALSE) %>% 
-    select(DWfrac_2014 = DW_FlowFraction_mgalperday,
-           frac_2014 = FlowFraction_mgalperday,
-           effluent_2014 = Total_Effluent_mgalperday,
+    select(DWfrac_2014 = DW_FlowFraction,
+           frac_2014 = FlowFraction,
+           effluent_2014 = Effluent_mgalperday,
            site = USGS_STAID)
 
   combo <- watershed2010 %>% 
@@ -692,15 +701,16 @@ open_land_use <- function(){
     left_join(combo, by = "site") %>% 
     mutate_if(is.numeric,
               list(~ case_when(is.na(.) ~ 0, 
-                               TRUE ~ .) ))
+                               TRUE ~ .) )) %>% 
+    filter(site != "04010500")
   
   # Need to normalize the fraction stuff?
   
-  df_lu_new$DWfrac_2010 <- 1000*df_lu_new$DWfrac_2010
-  df_lu_new$DWfrac_2014 <- 1000*df_lu_new$DWfrac_2014
-  df_lu_new$frac_2010 <- 100*df_lu_new$DWfrac_2010
-  df_lu_new$frac_2014 <- 100*df_lu_new$DWfrac_2014
+  df_lu_new$DWfrac_2010 <- 100*df_lu_new$DWfrac_2010
+  df_lu_new$DWfrac_2014 <- 100*df_lu_new$DWfrac_2014
   
+  
+
   return(df_lu_new)
   
 }

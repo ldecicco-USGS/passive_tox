@@ -4,13 +4,28 @@ library(cowplot)
 library(ggplot2)
 library(ggpubr)
 
-loadd(graphData_conc_det_match)
-loadd(graphData_tox_det)
-loadd(chemicalSummary_conc)
-loadd(tox_list)
-loadd(cas_final)
+tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
+                                     "data","data_for_git_repo","clean",
+                                     "passive.xlsx"))
 
-# cas_final =  cas_df 
+source(file = "R/analyze/get_sites_ready.R")
+site_info <- prep_site_list(tox_list$chem_site)
+cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                               "data","data_for_git_repo","clean",
+                               "cas_df.rds"))
+
+chemicalSummary_conc <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                                          "data","data_for_git_repo","clean",
+                                          "chemicalSummary_conc.rds"))
+
+graphData_tox_det <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                                       "data", "data_for_git_repo",
+                                       "clean","graphData_tox_det.rds"))
+
+graphData_conc_det_match <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                                              "data", "data_for_git_repo",
+                                              "clean","graphData_conc_det_match.rds"))
+ 
 axis_num <- 6
 
 source(file = "R/report/combo_plot2.R")
@@ -34,11 +49,6 @@ matches <- fancy_combo(graphData_tox_det,
                        tox_list, 
                        axis_size = axis_num)
 
-# ggarrange(
-#   matches$site_graph,matches$no_axis,
-#   common.legend = TRUE, legend = "bottom"
-# )
-
 n_chems_matches <- length(unique(graphData_tox_det$chnm))
 
 graphData_empty <- graphData_conc_no_match[FALSE,]
@@ -57,12 +67,11 @@ no_axis_no_match <- strip_graph(toxPlot_no_match_w_lab)
 site_counts_df_no_match <- site_counts(tox_list$chem_data, no_axis_no_match$data)
 site_graph_no_match <- site_count_plot(site_counts_df_no_match,
                                        axis_size = axis_num)
-library(cowplot)
 
 l2 <- get_legend(toxPlot_no_match)
 
-# pdf("plots/triple_graph.pdf", width = 9, height = 11, onefile=FALSE)
-pdf("C:/Users/ldecicco/DOI/Corsi, Steven R - Manuscript/Figures/Polished figures/triple_graph.pdf", width = 9, height = 11, onefile=FALSE)
+pdf(file.path(Sys.getenv("PASSIVE_PATH"),"Figures/Polished figures/triple_graph.pdf"), 
+              width = 9, height = 11, onefile=FALSE)
 plot_grid(
   matches$site_graph,
   matches$no_axis,

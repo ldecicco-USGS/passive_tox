@@ -41,6 +41,8 @@ data_analysis_plan <- drake_plan(
   chemicalSummary_conc = get_chemical_summary(tox_list_concentrations) %>%
     distinct() %>%
     filter(!is.na(CAS)),
+  chemicalSummary_conc_save = saveRDS(chemicalSummary_conc, 
+                                      file = file_out(!!file.path(path_to_data,"data/data_for_git_repo/clean/chemicalSummary_conc.rds"))),
   graphData_tox = graph_chem_data_CAS(chemicalSummary) %>%
     mutate(guide_side = "ToxCast [EAR]") %>%
     left_join(select(cas_final, CAS, chnm), by="CAS"),
@@ -68,6 +70,9 @@ data_analysis_plan <- drake_plan(
   graphData_conc_det_match = graph_chem_data_CAS(chemicalSummary_conc_det_match) %>%
     mutate(guide_side = "Concentration [\U003BCg/L]") %>%
     left_join(select(cas_final, CAS, chnm), by="CAS"),
+  graphData_conc_det_match_save = saveRDS(graphData_conc_det_match, 
+                                          file = file_out(!!file.path(path_to_data,
+                                                                      "data/data_for_git_repo/clean/graphData_conc_det_match.rds"))),
   toxPlot_ear_conc_matches = fancy_combo(graphData_tox_det,
                                          graphData_conc_det_match,
                                          tox_list),

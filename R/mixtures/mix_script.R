@@ -213,7 +213,7 @@ clean_top_mixes <- function(join_everything,
            chem_list = sapply(chem_list, function(x) x[!(x %in% "")]),
            chem_list = sapply(chem_list, function(x) unique(x)),
            max_n_chems = sapply(chem_list, function(x) length(x)))
-  browser()
+
   return(df)
 }
 

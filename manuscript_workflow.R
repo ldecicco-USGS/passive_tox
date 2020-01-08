@@ -12,11 +12,20 @@ tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
                                      "data","data_for_git_repo","clean",
                                      "passive.xlsx"))
 
-site_info <- tox_list$chem_site
 
+###################################################
+# Mixtures stuff:
 EAR_thresh <- 0.001
 site_thresh_percent <- 10
-site_thresh <- ceiling((site_thresh_percent/100) * nrow(site_info))
+
+source(file = "R/mixtures/mix_script.R")
+source(file = "R/mixtures/prepare_mixture_data.R")
+site_thresh <- ceiling((site_thresh_percent/100) * nrow(tox_list$chem_site))
+
+mix_df <- get_final_mixtures(chemicalSummary,
+                             EAR_thresh,
+                             site_thresh)
+################################################
 
 # Figure 1 = Map
 # Figure 2 = triple_graph.pdf

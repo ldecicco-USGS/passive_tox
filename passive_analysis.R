@@ -58,6 +58,9 @@ data_analysis_plan <- drake_plan(
   graphData_tox_det = graph_chem_data_CAS(chemicalSummary_tox_det) %>%
     mutate(guide_side = "ToxCast [EAR]") %>%
     left_join(select(cas_final, CAS, chnm), by="CAS"),
+  graphData_tox_det_out = saveRDS(graphData_tox_det, 
+                                  file = file_out(!!file.path(path_to_data,
+                                                              "data/data_for_git_repo/clean/graphData_tox_det.rds"))),
   toxPlot_ear_conc_detects = fancy_combo(graphData_tox_det,
                                          graphData_conc_det,
                                          tox_list),
@@ -80,7 +83,7 @@ data_analysis_plan <- drake_plan(
                                             category = "Chemical", 
                                             font_size = 7,title = " ",
                                             pallette = c("steelblue", "white")),
-  site_info = prep_site_list(tox_list$chem_site),
+  site_info = prep_site_list(tox_list$chem_site), #this makes the data frame factors with the right order
   stack_plot = plot_tox_stacks_manuscript(chemicalSummary, 
                                           site_info, 
                                           font_size = 6,

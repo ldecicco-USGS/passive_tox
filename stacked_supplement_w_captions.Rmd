@@ -12,25 +12,31 @@ knitr::opts_chunk$set(echo = FALSE,
                       fig.width = 10,
                       fig.height = 9)
 
-library(drake)
 library(tidyverse)
 library(toxEval)
 library(ggpubr)
 library(cowplot)
 
 source(file = "read_chemicalSummary.R")
-
-loadd(site_info)
-loadd(tox_list)
-loadd(cas_final)
+source(file = "R/analyze/get_sites_ready.R")
+tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),                        "data","data_for_git_repo","clean",
+                "passive.xlsx"))
+site_info <- prep_site_list(tox_list$chem_site)
+cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                               "data", "data_for_git_repo",
+                               "clean",
+                               "cas_df.rds"))
 
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
+graphData_tox_det <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                               "data", "data_for_git_repo",
+                               "clean","graphData_tox_det.rds"))
+
 
 color_map <- class_colors(tox_list)
 font_size <- 8
 
-loadd(graphData_tox_det)
 ordered_class <- levels(graphData_tox_det$Class)
 
 levels(chemicalSummary$Class)[levels(chemicalSummary$Class) == "Food Additive/Plasticizer"] <- "Food Additive"

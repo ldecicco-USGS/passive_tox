@@ -112,3 +112,5 @@ Chem_Individual_correlation_table <- function() {
   
   return(LU_signif_table)
 }
+
+#individual_correlation_table <- Chem_Individual_correlation_table()

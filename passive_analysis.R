@@ -5,6 +5,8 @@ library(ggpubr)
 
 options(drake_make_menu = FALSE)
 
+path_to_data <- Sys.getenv("PASSIVE_PATH")
+
 # source(file = "passive_data_setup.R")
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
@@ -23,6 +25,10 @@ data_analysis_plan <- drake_plan(
                                remove_groups = c('Background Measurement','Undefined','Cell Cycle','NA')),
   
   chemicalSummary = get_chemical_summary(tox_list, ACC, filtered_ep),
+  chem_sum_save = saveRDS(chemicalSummary, 
+                          file = file_out("data/clean/chemical_summary.rds")),
+  chem_sum_save_sync = saveRDS(chemicalSummary,
+                          file = file_out(!!file.path(path_to_data,"data/data_for_git_repo/clean/chemical_summary.rds"))),
   benchmarks = tox_list$chem_data %>%
     select(CAS) %>%
     distinct() %>%
@@ -81,13 +87,16 @@ data_analysis_plan <- drake_plan(
                                           category = "Chemical Class")
 
 )
+
+config <- drake_config(data_analysis_plan)
+vis_drake_graph(config, build_times = "none")
+
 make(data_analysis_plan, trigger = trigger(condition=TRUE))
 
 # drake_config(data_analysis_plan)
 # In R console:
 # r_make("passive_data_setup.R")
-config <- drake_config(data_analysis_plan)
-vis_drake_graph(config, build_times = "none")
+
 make(data_analysis_plan)
 
 loadd(aop_graph)

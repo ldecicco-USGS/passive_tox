@@ -3,12 +3,13 @@ library(tidyverse)
 library(toxEval)
 library(ggpubr)
 
-loadd(chemicalSummary)
-loadd(site_info)
-loadd(tox_list)
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
 source(file = "R/analyze/table_chem_class_Land_use_correlation.R")
+source(file = "read_chemicalSummary.R")
+
+loadd(site_info)
+loadd(tox_list)
 
 lakes_ordered <- c("Lake Superior",
                    "Lake Michigan",
@@ -43,6 +44,9 @@ stack2 <- upperPlot +
                  hjust = 1, vjust = 1)
 
 ggsave(stack2, filename = "plots/new_stack_w_table.pdf", height = 8, width = 5)
+ggsave(stack2, filename = file.path(Sys.getenv("PASSIVE_PATH"),
+                                    "Figures/Polished figures/new_stack_w_table.pdf"),
+       height = 8, width = 5)
 
 full_plot <- whole_stack(chemicalSummary, site_info, title=NA,
                          tox_list, color_map, font_size, 

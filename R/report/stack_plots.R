@@ -12,7 +12,7 @@ chem_counts <- function(chemical_summary, chem_site){
                   count_title = "# Chems")
   
   counts$`Short Name` <- factor(counts$`Short Name`, levels = rev(levels(counts$`Short Name`)))
-  
+  counts$count[is.na(counts$count)] <- 0
   return(counts)
   
 }
@@ -29,7 +29,7 @@ chem_count_plot <- function(chem_df, axis_size){
     coord_flip(clip = "off") + 
     theme(strip.background = element_blank(),
           strip.text.y = element_blank(),
-          strip.text.x = element_text(size = 5),
+          strip.text.x = element_text(size = 7),
           panel.background = element_blank(),
           panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
@@ -63,7 +63,7 @@ prep_site_list <- function(Sites){
                      "Manistique","Escanaba","Ford","Menominee",
                      "Peshtigo","Oconto","Fox","Manitowoc",
                      "Sheboygan #4","Sheboygan #3","Sheboygan #2","Sheboygan #1",
-                     "MilwaukeeMouth","IndianaHC #1","IndianaHC #2",
+                     "MilwaukeeMouth","IndianaHC #2", "IndianaHC #1",
                      "Burns","StJoseph","PawPaw","Kalamazoo",
                      "GrandMI #1","GrandMI #2","GrandMI #3","GrandMI #4",
                      "Muskegon","WhiteMI","PereMarquette","Manistee",
@@ -131,27 +131,25 @@ plot_tox_stacks_manuscript <- function(chemical_summary,
   } else {
     graphData$count_title <- title
   }
-
+  
+  graphData$meanEAR[is.na(graphData$meanEAR)] <- 0
+  graphData$category[is.na(graphData$category)] <- levels(graphData$category)[1]
+  
   upperPlot <- ggplot(graphData) +
     geom_col(aes(x=`Short Name`, y=meanEAR, fill = category), position = position_stack())  +
     theme_minimal() +
-    # ylab("Sum of Maximum EAR Values") +
     facet_grid(site_grouping ~ count_title, scales="free", space="free") +
-    # geom_text(data = distinct(select(graphData, site_grouping)),
-    #           aes(label = site_grouping),
-    #           size=5*font_size/14,
-    #           x = Inf, y = Inf, hjust = 1, vjust = 1.5) +
     coord_flip(clip = "off") + 
     scale_y_continuous(breaks = scales::pretty_breaks(n = 2)) +
     scale_fill_manual(name = category,
                       values = cbValues, drop=TRUE) +
     theme(strip.background = element_blank(),
-          strip.text.x = element_text(size = 5),
+          strip.text.x = element_text(size = 10),
           strip.text.y = element_text(size = font_size),
           axis.title.y = element_blank(),
           legend.position="bottom",
-          panel.grid.minor.y = element_blank(),
-          panel.grid.major.x = element_blank(),#element_line(size = 0.1),
+          panel.grid.minor = element_blank(),
+          panel.grid.major.x = element_line(size = 0.1),
           panel.grid.major.y = element_blank(),
           legend.justification = "left",
           legend.background = element_rect(fill = "transparent", colour = "transparent"),
@@ -282,7 +280,7 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
     scale_fill_manual(name = category,
                       values = cbValues, drop=TRUE) +
     theme(strip.background = element_blank(),
-          strip.text.x = element_text(size = 5),
+          strip.text.x = element_text(size = 8),
           strip.text.y = element_text(size = font_size),
           axis.title.y = element_blank(),
           legend.position="bottom",

@@ -38,6 +38,9 @@ data_analysis_plan <- drake_plan(
            groupCol = "Concentration") %>%
     data.frame(),
   tox_list_concentrations = as.toxEval(tox_list, benchmarks = benchmarks),
+  tox_list_concentrations_sync = saveRDS(tox_list_concentrations, 
+                                         file = file_out(!!file.path(path_to_data,
+                                                                     "data/data_for_git_repo/clean/tox_list_concentrations.rds"))),
   chemicalSummary_conc = get_chemical_summary(tox_list_concentrations) %>%
     distinct() %>%
     filter(!is.na(CAS)),

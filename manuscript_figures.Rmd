@@ -34,8 +34,8 @@ cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
 ```{r fig2, fig.width=9, fig.height=11}
 source(file = "R/report/combo_plot2.R")
 source(file = "create_triple_fig.R")
-create_triple_fig()
-
+plot_out <- create_triple_fig()
+plot_out
 ```
 
 Figure 2: Exposure activity ratios (EARs) using ToxCast endpoints for screening of potential pathway-based bioactivity from detected chemicals (A), concentrations of detected chemicals that are represented in ToxCast (B), and concentrations of detected chemicals that are not represented in ToxCast (C) from analysis of passive samplers deployed in 69 sites within XX tributaries of the Great Lakes, 2010-2014. Compounds are grouped by chemical class and ordered by largest to smallest median EAR. Boxplots represent only sites where chemicals were detected. Compounds that were not detected are not included.  [Sites, number of sampling locations with detections of each chemical. Boxes, 25th to 75th percentiles; dark line, median; whiskers, data within 1.5 x the interquartile range (IQR); circles, values outside 1.5 x the IQR.]

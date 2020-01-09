@@ -53,22 +53,23 @@ combine_gd <- function(gd_1, gd_2){
   return(graphData_1_2)
 }
 
-class_colors <- function(tox_list){
+class_colors <- function(chemicalSummary){
   
+  # classes <- levels(chemicalSummary$Class)
   
   classes <- c("Insecticide","Flavor/Fragrance",
-              "Antimicrobial disinfectant", "Herbicide",                 
-              "Fire retardant", "Detergent metabolites",  
-              "Pharmaceuticals", "Plasticizer",               
-              "WW", "PAHs",                      
-              "Other", "OC Pesticides",             
-              "Food Additive/Plasticizer", "Dye/Pigment",             
-              "Solvent", "PBDEs", "Sterol", "Fuel")
+              "Antimicrobial disinfectant", "Herbicide",
+              "Fire retardant", "Detergent metabolites",
+              "Pharmaceuticals", "Plasticizer",
+              "WW", "PAHs",
+              "Other", "OC Pesticides",
+              "Food Additive/Plasticizer", "Dye/Pigment",
+              "Solvent", "PBDEs", "Sterol", "Fuel", "PCBs")
 
   
   cbValues <- c("brown1", "gold","darkred","darkblue","yellow","grey10",
                 "darkolivegreen","darksalmon", "darkolivegreen1","cyan3","deeppink2","grey50",
-                "aquamarine","azure2","darkorange","darkorchid","cornflowerblue","cornsilk")
+                "aquamarine","azure2","darkorange","darkorchid","cornflowerblue","cornsilk","white")
 
   names(cbValues) <- classes
   

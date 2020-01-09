@@ -136,25 +136,7 @@ create_triple_fig <- function(){
   
 }
 
-pdf(file.path(Sys.getenv("PASSIVE_PATH"),"Figures/Polished figures/triple_graph.pdf"), 
-              width = 9, height = 11, onefile=FALSE)
-create_triple_fig()
-dev.off()
-# 
-# pdf("plots/triple_graph_full_page_v3.pdf", width = 9, height = 11, onefile=FALSE)
-# ggarrange(
-#   
-#   matches$site_graph,
-#   matches$no_axis,
-#   ggarrange(
-#     site_graph_no_match, 
-#     no_axis_no_match,
-#     NULL,
-#     nrow = 2, ncol = 2,
-#     widths = c(1.75,2),
-#     heights = c(n_chems_no_match,n_chems_matches-n_chems_no_match)
-#   ),
-#   widths =  c(2,4,4),nrow=1,ncol=3,
-#   common.legend = TRUE, legend = "bottom"
-# )
+# pdf(file.path(Sys.getenv("PASSIVE_PATH"),"Figures/Polished figures/triple_graph.pdf"), 
+#               width = 9, height = 11, onefile=FALSE)
+# create_triple_fig()
 # dev.off()

@@ -82,6 +82,7 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
   data_long$comment[which(data_long$Value == "ND")] <- "<"
   data_long$Value[which(data_long$Value == "ND")] <- data_long$MDL[which(data_long$Value == "ND")]
   data_long <- filter(data_long, Value != "NA")
+  data_long$Value[data_long$Value == "7.0000000000000007-2"] <- "0.7"
   
   data_long$Value <- as.numeric(data_long$Value) 
   data_long$Value <- data_long$Value/convert

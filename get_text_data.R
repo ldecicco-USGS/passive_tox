@@ -52,16 +52,20 @@ length(unique(ToxCast_IN_STUDY$endPoint))
 
 length(unique(chemicalSummary$endPoint))
 
+# Number of chemicals detected
 x <- tox_list$chem_data %>% 
   filter(Value > 0) %>% 
   select(CAS) %>% 
   distinct() %>% 
   pull()
+length(x)
 
 y <- ToxCast_ACC %>% 
   filter(CAS %in% x) %>% 
   select(CAS) %>% 
   distinct()
+# Number of detected chemicals in Tox with hits:
+nrow(y)
 
 ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                   "data","data_for_git_repo","raw",
@@ -71,6 +75,7 @@ num_chems_tested <- ALL_TOX_DATA %>%
   filter(casn %in% x)
 
 length(unique(num_chems_tested$casn))
+length(unique(num_chems_tested$casn))/length(x)
 length(unique(chemicalSummary$CAS[chemicalSummary$EAR > 0]))
 
 chemicalSummary %>% 

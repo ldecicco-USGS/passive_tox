@@ -4,7 +4,7 @@ library(tidyverse)
 create_DL_plot <- function(tox_list){
   
   chem_data_det <- tox_list$chem_info %>% 
-    select(-chnm, -Class, -n_sites) %>% 
+    select(-chnm, -Class, -sites_det, -sites_tested) %>% 
     pivot_longer(cols = c(-CAS), 
                  names_to = "DL",
                  values_to = "Value") %>% 

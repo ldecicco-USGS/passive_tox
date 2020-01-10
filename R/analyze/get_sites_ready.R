@@ -38,7 +38,7 @@ prep_site_list <- function(Sites){
 }
 
 
-get_sites_ready <- function(sites_orig_2014, sites_orig_2010, sites_OWC){
+get_sites_ready <- function(sites_orig_2014, sites_orig_2010, sites_OWC, df_lu){
   
   sites_orig_2014 <- sites_orig_2014 %>%
     rename(site_grouping = Lake,
@@ -79,6 +79,10 @@ get_sites_ready <- function(sites_orig_2014, sites_orig_2010, sites_OWC){
   sites_ordered <- sites_ordered %>%
     arrange(site_grouping, `Short Name`)
   
+  sites_ordered <- sites_ordered %>% 
+    left_join(select(df_lu, SiteID=site, Urban, Crops, 
+           Pasture_Hay), by="SiteID")
+
   return(sites_ordered)
   
 }

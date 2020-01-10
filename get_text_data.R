@@ -101,3 +101,18 @@ n_samples <- chemicalSummary %>%
 #how many sites were sampled (69), and how many of those had more than one sample (24)
 length(n_samples)
 length(n_samples[n_samples > 1])
+
+#Isolate chemicals not in ToxCast
+tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
+                                     "data","data_for_git_repo","clean",
+                                     "passive.xlsx"))
+CAS_in_study <- tox_list$chem_info$CAS
+
+#Determine chems detected without a corresponding ToxCast assay or no active assays
+CAS_detected_in_toxcast <- unique(chemicalSummary$CAS[chemicalSummary$EAR > 0])
+CAS_detected <- x
+chems_detected_not_in_ToxCast <- x[!(x %in% CAS_detected_in_toxcast)]
+chem_info <- tox_list$chem_info
+detected_no_ToxCast <- left_join(data.frame(CAS = chems_detected_not_in_ToxCast),tox_list$chem_info[1:3])
+
+                                        

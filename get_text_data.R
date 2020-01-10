@@ -1,8 +1,11 @@
+# Script to fill in numbers in the manuscript text
+
 library(tidyverse)
 library(toxEval)
 source(file = "read_chemicalSummary.R")
 source(file = "R/mixtures/mix_script.R")
 
+#Land use information
 df_lu <- open_land_use()
 
 more_lu <- readxl::read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),
@@ -33,11 +36,13 @@ more_lu_cleaned <- more_lu %>%
          `Planted/Cultivated` = `Pasture/Hay` + `Cultivated Crops`,
          Wetland = `Woody Wetlands` + `Emergent Herbaceous Wetlands`)
 
+#Ranges of different land uses
 range(more_lu_cleaned$Developed)
 range(more_lu_cleaned$`Planted/Cultivated`)
 range(more_lu_cleaned$Forest)
 range(more_lu_cleaned$Wetland)
 
+#Get some info on ToxCast assays
 # Original assays:
 ToxCast_ACC <- ToxCast_ACC
 
@@ -48,10 +53,11 @@ tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
 ToxCast_IN_STUDY <- ToxCast_ACC %>% 
   filter(CAS %in% tox_list$chem_info$CAS)
 
-length(unique(ToxCast_IN_STUDY$endPoint))
+length(unique(ToxCast_IN_STUDY$endPoint)) #Assays available for chems in this study
 
-length(unique(chemicalSummary$endPoint))
+length(unique(chemicalSummary$endPoint)) #Assays used in this study after filtering
 
+#CAS numbers for detected chemicals (144 chemicals detected)
 x <- tox_list$chem_data %>% 
   filter(Value > 0) %>% 
   select(CAS) %>% 
@@ -70,6 +76,8 @@ ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
 num_chems_tested <- ALL_TOX_DATA %>% 
   filter(casn %in% x)
 
+# Of those detected, how many are represented in ToxCast (121 chemicals) 
+# and how many of those had measureable effects (102)
 length(unique(num_chems_tested$casn))
 length(unique(chemicalSummary$CAS[chemicalSummary$EAR > 0]))
 
@@ -80,6 +88,7 @@ chemicalSummary %>%
   ungroup() %>% 
   arrange(desc(n_eps))
 
+# How many samples at each site
 n_samples <- chemicalSummary %>% 
   select(site, date) %>% 
   distinct() %>%
@@ -89,5 +98,21 @@ n_samples <- chemicalSummary %>%
   arrange(desc(n_samples)) %>% 
   pull(n_samples) 
 
+#how many sites were sampled (69), and how many of those had more than one sample (24)
 length(n_samples)
 length(n_samples[n_samples > 1])
+
+#Isolate chemicals not in ToxCast
+tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
+                                     "data","data_for_git_repo","clean",
+                                     "passive.xlsx"))
+CAS_in_study <- tox_list$chem_info$CAS
+
+#Determine chems detected without a corresponding ToxCast assay or no active assays
+CAS_detected_in_toxcast <- unique(chemicalSummary$CAS[chemicalSummary$EAR > 0])
+CAS_detected <- x
+chems_detected_not_in_ToxCast <- x[!(x %in% CAS_detected_in_toxcast)]
+chem_info <- tox_list$chem_info
+detected_no_ToxCast <- left_join(data.frame(CAS = chems_detected_not_in_ToxCast),tox_list$chem_info[1:3])
+
+                                        

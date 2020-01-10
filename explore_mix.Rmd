@@ -32,6 +32,7 @@ library(here)
 source(here("R/mixtures/mix_script.R"))
 source(here("R/mixtures/prepare_mixture_data.R"))
 source(file = "read_chemicalSummary.R")
+source(file = "R/analyze/open_land_use.R")
 
 n_sites <- 7
 EAR_thresh <- 0.001
@@ -45,7 +46,7 @@ df <- get_final_mixtures(chemicalSummary,
 ## Final mixture table
 
 ```{r joinedEVERYTHING}
-df_flex <- flextable(df[,-8])
+df_flex <- flextable(df)
 autofit(df_flex)
 
 ```
@@ -109,7 +110,7 @@ df_lu_filtered <- bind_cols(df_lu[,c("site","Urban","Crops")],
                             df_lu_filtered) %>% 
   select(-Basin_Area_mi2, -Population_Density)
 
-all_chemicals_in_mixtures <- unique(unlist(df$chem_list))
+all_chemicals_in_mixtures <- unique(unlist(df$Chemicals))
 
 big_enough <- function(x, thresh = 10){
   max(x, na.rm = TRUE) > thresh
@@ -141,9 +142,9 @@ chemicalSummary <- chemicalSummary %>%
 
 for(i in seq_len(nrow(df))){
   
-  chems <- unlist(df$chem_list[i])
+  chems <- unlist(df$Chemicals[i])
   mixture <- paste(chems, collapse = ",")
-  endpoint <- df$endPoint[i] 
+  endpoint <- df$Assay[i] 
   
   cat("\n")
   cat("\n##", mixture,"\n")

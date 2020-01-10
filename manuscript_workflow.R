@@ -47,3 +47,6 @@ rmarkdown::render("manuscript_figures.Rmd",
 rmarkdown::render("stacked_supplement_w_captions.Rmd", 
        output_dir = file.path(Sys.getenv("PASSIVE_PATH"),
                               "Supplemental"))
+# This graph includes chemicals measured below detection levels...
+# which is why it is longer and there appear to be more endpoints
+# than the numbers we wrote in the text (those were all for detected chemicals)

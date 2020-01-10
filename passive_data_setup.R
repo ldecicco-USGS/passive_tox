@@ -16,10 +16,11 @@ dir.create(file.path("data","raw"), showWarnings = FALSE)
 dir.create(file.path("data","clean"), showWarnings = FALSE)
 
 # Go from raw files to R objects:
-source("R/analyze/data_reader.R")
-source("R/analyze/get_sites_ready.R")
-source("R/analyze/get_chem_info.R")
-source("R/analyze/create_tox_file.R")
+source(file = "R/analyze/data_reader.R")
+source(file = "R/analyze/get_sites_ready.R")
+source(file = "R/analyze/get_chem_info.R")
+source(file = "R/analyze/create_tox_file.R")
+source(file = "R/analyze/open_land_use.R")
 
 pkgconfig::set_config("drake::strings_in_dots" = "literals")
 
@@ -134,6 +135,7 @@ data_setup_plan <- drake_plan(
                                        skip = 2),
   sites = get_sites_ready(sites_orig_2014, sites_orig_2010, sites_OWC),
   tox_list_init = create_tox_object(all_data_fixed_cas, chem_info_fixed_cas, sites, exclude),
+  df_lu <- open_land_use(),
   saveOutput = openxlsx::write.xlsx(tox_list_init, file = file_out("data/clean/passive.xlsx")),
   saveOutput2 = openxlsx::write.xlsx(tox_list_init, 
                                      file = file_out(!!file.path(path_to_data,"data/data_for_git_repo/clean/passive.xlsx")))

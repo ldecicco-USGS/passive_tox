@@ -4,43 +4,17 @@ library(tidyverse)
 library(toxEval)
 source(file = "read_chemicalSummary.R")
 source(file = "R/mixtures/mix_script.R")
+source(file = "R/analyze/open_land_use.R")
 
 #Land use information
 df_lu <- open_land_use()
 
-more_lu <- readxl::read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),
-                                            "data","data_for_git_repo","raw",
-                                            "GLRItox_summary.xlsx"),
-                           sheet = "NLCD_LC2016", n_max = 184)
-
-more_lu_cleaned <- more_lu %>% 
-  select(site =  AREAID,
-         `Open Water` = PCT_11,
-         `Developed, Open Space` = PCT_21,
-         `Developed, Low Intensity` = PCT_22,
-         `Developed, Medium Intensity` = PCT_23,
-         `Developed High Intensity` = PCT_24,
-         `Barron` = PCT_31,
-         `Deciduous Forest` = PCT_41,
-         `Evergreen Forest` = PCT_42,
-         `Mixed Forest` = PCT_43,
-         `Shrubland` = PCT_52,
-         `Herbaceous` = PCT_71,
-         `Pasture/Hay` = PCT_81,
-         `Cultivated Crops` = PCT_82,
-         `Woody Wetlands` = PCT_90,
-         `Emergent Herbaceous Wetlands` = PCT_95) %>% 
-  mutate(Developed = `Developed, Open Space` + `Developed, Low Intensity` +
-           `Developed, Medium Intensity` + `Developed High Intensity`,
-         Forest = `Deciduous Forest` + `Mixed Forest`,
-         `Planted/Cultivated` = `Pasture/Hay` + `Cultivated Crops`,
-         Wetland = `Woody Wetlands` + `Emergent Herbaceous Wetlands`)
 
 #Ranges of different land uses
-range(more_lu_cleaned$Developed)
-range(more_lu_cleaned$`Planted/Cultivated`)
-range(more_lu_cleaned$Forest)
-range(more_lu_cleaned$Wetland)
+range(df_lu$Developed)
+range(df_lu$`Planted/Cultivated`)
+range(df_lu$Forest)
+range(df_lu$Wetland)
 
 #Get some info on ToxCast assays
 # Original assays:

@@ -157,8 +157,35 @@ get_final_mixtures <- function(chemicalSummary,
   mix_df <- clean_top_mixes(join_everything, 
                             chemicalSummary,
                             top_mixes, 
-                            site_thresh)
+                            site_thresh) %>% 
+    select(Assay = endPoint, 
+           `AOP ID` = AOP_ids,
+           Genes = genes,
+           Pathways = pathways,
+           Chemicals = chem_list,
+           Class = class_list, )
   return(mix_df)
+}
+
+create_Excel_wb_mix <- function(df){
+  
+  max_chems <- sapply(df$Chemicals, function(x)length(x))
+  
+  wb <- createWorkbook()
+  addWorksheet(wb, "Mixtures")
+  header_st <- createStyle(textDecoration = "Bold")
+  writeData(wb = wb, sheet =  "Mixtures", 
+            x = df, sep = " \n", headerStyle = header_st)
+  setRowHeights(wb, "Mixtures", 
+                rows = 1:nrow(df)+1, 
+                heights = 15*max_chems)
+  setColWidths(wb, "Mixtures", cols = 6, widths = 25)
+  setColWidths(wb, "Mixtures", cols = 5, widths = 40)
+  setColWidths(wb, "Mixtures", cols = 1:4, widths = "auto")
+  addStyle(wb, sheet = "Mixtures", cols = 1:6, 
+           rows = 1:nrow(df)+1, gridExpand = TRUE,
+           style = createStyle(valign = 'top'))
+  return(wb)
 }
 
 class_key_fnx <- function(chemicalSummary){
@@ -212,6 +239,9 @@ clean_top_mixes <- function(join_everything,
     mutate(chem_list = c(strsplit(Chemicals, split = "\\|")),
            chem_list = sapply(chem_list, function(x) x[!(x %in% "")]),
            chem_list = sapply(chem_list, function(x) unique(x)),
+           class_list = c(strsplit(Class, split = "\\|")),
+           class_list = sapply(class_list, function(x) x[!(x %in% "")]),
+           class_list = sapply(class_list, function(x) unique(x)),
            max_n_chems = sapply(chem_list, function(x) length(x)))
 
   return(df)

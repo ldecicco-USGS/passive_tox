@@ -1,5 +1,6 @@
 library(tidyverse)
 library(toxEval)
+library(openxlsx)
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
@@ -25,6 +26,12 @@ site_thresh <- ceiling((site_thresh_percent/100) * nrow(tox_list$chem_site))
 mix_df <- get_final_mixtures(chemicalSummary,
                              EAR_thresh,
                              site_thresh)
+
+wb <- create_Excel_wb_mix(mix_df)
+
+saveWorkbook(wb, file.path(Sys.getenv("PASSIVE_PATH"),"Tables",
+                           "Mixtures.xlsx"), overwrite = TRUE)
+
 ################################################
 
 # Figure 1 = Map

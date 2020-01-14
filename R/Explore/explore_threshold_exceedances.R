@@ -48,7 +48,7 @@ length(unique(EAR_exceedances$chnm)) #32 chemicals have EARchem > 0.001 for at l
 thresh <- 0.001
 Site_proportion_threshold <- 0.1
 
-site_exceed <- EAR_sums %>% group_by(chnm, CAS,) %>%
+site_exceed <- EAR_sums %>% group_by(chnm, CAS) %>%
   summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
   left_join(num_sites_monitored) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%

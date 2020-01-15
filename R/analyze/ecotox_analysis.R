@@ -4,18 +4,22 @@ files <- list.files(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX"), pattern="*.t
 
 chems <- sub(x = files,".txt","",)
 
+Observed.Duration.Mean..Days..
+
 for (i in 1:length(files)) {
   tox_temp <- read.delim(file = file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX",files[i]),sep="|", stringsAsFactors = FALSE)
   names(tox_temp) <- sub("X.","",names(tox_temp))
   tox_temp$Conc.1.Mean..Standardized.. <- as.numeric(tox_temp$Conc.1.Mean..Standardized..)
-  tox_temp$Conc.1.Min..Standardized.. <- as.numeric(tox_temp$Conc.1.Min..Standardized..)
+  tox_temp$Conc.Min.1..Standardized.. <- as.numeric(tox_temp$Conc.Min.1..Standardized..)
+  tox_temp$Observed.Duration.Mean..Days.. <- as.numeric(tox_temp$Observed.Duration.Mean..Days..)
+  tox_temp$Chemical.Purity.Mean.... <- as.numeric(tox_temp$Chemical.Purity.Mean....)
+  tox_temp$Organism.Age.Mean. <- as.numeric(tox_temp$Organism.Age.Mean.)
+  tox_temp$Conc.1.Max..Standardized.. <- as.numeric(tox_temp$Conc.1.Max..Standardized..)
   tox_temp$chems <- chems[i]
   if(i == 1) {tox <- tox_temp 
   }else tox <- bind_rows(tox,tox_temp)
 }
 
-tox$Conc.1.Mean..Standardized.. <- as.numeric(tox$Conc.1.Mean..Standardized..)
-tox$Conc.Min.1..Standardized.. <- as.numeric(tox$Conc.Min.1..Standardized..)
 tox <- transform(tox,value = pmin(Conc.1.Mean..Standardized..,Conc.Min.1..Standardized..,na.rm=TRUE))
 sum(is.na(tox$value))
 
@@ -31,7 +35,8 @@ boxplot(value~Media.Type,log="y",las=2,data=tox)
 ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
   geom_boxplot()+
   scale_y_continuous(trans='log10') + 
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~chems)
 
 ggplot(data = tox_fw,aes(x=Chemical.Name,y=value)) + 
   geom_boxplot()+

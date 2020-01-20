@@ -4,7 +4,6 @@ files <- list.files(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX"), pattern="*.t
 
 chems <- sub(x = files,".txt","",)
 
-Observed.Duration.Mean..Days..
 
 for (i in 1:length(files)) {
   tox_temp <- read.delim(file = file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX",files[i]),sep="|", stringsAsFactors = FALSE)
@@ -20,11 +19,13 @@ for (i in 1:length(files)) {
   }else tox <- bind_rows(tox,tox_temp)
 }
 
-tox <- transform(tox,value = pmin(Conc.1.Mean..Standardized..,Conc.Min.1..Standardized..,na.rm=TRUE))
-sum(is.na(tox$value))
 
-test <- ifelse(is.na(tox$Conc.Min.1..Standardized..),tox$Conc.1.Mean..Standardized..,tox$Conc.Min.1..Standardized..)
-sum(is.na(test))
+conc_mean <- ifelse(!(tox$Conc.1.Mean..Standardized.. > 0),NA, tox$Conc.1.Mean..Standardized..)
+conc_min <- ifelse(!(tox$Conc.Min.1..Standardized.. > 0),NA, tox$Conc.Min.1..Standardized..)
+conc_max <- ifelse(!(tox$Conc.1.Max..Standardized.. > 0),NA, tox$Conc.1.Max..Standardized..)
+
+tox <- transform(tox,value = pmin(conc_mean,conc_min,conc_max,na.rm=TRUE))
+sum(is.na(tox$value))
 
 tox_fw <- tox %>%
   filter(Media.Type == "Fresh water",
@@ -41,6 +42,8 @@ tox_fw <- tox %>%
 
 boxplot(value~Media.Type,log="y",las=2,data=tox)
 
+test <- tox[which(!(tox$value > 0)),]
+
 tox_fw <- tox_fw %>%
   arrange(chems,value) 
 # %>%
@@ -55,6 +58,7 @@ for (i in 1:length(unique(tox_fw$chems))) {
   chem_index <- c(chem_index,1:num_chems)
 }
 tox_fw$index <- chem_index
+
 
 ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
   geom_boxplot()+
@@ -79,6 +83,35 @@ ggplot(data = tox_fw,aes(x=value,y=index)) +
 
 
 ggplot(data = tox_fw,aes(x=chems,y=value)) + 
+  geom_boxplot()+
+  scale_y_continuous(trans='log10') + 
+  theme(axis.text.x = element_text(angle = 90))
+
+# Subset cis and trans isomers and rerun graphs:
+#Cumulative distribution curve below:
+#There do not look to be any anamalously low values, so use the minimum value 
+#for each chemical to compare against.
+tox_isomers <- tox_fw[grep("cis|trans",tox_fw$chems,ignore.case = TRUE),]
+unique(tox_isomers$chems)
+
+tox_isomers$chems <- factor(tox_isomers$chems,
+                            levels = c("cis-chlordane","trans-chlordane",
+                                       "trans-nonachlor",
+                                       "cis-permethrin","trans-permethrin"))
+ggplot(data = tox_isomers,aes(x=index,y=value)) + 
+  geom_point()+
+  scale_y_continuous(trans='log10') + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~chems, scales="free_x")
+
+ggplot(data = tox_isomers,aes(x=value,y=index)) + 
+  geom_point()+
+  scale_x_continuous(trans='log10') + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~chems, scales="free_y")
+
+
+ggplot(data = tox_isomers,aes(x=chems,y=value)) + 
   geom_boxplot()+
   scale_y_continuous(trans='log10') + 
   theme(axis.text.x = element_text(angle = 90))

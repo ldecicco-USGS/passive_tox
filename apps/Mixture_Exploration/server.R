@@ -3,7 +3,7 @@ library(toxEval)
 library(tidyverse)
 library(here)
 source(here("R/mixtures/mix_script.R"))
-source(here("R/plot_endpoints_facet.R"))
+source(here("R/mixtures/plot_endpoints_facet.R"))
 
 drake::loadd(chemicalSummary)
 site_info <- drake::readd(site_info)
@@ -289,12 +289,14 @@ shinyServer(function(input, output) {
         
         top_mixes_wide <- top_mixes %>% 
           mutate(index = 1:nrow(top_mixes)) %>% 
-          separate(chems, sep = ",\n", into = letters[1:max(top_mixes$n_chems)]) %>% 
+          separate(chems, sep = "\\|", into = letters[1:max(top_mixes$n_chems)]) %>% 
           pivot_longer(cols = c(-endPoint, -n_chems, -n_samples, -n_sites, -index)) %>% 
           filter(!is.na(value)) %>% 
           left_join(class_key, by = c("value"="chnm")) %>% 
           pivot_wider(names_from = "name", values_from = "value") %>% 
-          unite(col = "Chemicals", letters[1:max(top_mixes$n_chems)], sep = ",", remove = TRUE) %>% 
+          unite(col = "Chemicals", letters[1:max(top_mixes$n_chems)], 
+                sep = ",", 
+                remove = TRUE) %>% 
           mutate(Chemicals = gsub(pattern = "NA,", 
                                   replacement = "", 
                                   x = Chemicals),

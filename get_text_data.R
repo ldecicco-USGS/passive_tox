@@ -2,7 +2,6 @@
 
 library(tidyverse)
 library(toxEval)
-# shiny::runApp("apps/Mixture_Exploration/")
 source(file = "read_chemicalSummary.R")
 source(file = "R/mixtures/mix_script.R")
 source(file = "R/analyze/open_land_use.R")
@@ -32,7 +31,14 @@ length(unique(ToxCast_IN_STUDY$endPoint)) #Assays available for chems in this st
 
 length(unique(chemicalSummary$endPoint)) #Assays used in this study after filtering
 
-#CAS numbers for detected chemicals (144 chemicals detected)
+#Number of assays per chemical
+num_assays <- ToxCast_IN_STUDY %>%
+  group_by(CAS) %>%
+  summarize(num_assays = length(unique(endPoint)))
+
+range(num_assays$num_assays)
+
+#CAS numbers for detected chemicals (142 chemicals detected)
 
 x <- tox_list$chem_data %>% 
   filter(Value > 0) %>% 
@@ -95,4 +101,7 @@ chems_detected_not_in_ToxCast <- x[!(x %in% CAS_detected_in_toxcast)]
 chem_info <- tox_list$chem_info
 detected_no_ToxCast <- left_join(data.frame(CAS = chems_detected_not_in_ToxCast),tox_list$chem_info[1:3])
 
-                                        
+
+  
+  
+       

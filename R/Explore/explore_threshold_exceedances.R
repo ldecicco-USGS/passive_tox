@@ -1,6 +1,7 @@
 
 library(toxEval)
 library(tidyverse)
+library(readxl)
 
 # Read tox_list and generate chemicalSummary
 source("read_chemicalSummary.R")

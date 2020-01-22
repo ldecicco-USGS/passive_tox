@@ -1,6 +1,13 @@
 library(tidyverse)
+library(toxEval)
+
+chem_CAS <- read_xlsx(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","explore_threshold_exceedances_chemicals.xlsx"),sheet = 1)
+ACC <- get_ACC(chem_CAS$CAS)
 
 files <- list.files(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX"), pattern="*.txt", all.files=FALSE, full.names=FALSE)
+
+# files <- "cis-permethrin.txt"
+# files <- "cis-permethrin-sig.txt"
 
 chems <- sub(x = files,".txt","",)
 
@@ -59,6 +66,17 @@ for (i in 1:length(unique(tox_fw$chems))) {
 }
 tox_fw$index <- chem_index
 
+# num_chems <- numeric()
+# chem_index <- numeric()
+# ACC$CAS.Number. <- gsub("-","",x = ACC$CAS)
+# chem_CAS$CAS.Number. <- gsub("-","",x = chem_CAS$CAS)
+# 
+# 
+# for (i in 1:length(unique(ACC$chems))) {
+#   num_chems <- sum(tox_fw$chems == unique(tox_fw$chems)[i])
+#   chem_index <- c(chem_index,1:num_chems)
+# }
+# tox_fw$index <- chem_index
 
 ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
   geom_boxplot()+
@@ -69,8 +87,14 @@ ggplot(data = tox_fw,aes(x=Effect,y=value)) +
 #Cumulative distribution curve below:
 #There do not look to be any anamalously low values, so use the minimum value 
 #for each chemical to compare against.
-ggplot(data = tox_fw,aes(x=index,y=value)) + 
+CDF <- ggplot(data = tox_fw,aes(x=index,y=value)) + 
   geom_point()+
+  scale_y_continuous(trans='log10') + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~chems, scales="free_x")
+
+CDF2 <- CDF +
+  geom_point(data=ACC)+
   scale_y_continuous(trans='log10') + 
   theme(axis.text.x = element_text(angle = 90)) +
   facet_wrap(~chems, scales="free_x")

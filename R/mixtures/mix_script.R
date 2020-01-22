@@ -157,8 +157,35 @@ get_final_mixtures <- function(chemicalSummary,
   mix_df <- clean_top_mixes(join_everything, 
                             chemicalSummary,
                             top_mixes, 
-                            site_thresh)
+                            site_thresh) %>% 
+    select(Assay = endPoint, 
+           `AOP ID` = AOP_ids,
+           Genes = genes,
+           Pathways = pathways,
+           Chemicals = chem_list,
+           Class = class_list, )
   return(mix_df)
+}
+
+create_Excel_wb_mix <- function(df){
+  
+  max_chems <- sapply(df$Chemicals, function(x)length(x))
+  
+  wb <- createWorkbook()
+  addWorksheet(wb, "Mixtures")
+  header_st <- createStyle(textDecoration = "Bold")
+  writeData(wb = wb, sheet =  "Mixtures", 
+            x = df, sep = " \n", headerStyle = header_st)
+  setRowHeights(wb, "Mixtures", 
+                rows = 1:nrow(df)+1, 
+                heights = 15*max_chems)
+  setColWidths(wb, "Mixtures", cols = 6, widths = 25)
+  setColWidths(wb, "Mixtures", cols = 5, widths = 40)
+  setColWidths(wb, "Mixtures", cols = 1:4, widths = "auto")
+  addStyle(wb, sheet = "Mixtures", cols = 1:6, 
+           rows = 1:nrow(df)+1, gridExpand = TRUE,
+           style = createStyle(valign = 'top'))
+  return(wb)
 }
 
 class_key_fnx <- function(chemicalSummary){
@@ -212,6 +239,9 @@ clean_top_mixes <- function(join_everything,
     mutate(chem_list = c(strsplit(Chemicals, split = "\\|")),
            chem_list = sapply(chem_list, function(x) x[!(x %in% "")]),
            chem_list = sapply(chem_list, function(x) unique(x)),
+           class_list = c(strsplit(Class, split = "\\|")),
+           class_list = sapply(class_list, function(x) x[!(x %in% "")]),
+           class_list = sapply(class_list, function(x) unique(x)),
            max_n_chems = sapply(chem_list, function(x) length(x)))
 
   return(df)
@@ -472,7 +502,12 @@ plot_lm <- function(form_lm, form_surv, sub_df, sumEAR = "sumEAR",
   x_df <- list(lm = sub_df_lm_list[["x_df"]],
                surv = sub_df_surv_list[["x_df"]])
   
-  label_info$y = 0.8*max(label_info$y)
+  if(log){
+    label_info$y = 10^((log10(min(graph_data$fit)) - log10(max(graph_data$fit)))/2)
+  } else {
+    label_info$y = 0.5*max(label_info$y)
+  }
+  
   
   scatter_urb_ag <- ggplot() +
     geom_point(data = graph_data,
@@ -659,91 +694,3 @@ create_censor <- function(df){
   return(df)
 }
 
-open_land_use <- function(){
-  
-  not_all_na <- function(x) all(!is.na(x))
-
-  df_lu <- readxl::read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),
-                                              "data","data_for_git_repo","raw",
-                                              "GLRItox_summary.xlsx"),
-                     sheet = 1, skip=1) %>% 
-    rename(site = STAID, 
-           Basin_Area_mi2 = `Basin Area (mi2)`,
-           Basin_area_km2 = `Basin Area (km2)`,
-           Urban = `Urban (%)...9`, 
-           Parking_lot = `Parking Lot (%)`,
-           Agriculture = `Agriculture (%)...10`) %>% 
-    mutate(Developed = Urban + Agriculture) %>% 
-    select(-`Urban (%)...6`,   # this is getting rid of 2011 data
-           -`Agriculture (%)...7`, 
-           -`Other (%)...8`,
-           -`Impervious Area (%)...12`,
-           -`[Outside of dataset extent]`) %>% 
-    select_if(not_all_na)
-  
-  names(df_lu) <- gsub("\\s*\\([^\\)]+\\)",
-                       replacement = "",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = "\\...",
-                       replacement = "",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = ", ",
-                       replacement = "_",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = "/",
-                       replacement = "_",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = " ",
-                       replacement = "_",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = "\\[",
-                       replacement = "",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = "]",
-                       replacement = "",
-                       names(df_lu))
-  names(df_lu) <- gsub(pattern = "-",
-                       replacement = "_",
-                       names(df_lu))
-  
-  # open other stuff:
-  watershed2010 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),
-                                               "data","data_for_git_repo","raw",
-                                               "WatershedSummary2010.csv"), 
-                                 colClasses = c("USGS_STAID"="character"),
-                                 data.table = FALSE) %>% 
-    select(DWfrac_2010 = DW_FlowFraction,
-           frac_2010 = FlowFraction,
-           effluent_2010 = Effluent_mgalperday,
-           site = USGS_STAID)
-  
-  watershed2014 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),
-                                               "data","data_for_git_repo","raw",
-                                                "WatershedSummary2014.csv"), 
-                                     colClasses = c("USGS_STAID"="character"),
-                                     data.table = FALSE) %>% 
-    select(DWfrac_2014 = DW_FlowFraction,
-           frac_2014 = FlowFraction,
-           effluent_2014 = Effluent_mgalperday,
-           site = USGS_STAID)
-
-  combo <- watershed2010 %>% 
-    left_join(watershed2014, by = "site") 
-  
-  df_lu_new <- df_lu %>% 
-    left_join(combo, by = "site") %>% 
-    mutate_if(is.numeric,
-              list(~ case_when(is.na(.) ~ 0, 
-                               TRUE ~ .) )) %>% 
-    filter(site != "04010500")
-  
-  # Need to normalize the fraction stuff?
-  
-  df_lu_new$DWfrac_2010 <- 100*df_lu_new$DWfrac_2010
-  df_lu_new$DWfrac_2014 <- 100*df_lu_new$DWfrac_2014
-  
-  
-
-  return(df_lu_new)
-  
-}

@@ -136,7 +136,7 @@ create_triple_fig <- function(){
   
 }
 
-# pdf(file.path(Sys.getenv("PASSIVE_PATH"),"Figures/Polished figures/triple_graph.pdf"), 
+# pdf(file.path(Sys.getenv("PASSIVE_PATH"),"Figures/Polished figures/triple_graph.pdf"),
 #               width = 9, height = 11, onefile=FALSE)
 # create_triple_fig()
 # dev.off()

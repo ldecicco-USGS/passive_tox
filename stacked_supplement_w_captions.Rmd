@@ -19,16 +19,20 @@ library(cowplot)
 
 source(file = "read_chemicalSummary.R")
 source(file = "R/analyze/get_sites_ready.R")
+source(file = "R/report/stack_plots.R")
+source(file = "R/report/combo_plot2.R")
+source(file = "R/analyze/explore_detection_limits.R")
+
 tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),                        "data","data_for_git_repo","clean",
                 "passive.xlsx"))
+
 site_info <- prep_site_list(tox_list$chem_site)
 cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                "data", "data_for_git_repo",
                                "clean",
                                "cas_df.rds"))
 
-source(file = "R/report/stack_plots.R")
-source(file = "R/report/combo_plot2.R")
+
 graphData_tox_det <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                "data", "data_for_git_repo",
                                "clean","graphData_tox_det.rds"))
@@ -136,7 +140,14 @@ general_lp <- c(0.05,0.87)
 
 ```
 
-```{r fig1}
+
+```{r fig1, fig.height=13}
+create_DL_plot(tox_list)
+
+```
+Figure SI 1: Detection level EARs.
+
+```{r fig2A}
 
 plot_grid(
   class_plots[[ordered_class[1]]]$chem_count,
@@ -175,9 +186,9 @@ plot_grid(
 Sum of Maximum EAR\textsubscript{chem} Values
 \end{center}
 
-Figure SI-A: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[1:4]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
+Figure SI 2-A: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[1:4]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
 
-```{r fig2}
+```{r fig2B}
 plot_grid(
   class_plots[[ordered_class[5]]]$chem_count ,
   class_plots[[ordered_class[5]]]$no_axis +
@@ -214,9 +225,9 @@ plot_grid(
 Sum of Maximum EAR\textsubscript{chem} Values
 \end{center}
 
-Figure SI-B: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[5:8]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
+Figure SI 2-B: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[5:8]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
 
-```{r fig3}
+```{r fig2C}
 plot_grid(
   class_plots[[ordered_class[9]]]$chem_count ,
   class_plots[[ordered_class[9]]]$no_axis +
@@ -252,9 +263,9 @@ plot_grid(
 Sum of Maximum EAR\textsubscript{chem} Values
 \end{center}
 
-Figure SI-C: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[9:12]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
+Figure SI 2-C: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[9:12]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
 
-```{r fig4}
+```{r fig2D}
 plot_grid(
   class_plots[[ordered_class[13]]]$chem_count ,
   class_plots[[ordered_class[13]]]$no_axis +
@@ -291,4 +302,4 @@ plot_grid(
 Sum of Maximum EAR\textsubscript{chem} Values
 \end{center}
 
-Figure SI-D: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[12:16]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
+Figure SI 2-D: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[12:16]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")

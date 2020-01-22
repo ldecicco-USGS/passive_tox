@@ -4,6 +4,8 @@ library(openxlsx)
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
+# shiny::runApp("apps/Mixture_Exploration/")
+
 # Data setup is done in drake plan
 # It's better to run separately, and shouldn't
 # be needed to run this script

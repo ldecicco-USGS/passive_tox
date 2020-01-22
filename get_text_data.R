@@ -2,6 +2,7 @@
 
 library(tidyverse)
 library(toxEval)
+# shiny::runApp("apps/Mixture_Exploration/")
 source(file = "read_chemicalSummary.R")
 source(file = "R/mixtures/mix_script.R")
 source(file = "R/analyze/open_land_use.R")

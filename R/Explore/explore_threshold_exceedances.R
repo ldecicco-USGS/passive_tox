@@ -1,32 +1,107 @@
 
 library(toxEval)
 library(tidyverse)
+library(readxl)
 
-path_to_file <- 'data/clean/passive.xlsx' 
-tox_list <- create_toxEval(path_to_file)
-chems <- tox_list$chem_info
-conc <- tox_list$chem_data
-ACC <- get_ACC(tox_list$chem_info$CAS)
-ACC <- remove_flags(ACC = ACC,
-                    flagsShort = c('Borderline','OnlyHighest','GainAC50','Biochemical'))
+# Read tox_list and generate chemicalSummary
+source("read_chemicalSummary.R")
+chem_data <- tox_list$chem_data
+chem_site <- tox_list$chem_site
+chem_info <- tox_list$chem_info
 
-cleaned_ep <- clean_endPoint_info(end_point_info)
-filtered_ep <- filter_groups(cleaned_ep, 
-                             groupCol = 'intended_target_family',
-                             assays = c('ATG','NVS','OT','TOX21','CEETOX','APR','CLD','TANGUAY','NHEERL_PADILLA','NCCT_SIMMONS','ACEA'),
-                             remove_groups = c('Background Measurement','Undefined'))
-
-chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
+# path_to_file <- 'data/clean/passive.xlsx' 
+# tox_list <- create_toxEval(path_to_file)
+# chems <- tox_list$chem_info
+# conc <- tox_list$chem_data
+# ACC <- get_ACC(tox_list$chem_info$CAS)
+# ACC <- remove_flags(ACC = ACC,
+#                     flagsShort = c('Borderline','OnlyHighest','GainAC50','Biochemical'))
+# 
+# cleaned_ep <- clean_endPoint_info(end_point_info)
+# filtered_ep <- filter_groups(cleaned_ep, 
+#                              groupCol = 'intended_target_family',
+#                              assays = c('ATG','NVS','OT','TOX21','CEETOX','APR','CLD','TANGUAY','NHEERL_PADILLA','NCCT_SIMMONS','ACEA'),
+#                              remove_groups = c('Background Measurement','Undefined'))
+# 
+# chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
 
 ## How many chemicals ##
 
-conc_no_zeros <- conc %>% filter(Value > 0)
-detected <- unique(conc_no_zeros$CAS)
+# conc_no_zeros <- conc %>% filter(Value > 0)
+# detected <- unique(conc_no_zeros$CAS)
+
+# Determine how many sites monitored and how many sites 
+# detected per chemical
+
+sites_detected <- chem_info %>%
+  mutate(sites_det_fraction = sites_det/sites_tested) %>%
+  select(Class,chnm,CAS,sites_det_fraction,sites_tested,sites_det) 
+
+class_order <- sites_detected %>%
+  group_by(Class) %>%
+  summarize(max_det = max(sites_det_fraction)) %>%
+  arrange(desc(max_det))
+
+sites_detected$Class <- factor(sites_detected$Class,levels = class_order$Class)
+
+sites_detected <- sites_detected %>%
+  arrange(Class,desc(sites_det_fraction))
+
+ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+                                  "data","data_for_git_repo","raw",
+                                  "all_tox.rds"))
+
+sites_detected <- ALL_TOX_DATA %>% 
+  filter(casn %in% sites_detected$CAS) %>%
+  group_by(casn) %>%
+  summarize(active = max(hitc)) %>%
+  right_join(sites_detected,by=c("casn"="CAS"))
+
+sites_detected$active[is.na(sites_detected$active)] <- "No ToxCast"
+sites_detected$active[sites_detected$active==0] <- "Inactive"
+sites_detected$active[sites_detected$active==1] <- "Active"
+
+table(sites_detected$active)
+
+site_fraction_threshold <- 0.1
+priority_chem_eval <- sites_detected %>%
+  group_by(active,chnm,casn,Class) %>%
+  summarize(detected_more_than_0.1 = mean(sites_det_fraction > site_fraction_threshold)) %>%
+  arrange(active,desc(detected_more_than_0.1),Class)
+
+sum(!is.na(sites_detected$active)) #Num chems in ToxCast
+sum(is.na(sites_detected$active)) #Num chems not in ToxCast
+sum((!is.na(sites_detected$active) & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
+sum((!is.na(sites_detected$active) & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
+
+
+sum(sites_detected$active == "No ToxCast")
+sum(sites_detected$active == "No ToxCast" & sites_detected$sites_det_fraction> site_fraction_threshold)
+sites_detected_no_ToxCast <- filter(sites_detected, active == "No ToxCast")
+
+#How many of each class are not in ToxCast but have 10% or more site detections
+sites_detected_no_ToxCast %>%
+  filter(sites_det_fraction > site_fraction_threshold) %>%
+  group_by(Class) %>%
+  summarize(num_chems_per_class = length(chnm))
+# Of those detected, how many are represented in ToxCast (121 chemicals) 
+# and how many of those had measureable effects (102)
+length(unique(num_chems_tested$casn))
+length(unique(chemicalSummary$CAS[chemicalSummary$EAR > 0]))
+
+detection_summary <- sites_detected %>%
+  mutate(site_thresh_exceed = sites_det_fraction > site_fraction_threshold) %>%
+  group_by(active,Class,site_thresh_exceed) %>%
+  filter(site_thresh_exceed) %>%
+  arrange(active) 
+
+# ADD NUM CHEMS IN TOXCAST AND ACTIVE
+# EXPLORE INACTIVE AND NOT IT TOXCAST FOR DETECTION FREQUENCY
 
 
 ## EARchem summations ##
 
-EAR_sums <- chemical_summary %>% 
+EAR_sums <- chemicalSummary %>% 
   group_by(site, date,chnm,CAS) %>%
   summarise(sumEAR = sum(EAR)) %>%
   group_by(site,chnm,CAS) %>% 
@@ -48,7 +123,7 @@ length(unique(EAR_exceedances$chnm)) #32 chemicals have EARchem > 0.001 for at l
 thresh <- 0.001
 Site_proportion_threshold <- 0.1
 
-site_exceed <- EAR_sums %>% group_by(chnm, CAS,) %>%
+site_exceed <- EAR_sums %>% group_by(chnm, CAS) %>%
   summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
   left_join(num_sites_monitored) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
@@ -69,7 +144,7 @@ site_exceed$chnm
 ## Individual endpoint exploration ##
 
 #How many endpoints per chemical?
-how_many_eps_per_chem <-group_by(chemical_summary,site,chnm,) %>%
+how_many_eps_per_chem <-group_by(chemicalSummary,site,chnm,) %>%
   summarize(num_eps = length(unique(EAR))) %>%
   group_by(chnm) %>%
   summarize(num_eps = max(num_eps)) %>%
@@ -78,7 +153,7 @@ how_many_eps_per_chem <-group_by(chemical_summary,site,chnm,) %>%
 
 ## How many sites were chems present and how many of those had EAR > 0.001?
 
-max_by_EP <-group_by(chemical_summary,site,chnm,CAS,endPoint) %>%
+max_by_EP <-group_by(chemicalSummary,site,chnm,CAS,endPoint) %>%
   summarize(max_EAR_EP = max(EAR))
 
 thresh <- 0.001
@@ -141,6 +216,12 @@ exceed_by_EP <- group_by(max_by_EP,site,chnm) %>%
 
 
 # How many chemicals with EAR > 0.001 for manuscript text
-chems_with_exceedances <- filter(chemical_summary,EAR >= 0.001)
+chems_with_exceedances <- filter(chemicalSummary,EAR >= 0.001)
 unique(chems_with_exceedances$chnm)  
 length(unique(chems_with_exceedances$chnm)  )
+
+
+#Look into cis vs trans isomers
+priority_chem_eval[ grep("cis",priority_chem_eval$chnm,ignore.case = TRUE),]
+priority_chem_eval[ grep("trans",priority_chem_eval$chnm,ignore.case = TRUE),]
+

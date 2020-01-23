@@ -159,11 +159,11 @@ get_final_mixtures <- function(chemicalSummary,
                             top_mixes, 
                             site_thresh) %>% 
     select(Assay = endPoint, 
-           `AOP ID` = AOP_ids,
+           AOPs,
            Genes = genes,
            Pathways = pathways,
            Chemicals = chem_list,
-           Class = class_list, )
+           Class = class_list)
   return(mix_df)
 }
 
@@ -231,7 +231,7 @@ clean_top_mixes <- function(join_everything,
     left_join(select(top_mixes_wide, 
                      endPoint, Class, Chemicals, n_chems), 
               by = "endPoint") %>% 
-    group_by(endPoint, AOP_ids, genes, pathways) %>%
+    group_by(endPoint, AOPs, genes, pathways) %>%
     filter(n_chems == max(n_chems)) %>%
     summarize(Class = paste(unique(Class), collapse = "|"),
               Chemicals = paste(unique(Chemicals), collapse = "|")) %>% 

@@ -9,14 +9,15 @@ source(file = "read_chemicalSummary.R")
 join_everything_fnx <- function(chemicalSummary){
   #################################################
   # AOP
-  AOP_crosswalk <- data.table::fread(here("data/supplemental/AOP_crosswalk_Dec_2018.csv")) %>%
+  AOP_crosswalk <- data.table::fread(here("data/raw/AOP_crosswalk.csv")) %>%
     data.frame() %>%
-    select(endPoint=Component.Endpoint.Name, ID=AOP.., KE = KE., everything()) %>%
+    select(endPoint=Component.Endpoint.Name, ID=AOP.., 
+           KE = KE., Key.Event.Name, KeyEvent.Type, AOP_shortname) %>%
     distinct()
   
   aop_summary <- chemicalSummary %>% 
     left_join(select(AOP_crosswalk, 
-                     endPoint, ID), by="endPoint") %>% 
+                     endPoint, ID, AOP_shortname), by="endPoint") %>% 
     filter(!is.na(ID)) %>% 
     select(-endPoint) %>% 
     mutate(endPoint = as.character(ID))
@@ -85,13 +86,13 @@ join_everything_fnx <- function(chemicalSummary){
     mutate(endPoint = pathway_name)
   
   join_everything <- chemicalSummary %>% 
-    left_join(select(AOP_crosswalk, endPoint, ID), by="endPoint") %>% 
+    left_join(select(AOP_crosswalk, endPoint, AOP_shortname), by="endPoint") %>% 
     left_join(gene, by="endPoint") %>% 
     left_join(panther, by=c("endPoint","gene")) %>% 
-    select(endPoint, gene, AOP_id = ID, pathway_name) %>% 
+    select(endPoint, gene, AOP_shortname, pathway_name) %>% 
     distinct() %>% 
     group_by(endPoint) %>% 
-    summarise(AOP_ids = paste(unique(AOP_id[!is.na(AOP_id)]), collapse = ","),
+    summarise(AOPs = paste(unique(AOP_shortname[!is.na(AOP_shortname)]), collapse = ","),
               genes = paste(unique(gene[!is.na(gene)]), collapse = ","),
               pathways = paste(unique(pathway_name[!is.na(pathway_name)]), collapse = ","))
   

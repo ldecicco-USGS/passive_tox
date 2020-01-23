@@ -53,6 +53,7 @@ y <- ToxCast_ACC %>%
   distinct()
 # Number of detected chemicals in Tox with hits:
 nrow(y)
+length(unique(filter(chemicalSummary,EAR > 0)$chnm))
 
 ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                   "data","data_for_git_repo","raw",

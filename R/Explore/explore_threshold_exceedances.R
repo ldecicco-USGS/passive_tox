@@ -57,11 +57,15 @@ sites_detected <- ALL_TOX_DATA %>%
   summarize(active = max(hitc)) %>%
   right_join(sites_detected,by=c("casn"="CAS"))
 
-sites_detected$active[is.na(sites_detected$active)] <- "No ToxCast"
-sites_detected$active[sites_detected$active==0] <- "Inactive"
-sites_detected$active[sites_detected$active==1] <- "Active"
+sites_detected$active[is.na(sites_detected$active)] <- "No ToxCast" #considering all chemicals including non-detects
+sites_detected$active[sites_detected$active==0] <- "Inactive"       #considering all chemicals including non-detects
+sites_detected$active[sites_detected$active==1] <- "Active"         #considering all chemicals including non-detects
 
-table(sites_detected$active)
+length(unique(sites_detected$casn))
+sum(sites_detected$sites_det > 0)
+
+table(filter(sites_detected, sites_det > 0)[,"active"]) #how many of the detected chems were active
+table(sites_detected$active)                            #how many of ALL chems were active
 
 site_fraction_threshold <- 0.1
 priority_chem_eval <- sites_detected %>%
@@ -69,10 +73,10 @@ priority_chem_eval <- sites_detected %>%
   summarize(detected_more_than_0.1 = mean(sites_det_fraction > site_fraction_threshold)) %>%
   arrange(active,desc(detected_more_than_0.1),Class)
 
-sum(!is.na(sites_detected$active)) #Num chems in ToxCast
-sum(is.na(sites_detected$active)) #Num chems not in ToxCast
-sum((!is.na(sites_detected$active) & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
-sum((!is.na(sites_detected$active) & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
+sum(sites_detected$active != "No ToxCast") #Num chems in ToxCast
+sum(sites_detected$active == "No ToxCast") #Num chems not in ToxCast
+sum((sites_detected$active != "No ToxCast") & (sites_detected$sites_det_fraction>0)) #Num chems detected in ToxCast
+sum(((sites_detected$active == "No ToxCast") & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
 
 
 sum(sites_detected$active == "No ToxCast")
@@ -88,6 +92,12 @@ sites_detected_no_ToxCast %>%
 # and how many of those had measureable effects (102)
 length(unique(num_chems_tested$casn))
 length(unique(chemicalSummary$CAS[chemicalSummary$EAR > 0]))
+
+#list of chemicals with detections, represented in ToxCast with EAR > 0
+casn_in_toxcast_detected <- unique(chemicalSummary$CAS[chemicalSummary$EAR > 0])
+casn_in_toxcast_detected2 <- sites_detected[sites_detected$active == "Active" & sites_detected$sites_det>0,]$casn
+casn_in_toxcast_detected %in% casn_in_toxcast_detected2
+sum(!(casn_in_toxcast_detected2 %in% casn_in_toxcast_detected))
 
 detection_summary <- sites_detected %>%
   mutate(site_thresh_exceed = sites_det_fraction > site_fraction_threshold) %>%

@@ -191,6 +191,11 @@ get_final_mixtures <- function(chemicalSummary,
 create_Excel_wb_mix <- function(df){
   
   max_chems <- sapply(df$Chemicals, function(x)length(x))
+  max_AOPs <-  sapply(df$AOPs, function(x)length(x))
+  max_Class <-  sapply(df$Class, function(x)length(x))
+  
+  max_chems <- pmax(max_chems, max_AOPs, max_Class)
+  
   
   wb <- createWorkbook()
   addWorksheet(wb, "Mixtures")
@@ -201,7 +206,7 @@ create_Excel_wb_mix <- function(df){
                 rows = 1:nrow(df)+1, 
                 heights = 15*max_chems)
   setColWidths(wb, "Mixtures", cols = 6, widths = 25)
-  setColWidths(wb, "Mixtures", cols = 5, widths = 40)
+  setColWidths(wb, "Mixtures", cols = 5, widths = 25)
   setColWidths(wb, "Mixtures", cols = 2, widths = 25)
   setColWidths(wb, "Mixtures", cols = c(1,3:4), widths = "auto")
   addStyle(wb, sheet = "Mixtures", cols = 1:6, 
@@ -265,8 +270,12 @@ clean_top_mixes <- function(join_everything,
            class_list = sapply(class_list, function(x) x[!(x %in% "")]),
            class_list = sapply(class_list, function(x) unique(x)),
            AOPs = c(strsplit(AOPs, split = ",")),
+           AOPs =  sapply(AOPs, function(x) x[!(x %in% "")]),
+           AOPs = sapply(AOPs, function(x) unique(x)),
            max_n_chems = sapply(chem_list, function(x) length(x)))
 
+  df$AOPs[sapply(df$AOPs, function(x) length(x) == 0)] <- ""
+  
   return(df)
 }
 

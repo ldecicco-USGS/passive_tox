@@ -29,25 +29,7 @@ mix_df <- get_final_mixtures(chemicalSummary,
                              EAR_thresh,
                              site_thresh)
 
-mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
-  ifelse(x == "Di(2-ethylhexyl) phthalate", "DEHP", x), 
-  how = "replace")
 
-mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
-  ifelse(x == "Tris(1,3-dichloro-2-propyl) phosphate", "TDCPP", x), 
-  how = "replace")
-
-mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
-  ifelse(x == "Tris(2-butoxyethyl) phosphate", "TBEP", x), 
-  how = "replace")
-
-mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
-  ifelse(x == "Tris(2-chloroisopropyl)phosphate", "TCPP", x), 
-  how = "replace")
-
-mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
-  ifelse(x == "4-(1,1,3,3-Tetramethylbutyl)phenol", "p-tert-Octylphenol", x), 
-  how = "replace")
 
 wb <- create_Excel_wb_mix(mix_df)
 
@@ -154,7 +136,7 @@ addWorksheet(wb, "SI-6 AOP")
 writeData(wb = wb, sheet =  "SI-6 AOP", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-6: AOP")
 writeData(wb = wb, sheet =   "SI-6 AOP", startRow = 3,
-          x = mtcars,
+          x = AOP,
           headerStyle = header_st)
 
 # Save the whole thing:

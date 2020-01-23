@@ -164,6 +164,27 @@ get_final_mixtures <- function(chemicalSummary,
            Pathways = pathways,
            Chemicals = chem_list,
            Class = class_list)
+  
+  mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
+    ifelse(x == "Di(2-ethylhexyl) phthalate", "DEHP", x), 
+    how = "replace")
+  
+  mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
+    ifelse(x == "Tris(1,3-dichloro-2-propyl) phosphate", "TDCPP", x), 
+    how = "replace")
+  
+  mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
+    ifelse(x == "Tris(2-butoxyethyl) phosphate", "TBEP", x), 
+    how = "replace")
+  
+  mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
+    ifelse(x == "Tris(2-chloroisopropyl)phosphate", "TCPP", x), 
+    how = "replace")
+  
+  mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
+    ifelse(x == "4-(1,1,3,3-Tetramethylbutyl)phenol", "p-tert-Octylphenol", x), 
+    how = "replace")
+  
   return(mix_df)
 }
 
@@ -181,7 +202,8 @@ create_Excel_wb_mix <- function(df){
                 heights = 15*max_chems)
   setColWidths(wb, "Mixtures", cols = 6, widths = 25)
   setColWidths(wb, "Mixtures", cols = 5, widths = 40)
-  setColWidths(wb, "Mixtures", cols = 1:4, widths = "auto")
+  setColWidths(wb, "Mixtures", cols = 2, widths = 25)
+  setColWidths(wb, "Mixtures", cols = c(1,3:4), widths = "auto")
   addStyle(wb, sheet = "Mixtures", cols = 1:6, 
            rows = 1:nrow(df)+1, gridExpand = TRUE,
            style = createStyle(valign = 'top'))
@@ -242,6 +264,7 @@ clean_top_mixes <- function(join_everything,
            class_list = c(strsplit(Class, split = "\\|")),
            class_list = sapply(class_list, function(x) x[!(x %in% "")]),
            class_list = sapply(class_list, function(x) unique(x)),
+           AOPs = c(strsplit(AOPs, split = ",")),
            max_n_chems = sapply(chem_list, function(x) length(x)))
 
   return(df)

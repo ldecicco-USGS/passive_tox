@@ -109,9 +109,14 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
     mutate(chnm = tools::toTitleCase(chnm)) %>%
     left_join(select(site_stuff, SiteID, STAID, `Station shortname`), by="SiteID") 
   
-  data_long$`Sample Date`[grepl(pattern = "Replicate",
-                                x = data_long$`Station shortname`)] <-  data_long$`Sample Date`[grepl(pattern = "Replicate",
-                                                                                                       x = data_long$`Station shortname`)] + 0.5 #This essentially makes a 2nd "sample" for the data
+  #Keep replicates:
+  # data_long$`Sample Date`[grepl(pattern = "Replicate",
+  #                               x = data_long$`Station shortname`)] <-  data_long$`Sample Date`[grepl(pattern = "Replicate",
+  #                                                                                                      x = data_long$`Station shortname`)] + 0.5 #This essentially makes a 2nd "sample" for the data
+  #Lose replicates:
+  data_long <- data_long %>% 
+    filter(!grepl(pattern = "Replicate",
+                 x = `Station shortname`))
   
   data_long$STAID[nchar(data_long$STAID) == 8 & substring(data_long$STAID, first = 1, last = 1) != "0"] <- dataRetrieval::zeroPad(data_long$STAID[nchar(data_long$STAID) == 8 & substring(data_long$STAID, first = 1, last = 1) != "0"], 9)
   data_long$STAID <- dataRetrieval::zeroPad(data_long$STAID, 8)

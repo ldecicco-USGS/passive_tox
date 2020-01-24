@@ -133,7 +133,7 @@ data_setup_plan <- drake_plan(
   sites_orig_2010 = readxl::read_excel(file_in("data/raw/general_2010.xlsx"),
                                        sheet = "site info",
                                        skip = 2),
-  df_lu <- open_land_use(),
+  df_lu = open_land_use(),
   sites = get_sites_ready(sites_orig_2014, sites_orig_2010, sites_OWC, df_lu),
   tox_list_init = create_tox_object(all_data_fixed_cas, chem_info_fixed_cas, sites, exclude),
 

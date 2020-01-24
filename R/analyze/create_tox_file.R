@@ -20,8 +20,8 @@ create_tox_object <- function(all_data, chem_info, sites, exclude){
                                    1:sum(sites_ordered$map_nm == "O")))
   
   tox_list <- list("Data" = chem_data, 
-                           "Chemicals" = chem_info,
-                           "Sites" = sites_ordered,
-                           "Exclude" = exclude)
+                   "Chemicals" = chem_info,
+                   "Sites" = sites_ordered,
+                   "Exclude" = exclude)
   return(tox_list)
 }

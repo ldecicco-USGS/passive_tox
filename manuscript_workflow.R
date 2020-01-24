@@ -92,6 +92,11 @@ chem_data <- chem_data %>%
 
 AOP_crosswalk <- data.table::fread(file.path(path_to_data, "data/data_for_git_repo/raw", "AOP_crosswalk.csv"), data.table = FALSE)
 
+AOP_sup <- AOP_crosswalk %>% 
+  select(AOP_shortname, `AOP #`, `AOP Title`, `KE#`, `Key Event Name`) %>% 
+  distinct() %>% 
+  filter(AOP_shortname != "")
+
 ################################################
 # Create the supplemental:
 wb <- createWorkbook()
@@ -136,7 +141,7 @@ addWorksheet(wb, "SI-6 AOP")
 writeData(wb = wb, sheet =  "SI-6 AOP", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-6: AOP")
 writeData(wb = wb, sheet =   "SI-6 AOP", startRow = 3,
-          x = AOP,
+          x = AOP_sup,
           headerStyle = header_st)
 
 # Save the whole thing:

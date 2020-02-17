@@ -103,6 +103,35 @@ chem_info <- tox_list$chem_info
 detected_no_ToxCast <- left_join(data.frame(CAS = chems_detected_not_in_ToxCast),tox_list$chem_info[1:3])
 
 
-  
-  
-       
+#identify chemicals with EAR > threshold of 0.001  
+#RESULTS: Num sites exceeded at least once = 29
+#         Num sites exceeded at 10% of sites = 12
+#         All chems with exceedances were monitored at all 69 sites
+
+thresh <- 0.001
+Site_proportion_threshold <- 0
+
+max_EAR_chnm <- chemicalSummary %>% 
+  group_by(site,CAS,chnm,date) %>%
+  summarize(EARsum = sum(EAR)) %>%
+  group_by(site,CAS,chnm) %>%
+  summarize(EARmax = max(EARsum)) %>%
+  group_by(chnm,CAS) %>%
+  summarize(Num_sites = length(unique(site)),
+            num_sites_exceed = sum(EARmax > thresh),
+            EARmax = max(EARmax)) %>%
+  arrange(desc(EARmax))
+
+exceedances <- max_EAR_chnm %>%
+  filter(EARmax > thresh) %>%
+  arrange(desc(num_sites_exceed))
+
+unique(exceedances$chnm)                                          
+
+
+site_exceed <- chemicalSummary %>% group_by(chnm, CAS,site) %>%
+  summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
+  left_join(num_sites_monitored) %>%
+  mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
+  filter(proportion_sites_exceeded > Site_proportion_threshold)
+

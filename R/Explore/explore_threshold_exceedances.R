@@ -9,6 +9,9 @@ chem_data <- tox_list$chem_data
 chem_site <- tox_list$chem_site
 chem_info <- tox_list$chem_info
 
+source("R/analyze/open_land_use.R")
+lu <- open_land_use()
+
 # path_to_file <- 'data/clean/passive.xlsx' 
 # tox_list <- create_toxEval(path_to_file)
 # chems <- tox_list$chem_info
@@ -27,9 +30,69 @@ chem_info <- tox_list$chem_info
 
 ## How many chemicals ##
 
-# conc_no_zeros <- conc %>% filter(Value > 0)
-# detected <- unique(conc_no_zeros$CAS)
+#Chems monitored
+length(unique(chem_data$CAS))
 
+conc_no_zeros <- chem_data %>% filter(Value > 0)
+detected <- unique(conc_no_zeros$CAS)
+length(detected)
+
+#number of PAHs detected per site
+PAHs <- chem_data %>%
+  left_join(chem_info) %>%
+  filter(Class == "PAHs", Value > 0) %>%
+  group_by(SiteID) %>%
+  summarize(num_PAHs = length(unique(CAS)))
+mean(PAHs$num_PAHs)
+range(PAHs$num_PAHs)
+
+#mean PAH concentrations over all sites
+PAH_means <- chem_data %>%
+  left_join(chem_info) %>%
+  filter(Class == "PAHs") %>%
+  group_by(CAS,chnm,SiteID) %>%
+  summarize(mean_conc = mean(Value)) %>%
+  group_by(CAS,chnm) %>%
+  summarize(mean_conc = mean(mean_conc)) %>%
+  arrange(desc(mean_conc))
+
+# Determine the number of chems detected at each site
+# Pair this with land use and compute mean number of
+# chems for urban, ag, and undeveloped sites
+
+detected_chems_by_site <- chem_data %>%
+  left_join(chem_info) %>%
+  filter(Value > 0) %>%
+  group_by(SiteID) %>%
+  summarize(num_chems = length(unique(CAS))) %>%
+  left_join(lu, by=c("SiteID"="site"))
+
+mean(detected_chems_by_site$num_chems)
+range(detected_chems_by_site$num_chems)
+  
+urban_thresh <- 15
+Ag_thresh <- 40
+detected_chems_by_site <- detected_chems_by_site %>%
+  mutate(Class_urban = ifelse(Urban > urban_thresh,1,0)) %>%
+  mutate(Class_Ag = ifelse(Agriculture > Ag_thresh,1,0)) %>%
+  mutate(Class_undev = ifelse(Class_Ag + Class_urban == 0,1,0))
+
+mean_urban_detections <- detected_chems_by_site %>%
+  filter(Class_urban == 1) %>%
+  summarize(mean_num_chems = mean(num_chems),
+            num_sites = length(num_chems))
+
+mean_Ag_detections <- detected_chems_by_site %>%
+  filter(Class_Ag == 1) %>%
+  summarize(mean_num_chems = mean(num_chems),
+            num_sites = length(num_chems))
+
+mean_undev_detections <- detected_chems_by_site %>%
+  filter(Class_undev == 1) %>%
+  summarize(mean_num_chems = mean(num_chems),
+            num_sites = length(num_chems))
+
+ 
 # Determine how many sites monitored and how many sites 
 # detected per chemical
 
@@ -57,11 +120,15 @@ sites_detected <- ALL_TOX_DATA %>%
   summarize(active = max(hitc)) %>%
   right_join(sites_detected,by=c("casn"="CAS"))
 
-sites_detected$active[is.na(sites_detected$active)] <- "No ToxCast"
-sites_detected$active[sites_detected$active==0] <- "Inactive"
-sites_detected$active[sites_detected$active==1] <- "Active"
+sites_detected$active[is.na(sites_detected$active)] <- "No ToxCast" #considering all chemicals including non-detects
+sites_detected$active[sites_detected$active==0] <- "Inactive"       #considering all chemicals including non-detects
+sites_detected$active[sites_detected$active==1] <- "Active"         #considering all chemicals including non-detects
 
-table(sites_detected$active)
+length(unique(sites_detected$casn))
+sum(sites_detected$sites_det > 0)
+
+table(filter(sites_detected, sites_det > 0)[,"active"]) #how many of the detected chems were active
+table(sites_detected$active)                            #how many of ALL chems were active
 
 site_fraction_threshold <- 0.1
 priority_chem_eval <- sites_detected %>%
@@ -69,10 +136,10 @@ priority_chem_eval <- sites_detected %>%
   summarize(detected_more_than_0.1 = mean(sites_det_fraction > site_fraction_threshold)) %>%
   arrange(active,desc(detected_more_than_0.1),Class)
 
-sum(!is.na(sites_detected$active)) #Num chems in ToxCast
-sum(is.na(sites_detected$active)) #Num chems not in ToxCast
-sum((!is.na(sites_detected$active) & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
-sum((!is.na(sites_detected$active) & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
+sum(sites_detected$active != "No ToxCast") #Num chems in ToxCast
+sum(sites_detected$active == "No ToxCast") #Num chems not in ToxCast
+sum((sites_detected$active != "No ToxCast") & (sites_detected$sites_det_fraction>0)) #Num chems detected in ToxCast
+sum(((sites_detected$active == "No ToxCast") & (sites_detected$sites_det_fraction>0))) #Num chems detected in ToxCast
 
 
 sum(sites_detected$active == "No ToxCast")
@@ -88,6 +155,12 @@ sites_detected_no_ToxCast %>%
 # and how many of those had measureable effects (102)
 length(unique(num_chems_tested$casn))
 length(unique(chemicalSummary$CAS[chemicalSummary$EAR > 0]))
+
+#list of chemicals with detections, represented in ToxCast with EAR > 0
+casn_in_toxcast_detected <- unique(chemicalSummary$CAS[chemicalSummary$EAR > 0])
+casn_in_toxcast_detected2 <- sites_detected[sites_detected$active == "Active" & sites_detected$sites_det>0,]$casn
+casn_in_toxcast_detected %in% casn_in_toxcast_detected2
+sum(!(casn_in_toxcast_detected2 %in% casn_in_toxcast_detected))
 
 detection_summary <- sites_detected %>%
   mutate(site_thresh_exceed = sites_det_fraction > site_fraction_threshold) %>%
@@ -131,7 +204,7 @@ site_exceed <- EAR_sums %>% group_by(chnm, CAS) %>%
 
 # 12 chemicals have EARchem > 0.001 for 10% or more sites monitored
 site_exceed$chnm
-
+site_exceed$CAS
 
 
 
@@ -225,3 +298,44 @@ length(unique(chems_with_exceedances$chnm)  )
 priority_chem_eval[ grep("cis",priority_chem_eval$chnm,ignore.case = TRUE),]
 priority_chem_eval[ grep("trans",priority_chem_eval$chnm,ignore.case = TRUE),]
 
+#Look into Menthol endpoints (only one active, relevant endpoint: ACEA_AR_antagonist_80hr)
+
+test <- filter(chemicalSummary,CAS== "89-78-1")
+unique(test$endPoint)
+range(test$EAR)
+
+test <- filter(test,EAR > 0.001)
+unique(test$site)
+
+ACC <- get_ACC("89-78-1")
+grep("AR_",ACC$endPoint,)
+
+#plot ACC distribution for the 17 priority chems
+
+plot_ACC_distribution <- function(CAS) {
+  library(toxEval)
+  library(tidyverse)
+  library(ggplot2)
+  
+  for (i in CAS) {
+    ACC_values <- get_ACC(i) %>%
+      arrange(ACC)
+    
+    chem_name <- unique(ACC_values$chnm)
+    plot(ACC_values$ACC,ylab="ACC ug/L",main=paste("Distribution of ACC values for",chem_name),pch=20,col="blue")
+    
+    }
+}
+
+#CAS_nums <- c("51218-45-2","75-05-8","124-48-1", "67-66-3", "307-24-4", "1912-24-9", "122-34-9","75-25-2","1763-23-1")
+
+individual_priority_chems <- site_exceed$CAS
+mixture_chem_additions <- c("78-40-0","77-93-0", "126-73-8","56-55-3", "205-99-2")
+
+chem_cas <- c(individual_priority_chems,mixture_chem_additions)
+  
+filename <- "ACC_distributions.pdf"
+pdf(filename)
+plot_ACC_distribution(chem_cas)
+dev.off()
+shell.exec(filename)

@@ -61,8 +61,8 @@ lakes_ordered <- c("Lake Superior",
                    "Lake Ontario")
 df <- Chem_Class_correlation_table()
 
-df <- tibble(x = 0.95,
-             y = 0.95,
+df <- tibble(x = 0.92,
+             y = 0.92,
              site_grouping = factor("Lake Superior", 
                                     levels = lakes_ordered),
              tb = list(df))
@@ -76,12 +76,23 @@ upperPlot <- plot_tox_stacks_manuscript2(chemical_summary = chemicalSummary,
                        font_size =  font_size, 
                        category = "Chemical Class")
 
+title_text <- data.frame(
+  site_grouping = factor("Lake Superior", 
+                         levels = lakes_ordered),
+  x = Inf,
+  y = 0.125,
+  label = "Significant correlations with land cover:"
+) 
+
 stack2 <- upperPlot +
   geom_table_npc(data = df,
                  aes(npcx = x, 
                      npcy = y,
                      label = tb), size = 2,
-                 hjust = 1, vjust = 1)
+                 hjust = 1, vjust = 1) +
+  geom_text(data = title_text, size = 2.5,
+            aes(x=x, y=y, label=label),
+            hjust = 0, vjust = 0 )
 
 stack2
 ```

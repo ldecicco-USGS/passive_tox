@@ -165,7 +165,7 @@ all_cas <- function(file_cas="raw/cas.xlsx"){
 
 clean_names <- function(cas_df){
   
-  ignore_totals <- c("Total Pcbs",
+  ignore_totals <- c(#"Total Pcbs",
                      "Total Pcbs in Mg/l",
                      "Total Oc Pesticides",
                      "Tcpp_isomer","Tcpp Isomer")
@@ -173,6 +173,9 @@ clean_names <- function(cas_df){
   cas_final =  cas_df %>%
     mutate(chnm = tools::toTitleCase(chnm)) %>% 
     filter(!(chnm %in% ignore_totals))
+  
+  cas_final$CAS[cas_final$chnm == "Total Pcbs"] <- "1336-36-3"
+  cas_final$chnm[cas_final$CAS == "1336-36-3"] <- "Total PCBs"
   
   cas_final$CAS[cas_final$chnm == "Buproprion"] <- "34841-39-9"
   cas_final$CAS[cas_final$chnm == "Nadolol"] <- "42200-33-9"
@@ -269,12 +272,6 @@ clean_names <- function(cas_df){
   
   cas_final$chnm[cas_final$CAS == "34911-55-2"] <- "Bupropion hydrochloride"
   
-  # cas_final$chnm[grep(pattern = "Delta-Benzenehexachloride",cas_final$chnm)] <- "Delta-Benzenehexachloride"
-  # cas_final$chnm[grep(pattern = "Beta-Benzenehexachloride",cas_final$chnm)] <- "Beta-Benzenehexachloride"
-  # cas_final$chnm[grep(pattern = "Alpha-Benzenehexachloride", cas_final$chnm)] <- "Alpha-Benzenehexachloride"
-  # 
-    
-
   return(cas_final)
   
 }

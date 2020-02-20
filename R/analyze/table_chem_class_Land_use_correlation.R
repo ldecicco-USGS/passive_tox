@@ -15,6 +15,14 @@ Chem_Class_correlation_table <- function() {
   
   df_lu <- read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
   names(df_lu) <- make.names(names(df_lu))
+  
+  df_ww_lu_2010 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2010_deployment.csv"), 
+                                     colClasses = c("USGS_STAID"="character"))
+  
+  df_ww_lu_2014 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2014_deployment.csv"), 
+                                     colClasses = c("USGS_STAID"="character"))
+  
+  
   chemicalSummary <- readRDS(file = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","clean","chemical_summary.rds"))
   
   ########################################################################################
@@ -36,10 +44,12 @@ Chem_Class_correlation_table <- function() {
   # Add land use
   lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.","Pasture.Hay....")
   names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density","Pasture_Hay")
-  class_EP_max <- left_join(class_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
+  
+  class_EP_max <- class_EP_max %>% 
+    left_join(df_lu[,lu_columns], by=c("site"="STAID"))
+  
   names(class_EP_max)[c(1,5:12)] <- names(lu_columns)
-  
-  
+
   #Determine exceedance of threshold
   class_EP_max$exceed_thresh <- as.integer(ifelse(class_EP_max$EAR_max >= 0.001,1,0))
   
@@ -98,7 +108,8 @@ Chem_Class_correlation_table <- function() {
     mutate(Urban = ifelse(urban_p <= 0.05,"X","")) %>%
     mutate(Crops = ifelse(crop_p <= 0.05,"X","")) %>%
     mutate(Pasture_and_Hay = ifelse(P_H_p <= 0.05,"X","")) %>%
-    select(Class,Urban,Crops,Pasture_and_Hay)
+    select(Class,Urban,Crops,Pasture_and_Hay) %>% 
+    filter(!(Urban == "" & Crops == "" & Pasture_and_Hay == ""))
   
   return(LU_signif_table)
 }

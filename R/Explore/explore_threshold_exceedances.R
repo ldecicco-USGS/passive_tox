@@ -28,7 +28,24 @@ lu <- open_land_use()
 # 
 # chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
 
+# Sites monitored each year. Sites in common and sites unique to each year
+
+chem_2010 <- chem_data %>%
+  filter(`Sample Date` == 2010) 
+sites_2010 <- unique(chem_2010$SiteID)
+
+chem_2014 <- chem_data %>%
+  filter(`Sample Date` == 2014) 
+sites_2014 <- unique(chem_2014$SiteID)
+
+sum(!(sites_2010 %in% sites_2014))# 32 unique to 2010
+sum(!(sites_2014 %in% sites_2010))# 14 unique to 2014
+sum((sites_2014 %in% sites_2010))# 23 in common
+
+32+14+23
+
 ## How many chemicals ##
+
 
 #Chems monitored
 length(unique(chem_data$CAS))
@@ -48,6 +65,7 @@ range(PAHs$num_PAHs)
 
 #mean PAH concentrations over all sites
 PAH_means <- chem_data %>%
+  filter(Value > 0) %>%
   left_join(chem_info) %>%
   filter(Class == "PAHs") %>%
   group_by(CAS,chnm,SiteID) %>%

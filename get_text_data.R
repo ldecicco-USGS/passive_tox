@@ -38,6 +38,13 @@ num_assays <- ToxCast_IN_STUDY %>%
 
 range(num_assays$num_assays)
 
+num_assays <- chemicalSummary %>%
+  filter(EAR > 0) %>%
+  group_by(CAS) %>%
+  summarize(num_assays = length(unique(endPoint)))
+
+range(num_assays$num_assays)# 1-57 assays used per chemical
+
 #CAS numbers for detected chemicals (142 chemicals detected)
 
 x <- tox_list$chem_data %>% 

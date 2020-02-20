@@ -177,7 +177,13 @@ clean_names <- function(cas_df){
   cas_final$CAS[cas_final$chnm == "Total Pcbs"] <- "1336-36-3"
   cas_final$chnm[cas_final$CAS == "1336-36-3"] <- "Total PCBs"
   
-  cas_final$CAS[cas_final$chnm == "Buproprion"] <- "34841-39-9"
+  cas_final$CAS[cas_final$chnm == "Bupropion"] <- "34841-39-9"
+  cas_final$CAS[cas_final$chnm == "Buproprion"] <- "34841-39-9" #Spelled wrong in raw data
+  cas_final$chnm[cas_final$CAS == "34841-39-9"] <- "Bupropion"
+
+  # cas_final$chnm[cas_final$CAS == "34911-55-2"] <- "Bupropion hydrochloride"
+  
+  
   cas_final$CAS[cas_final$chnm == "Nadolol"] <- "42200-33-9"
   cas_final$CAS[cas_final$chnm == "Omeprazole + Esomprazole"] <- "73590-58-6"
   cas_final$CAS[cas_final$chnm == "Tris(1,3-Dichloro-2-Propyl)Phosphate (t"] <- "13674-87-8"
@@ -238,7 +244,8 @@ clean_names <- function(cas_df){
   cas_final$chnm[cas_final$chnm == "Tonalide (Ahtn)"] <- "Tonalide (AHTN)"
   cas_final$chnm[cas_final$chnm == "Para-Cresol"] <- "para-Cresol"
   cas_final$chnm[cas_final$chnm == "Endosulfan-Ii"]  <- "Endosulfan-II"
-  cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate "
+  cas_final$chnm[cas_final$CAS == "77-93-0"] <- "Triethyl Citrate"
+  
   cas_final$chnm[cas_final$CAS == "101-20-2"] <- "3,4,4'-Trichlorocarbanilide"
   
   cas_final$chnm[grep("Cis-", cas_final$chnm)] <- gsub(pattern = "Cis-",
@@ -264,13 +271,7 @@ clean_names <- function(cas_df){
                                                         replacement = "delta-",
                                                         cas_final$chnm[grep("Delta-", cas_final$chnm)])
   
-  if(!("34841-39-9" %in% cas_final$CAS)){
-    cas_final <- dplyr::bind_rows(cas_final, data.frame(CAS="34841-39-9",
-                                           chnm="Buproprion",
-                                           stringsAsFactors = FALSE))
-  }
-  
-  cas_final$chnm[cas_final$CAS == "34911-55-2"] <- "Bupropion hydrochloride"
+
   
   return(cas_final)
   

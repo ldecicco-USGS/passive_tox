@@ -1,7 +1,7 @@
 library(tidyverse)
 library(toxEval)
 library(readxl)
-
+library(openxlsx)
 
 chem_CAS <- read.csv(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","non-ToxCast","chem_info_non_toxcast.csv"),stringsAsFactors = FALSE)
 ACC <- get_ACC(chem_CAS$CAS)
@@ -32,7 +32,7 @@ conc_mean <- ifelse(!(tox$Conc.1.Mean..Standardized.. > 0),NA, tox$Conc.1.Mean..
 conc_min <- ifelse(!(tox$Conc.Min.1..Standardized.. > 0),NA, tox$Conc.Min.1..Standardized..)
 conc_max <- ifelse(!(tox$Conc.1.Max..Standardized.. > 0),NA, tox$Conc.1.Max..Standardized..)
 
-tox <- transform(tox,value = pmin(conc_mean,conc_min,conc_max,na.rm=TRUE))
+tox <- transform(tox,value = pmin(conc_mean,conc_min,conc_max,na.rm=TRUE)*1000)
 sum(is.na(tox$value))
 
 tox_fw <- tox %>%
@@ -67,6 +67,34 @@ for (i in 1:length(unique(tox_fw$chnm))) {
   chem_index <- c(chem_index,1:num_chems)
 }
 tox_fw$index <- chem_index
+
+benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement")]
+names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement")
+
+pcbs <- data.frame(1336363,"Total PCBs",0.0015,1,"Ambient WQC","","",stringsAsFactors = FALSE)
+names(pcbs) <- names(benchmark_tab)
+
+benchmark_tab <- bind_rows(benchmark_tab,pcbs)
+
+benchmark_tab <- benchmark_tab %>%
+  mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%
+  mutate(groupCol = "ECOTOX")
+
+benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm")]) %>%
+  rename(Chemical = chnm)
+benchmark_tab <- full_join(benchmark_tab,pest_benchmarks)
+
+
+path_to_data <- Sys.getenv("PASSIVE_PATH")
+
+wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passive.xlsx"))
+addWorksheet(wb,sheetName = "Benchmarks")
+writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
+saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks.xlsx"),overwrite = TRUE)
+
+
+chem_CAS <- read.csv(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","non-ToxCast","chem_info_non_toxcast.csv"),stringsAsFactors = FALSE)
+
 
 # num_chems <- numeric()
 # chem_index <- numeric()

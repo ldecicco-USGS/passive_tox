@@ -74,6 +74,19 @@ PAH_means <- chem_data %>%
   summarize(mean_conc = mean(mean_conc)) %>%
   arrange(desc(mean_conc))
 
+# OC pesticides
+
+#mean OC pest concentrations over all sites
+OCP_means <- chem_data %>%
+  filter(Value > 0) %>%
+  left_join(chem_info) %>%
+  filter(Class == "OC Pesticides") %>%
+  group_by(CAS,chnm,SiteID) %>%
+  summarize(mean_conc = mean(Value)) %>%
+  group_by(CAS,chnm) %>%
+  summarize(mean_conc = mean(mean_conc)) %>%
+  arrange(desc(mean_conc))
+
 # Determine the number of chems detected at each site
 # Pair this with land use and compute mean number of
 # chems for urban, ag, and undeveloped sites

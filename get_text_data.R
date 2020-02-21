@@ -52,12 +52,14 @@ x <- tox_list$chem_data %>%
   select(CAS) %>% 
   distinct() %>% 
   pull()
+
 length(x)
 
 y <- ToxCast_ACC %>% 
   filter(CAS %in% x) %>% 
   select(CAS) %>% 
   distinct()
+
 # Number of detected chemicals in Tox with hits:
 nrow(y)
 length(unique(filter(chemicalSummary,EAR > 0)$chnm))

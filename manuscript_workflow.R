@@ -92,6 +92,29 @@ chem_data <- chem_data %>%
 
 AOP_crosswalk <- data.table::fread(file.path(path_to_data, "data/data_for_git_repo/raw", "AOP_crosswalk.csv"), data.table = FALSE)
 
+AOP_sup <- AOP_crosswalk %>% 
+  select(AOP_shortname, `AOP #`, `AOP Title`, `KE#`, `Key Event Name`) %>% 
+  distinct() %>% 
+  filter(AOP_shortname != "")
+
+all_join <- join_everything_fnx(chemicalSummary) %>% 
+  separate(genes, sep  = ",", into = letters[1:5]) %>% 
+  pivot_longer(letters[1:5], "names", values_to = "Gene") %>% 
+  select(-names) %>% 
+  filter(!is.na(Gene),
+         Gene != "") %>% 
+  mutate(AOPs = ifelse(AOPs == "", "No", "Yes"),
+         Panther = ifelse(pathways == "", "No", "Yes")) %>% 
+  select(-pathways)
+
+AOP_pan <- chemicalSummary %>% 
+  select(chnm, endPoint) %>% 
+  distinct() %>% 
+  left_join(all_join, by = "endPoint") %>% 
+  select(Gene, chnm, endPoint, AOPs, Panther) %>% 
+  arrange(Gene)
+
+
 ################################################
 # Create the supplemental:
 wb <- createWorkbook()
@@ -100,43 +123,51 @@ addWorksheet(wb, "SI-1 Site Table")
 header_st <- createStyle(textDecoration = "Bold")
 writeData(wb = wb, sheet =  "SI-1 Site Table", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-1: Site information")
-writeData(wb = wb, sheet =  "SI-1 Site Table", startRow = 3,
+writeData(wb = wb, sheet = "SI-1 Site Table", startRow = 3,
           x = tox_list$chem_site, headerStyle = header_st)
 
 #SI-2: Chemical Table
 addWorksheet(wb, "SI-2 Chemical Table")
 writeData(wb = wb, sheet =  "SI-2 Chemical Table", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-2: Chemical Information")
-writeData(wb = wb, sheet =  "SI-2 Chemical Table", startRow = 3,
+writeData(wb = wb, sheet = "SI-2 Chemical Table", startRow = 3,
           x = chem_data, headerStyle = header_st)
 
 # SI-3: POCIS sampling rates
 addWorksheet(wb, "SI-3 POCIS sampling rates")
-writeData(wb = wb, sheet =  "SI-3 POCIS sampling rates", colNames = FALSE, rowNames = FALSE,
+writeData(wb = wb, sheet = "SI-3 POCIS sampling rates", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-3: POCIS sampling rates")
 
 
 # SI-4: ToxCast Assays
 addWorksheet(wb, "SI-4 ToxCast Assays")
-writeData(wb = wb, sheet =  "SI-4 ToxCast Assays", colNames = FALSE, rowNames = FALSE,
+writeData(wb = wb, sheet = "SI-4 ToxCast Assays", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-4: ToxCast Assays")
-writeData(wb = wb, sheet =  "SI-4 ToxCast Assays", startRow = 3,
+writeData(wb = wb, sheet = "SI-4 ToxCast Assays", startRow = 3,
           x = df_assays, headerStyle = header_st)
 
 # SI-5: Exclusions
 addWorksheet(wb, "SI-5 Exclusions")
-writeData(wb = wb, sheet =  "SI-5 Exclusions", colNames = FALSE, rowNames = FALSE,
+writeData(wb = wb, sheet = "SI-5 Exclusions", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-5: Exclusions")
-writeData(wb = wb, sheet =  "SI-5 Exclusions", startRow = 3,
+writeData(wb = wb, sheet = "SI-5 Exclusions", startRow = 3,
           x = rename(tox_list$exclusions,
                      `ToxCast Assay` = endPoint, Chemical = chnm), headerStyle = header_st)
 
 #SI-6 AOP crosswalk
 addWorksheet(wb, "SI-6 AOP")
-writeData(wb = wb, sheet =  "SI-6 AOP", colNames = FALSE, rowNames = FALSE,
+writeData(wb = wb, sheet = "SI-6 AOP", colNames = FALSE, rowNames = FALSE,
           x = "Table SI-6: AOP")
-writeData(wb = wb, sheet =   "SI-6 AOP", startRow = 3,
-          x = AOP,
+writeData(wb = wb, sheet = "SI-6 AOP", startRow = 3,
+          x = AOP_sup,
+          headerStyle = header_st)
+
+#SI-7 AOP and Panther
+addWorksheet(wb, "SI-7 AOP and Panther")
+writeData(wb = wb, sheet = "SI-7 AOP and Panther", colNames = FALSE, rowNames = FALSE,
+          x = "Table SI-7: AOP and Panther")
+writeData(wb = wb, sheet = "SI-7 AOP and Panther", startRow = 3,
+          x = AOP_pan,
           headerStyle = header_st)
 
 # Save the whole thing:

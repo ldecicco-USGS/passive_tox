@@ -43,8 +43,9 @@ get_chem_info <- function(all_data, chem_info_old){
     tidyr::gather(variable, value, -Date, -CAS, -generic_class) %>%
     tidyr::unite(temp, Date, variable) %>%
     tidyr::spread(temp, value) %>%
-    dplyr::select(-generic_class) %>% 
-    select(-`2014.5_MDL`, -`2014.5_MQL`)
+    dplyr::select(-generic_class)
+  
+    # select(-`2014.5_MDL`, -`2014.5_MQL`, -`2010.5_MQL`, -`2010.5_MDL`)
   
   x$`2014_MQL`[x$CAS == "1912-24-9"] <- x$`2014_MQL`[x$CAS == "1912-24-9"][!is.na(x$`2014_MQL`[x$CAS == "1912-24-9"])]
   

@@ -33,39 +33,39 @@ create_triple_fig <- function(){
   
   source(file = "R/report/combo_plot2.R")
   #########################################
-  # Get PCB?
-  source(file = "R/analyze/data_reader.R")
-  cas_df <- all_cas("data/raw/cas.xlsx")
-  x <- generic_file_opener(file_name = file.path(Sys.getenv("PASSIVE_PATH"),
-                                                 "data","data_for_git_repo","raw",
-                                                 "general_2014.xlsx"),
-                           cas_df,
-                      n_max = 45, 
-                      sheet = "OC-PCB-PBDE",
-                      site_sheet = "site info",
-                      year = 2014)  %>% 
-    filter(chnm %in% "Total Pcbs")
-           
-  pcb <- data.frame(CAS = "1336-36-3",
-                    chnm = "Total PCBs",
-                    Class = "PCBs",
-                    stringsAsFactors = FALSE)
-  
-  tox_list_concentrations$chem_info <- bind_rows(tox_list_concentrations$chem_info,
-                                                 pcb)
-  
-  data_pcb <- x %>% 
-    select(SiteID, `Sample Date`, CAS, Value, comment )
-    
-  tox_list_concentrations$chem_data <- bind_rows(tox_list_concentrations$chem_data,
-                                                 data_pcb)
-  tox_list_concentrations$benchmarks <- bind_rows(tox_list_concentrations$benchmarks,
-                                                  mutate(pcb,
-                                                         endPoint = "Concentration",
-                                                         ACC_value = 1,
-                                                         groupCol = "Concentration"))
-  cas_final <- bind_rows(cas_final,
-                         pcb)
+  # # Get PCB?
+  # source(file = "R/analyze/data_reader.R")
+  # cas_df <- all_cas("data/raw/cas.xlsx")
+  # x <- generic_file_opener(file_name = file.path(Sys.getenv("PASSIVE_PATH"),
+  #                                                "data","data_for_git_repo","raw",
+  #                                                "general_2014.xlsx"),
+  #                          cas_df,
+  #                     n_max = 45, 
+  #                     sheet = "OC-PCB-PBDE",
+  #                     site_sheet = "site info",
+  #                     year = 2014)  %>% 
+  #   filter(chnm %in% "Total Pcbs")
+  #          
+  # pcb <- data.frame(CAS = "1336-36-3",
+  #                   chnm = "Total PCBs",
+  #                   Class = "PCBs",
+  #                   stringsAsFactors = FALSE)
+  # 
+  # tox_list_concentrations$chem_info <- bind_rows(tox_list_concentrations$chem_info,
+  #                                                pcb)
+  # 
+  # data_pcb <- x %>% 
+  #   select(SiteID, `Sample Date`, CAS, Value, comment )
+  #   
+  # tox_list_concentrations$chem_data <- bind_rows(tox_list_concentrations$chem_data,
+  #                                                data_pcb)
+  # tox_list_concentrations$benchmarks <- bind_rows(tox_list_concentrations$benchmarks,
+  #                                                 mutate(pcb,
+  #                                                        endPoint = "Concentration",
+  #                                                        ACC_value = 1,
+  #                                                        groupCol = "Concentration"))
+  # cas_final <- bind_rows(cas_final,
+  #                        pcb)
   
   chemicalSummary_conc <- get_chemical_summary(tox_list_concentrations)
   

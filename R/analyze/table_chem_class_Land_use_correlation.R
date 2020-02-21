@@ -22,6 +22,11 @@ Chem_Class_correlation_table <- function() {
   df_ww_lu_2014 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2014_deployment.csv"), 
                                      colClasses = c("USGS_STAID"="character"))
   
+  df_ww_lu_2012 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2012_annualaverage.csv"), 
+                                     colClasses = c("USGS_STAID"="character"))
+  
+  
+  
   
   chemicalSummary <- readRDS(file = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","clean","chemical_summary.rds"))
   

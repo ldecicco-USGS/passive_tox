@@ -1,21 +1,29 @@
 library(tidyverse)
+library(ggforce)
 library(toxEval)
 library(readxl)
 library(openxlsx)
 
 chem_CAS <- read.csv(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ToxCast","chem_info_toxcast.csv"),stringsAsFactors = FALSE)
 ACC <- get_ACC(chem_CAS$CAS)
+file_loc <- file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ECOTOX_priority_chems","explore_priority_exceedances_chemicals.xlsx")
+file_loc_csv <- file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ECOTOX_priority_chems","explore_priority_exceedances_chemicals.csv")
+chem_CAS_priority <- read_xlsx(path = file_loc,sheet = 1)
+#chem_CAS_priority <- read.csv(file_loc_csv,stringsAsFactors = FALSE)
 
-files <- "ECOTOX_nontoxcast.txt"
-  #list.files(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","non-ToxCast"), pattern="*.txt", all.files=FALSE, full.names=FALSE)
+#chem_CAS <- filter(chem_CAS,!(CAS %in% chem_CAS_priority$CAS))
+#write.csv(chem_CAS,file = file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ToxCast","chem_info_toxcast_nonpriority.csv"),row.names = FALSE)
+
+files <- list.files(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ToxCast"), pattern="*.txt", all.files=FALSE, full.names=FALSE)
 
 chems <- chem_CAS$chnm
 chem_CAS$CAS.Number. <- as.numeric(gsub("-","",chem_CAS$CAS))
 
 
 for (i in 1:length(files)) {
-  tox_temp <- read.delim(file = file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","non-ToxCast",files[i]),sep="|", stringsAsFactors = FALSE)
+  tox_temp <- read.delim(file = file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ToxCast",files[i]),sep="|", stringsAsFactors = FALSE)
   names(tox_temp) <- sub("X.","",names(tox_temp))
+  tox_temp$Publication.Year <- as.numeric(tox_temp$Publication.Year)
   tox_temp$Conc.1.Mean..Standardized.. <- as.numeric(tox_temp$Conc.1.Mean..Standardized..)
   tox_temp$Conc.Min.1..Standardized.. <- as.numeric(tox_temp$Conc.Min.1..Standardized..)
   tox_temp$Observed.Duration.Mean..Days.. <- as.numeric(tox_temp$Observed.Duration.Mean..Days..)
@@ -26,6 +34,7 @@ for (i in 1:length(files)) {
   }else tox <- bind_rows(tox,tox_temp)
 }
 
+unique(tox$CAS.Number.)
 tox <- left_join(tox,chem_CAS)
 
 conc_mean <- ifelse(!(tox$Conc.1.Mean..Standardized.. > 0),NA, tox$Conc.1.Mean..Standardized..)
@@ -71,10 +80,6 @@ tox_fw$index <- chem_index
 benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement")]
 names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement")
 
-pcbs <- data.frame(1336363,"Total PCBs",0.0015,1,"Ambient WQC","","",stringsAsFactors = FALSE)
-names(pcbs) <- names(benchmark_tab)
-
-benchmark_tab <- bind_rows(benchmark_tab,pcbs)
 
 benchmark_tab <- benchmark_tab %>%
   mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%
@@ -82,36 +87,28 @@ benchmark_tab <- benchmark_tab %>%
 
 benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm")]) %>%
   rename(Chemical = chnm)
-benchmark_tab <- full_join(benchmark_tab,pest_benchmarks)
-
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
 wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passive.xlsx"))
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
-saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks.xlsx"),overwrite = TRUE)
+saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_chems_in_toxcast.xlsx"),overwrite = TRUE)
 
 
-chem_CAS <- read.csv(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","non-ToxCast","chem_info_non_toxcast.csv"),stringsAsFactors = FALSE)
-
-
-# num_chems <- numeric()
-# chem_index <- numeric()
-# chem_CAS$CAS.Number. <- gsub("-","",x = chem_CAS$CAS)
-# 
-# 
-# for (i in 1:length(unique(tox_fw$Chemical.Name))) {
-#   num_chems <- sum(tox_fw$Chemical.Name == unique(tox_fw$Chemical.Name)[i])
-#   chem_index <- c(chem_index,1:num_chems)
-# }
-# tox_fw$index <- chem_index
-
-ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
+p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
   geom_boxplot()+
   scale_y_continuous(trans='log10') + 
   theme(axis.text.x = element_text(angle = 90)) +
   facet_wrap(~chnm)
+
+p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
+  geom_boxplot()+
+  scale_y_continuous(trans='log10') + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap_paginate(~chnm, ncol = 4, nrow = 5)
+
+p
 
 #Cumulative distribution curve below:
 #There do not look to be any anamalously low values, so use the minimum value 
@@ -120,8 +117,15 @@ CDF <- ggplot(data = tox_fw,aes(x=index,y=value)) +
   geom_point()+
   scale_y_continuous(trans='log10') + 
   theme(axis.text.x = element_text(angle = 90)) +
-  facet_wrap(~chnm, scales="free_x")
+  facet_wrap_paginate(~chnm, ncol=4,nrow=5,scales="free_x")
+
+
 CDF
+
+pdf("CDF_toxcast_ecotox.pdf")
+CDF
+dev.off()
+shell.exec("CDF_toxcast_ecotox.pdf")
 
 # CDF2 <- CDF +
 #   geom_point(data=ACC)+

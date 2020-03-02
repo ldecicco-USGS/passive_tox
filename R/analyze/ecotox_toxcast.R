@@ -1,3 +1,5 @@
+#Process and graph ECOTOX results for chemicals in toxcast
+
 library(tidyverse)
 library(ggforce)
 library(toxEval)
@@ -53,17 +55,25 @@ tox_fw <- tox %>%
          Exposure.Type != "Injection, unspecified",
          Exposure.Type != "Intramuscular",
          Media.Type != "Salt water",
-         Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"))
+         Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"),
+         Effect != "Biochemistry",
+         Effect != "Genetics",
+         Effect != "Enzyme(s)",
+         Effect != "Cell(s)",
+         Statistical.Significance. != "No significance",
+         !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
+         !(value < 0.062 & CAS == "21145-77-7"))  #Tonalide outlier
 
-# Statistical.Significance != "No significance",
-         # Statistical.Significance != "Not significant at all concentrations")
-
-boxplot(value~Media.Type,log="y",las=2,data=tox)
+which(tox_fw$value < 4.80E-9 & tox_fw$CAS == "1912-24-9")
+# boxplot(value~Media.Type,log="y",las=2,data=tox)
 
 test <- tox[which(!(tox$value > 0)),]
 
 tox_fw <- tox_fw %>%
   arrange(chnm,value) 
+
+
+
 # %>%
 #   group_by(chnm) %>%
 #   transform(Endpoint_num = 1:length(chnm))
@@ -94,7 +104,17 @@ wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passiv
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_chems_in_toxcast.xlsx"),overwrite = TRUE)
+write.csv(tox_fw,"R/Analyze/Out/ECOTOX_filtered.csv",row.names = FALSE)
+saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered.Rds")
 
+test <- benchmark_tab %>%
+  filter(CAS == "1912-24-9")
+min(test$Value)
+
+test2 <- chem_data %>%
+  filter(CAS == "1912-24-9")
+max(test2$Value)
+4.1/0.00011
 
 p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
   geom_boxplot()+
@@ -102,30 +122,38 @@ p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) +
   theme(axis.text.x = element_text(angle = 90)) +
   facet_wrap(~chnm)
 
-p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
-  geom_boxplot()+
-  scale_y_continuous(trans='log10') + 
-  theme(axis.text.x = element_text(angle = 90)) +
-  facet_wrap_paginate(~chnm, ncol = 4, nrow = 5)
+num_cols <- 3
+num_rows <- 4
+pages <-  ceiling(length(unique(tox_fw$CAS.Number.))/(num_cols*num_rows))
 
-p
+pdf("R/Analyze/Plots/ToxCast_chems_boxplots.pdf")
+for(i in 1:pages) {
+  p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
+    geom_boxplot()+
+    scale_y_continuous(trans='log10') + 
+    theme(axis.text.x = element_text(angle = 90)) +
+    facet_wrap_paginate(~chnm, ncol = num_cols, nrow = num_rows,page = i)
+  
+  print(p)
+}
+dev.off()
+
 
 #Cumulative distribution curve below:
 #There do not look to be any anamalously low values, so use the minimum value 
 #for each chemical to compare against.
-CDF <- ggplot(data = tox_fw,aes(x=index,y=value)) + 
-  geom_point()+
-  scale_y_continuous(trans='log10') + 
-  theme(axis.text.x = element_text(angle = 90)) +
-  facet_wrap_paginate(~chnm, ncol=4,nrow=5,scales="free_x")
-
-
-CDF
-
-pdf("CDF_toxcast_ecotox.pdf")
-CDF
+pdf("R/Analyze/Plots/ToxCast_chems_CDF.pdf")
+for(i in 1:pages) {
+  CDF <- ggplot(data = tox_fw,aes(y=index,x=value)) + 
+    geom_point()+
+    scale_x_continuous(trans='log10') + 
+    theme(axis.text.x = element_text(angle = 90)) +
+    facet_wrap_paginate(~chnm, ncol=num_cols,nrow=num_rows,page = i,scales="free")
+  
+  
+  print(CDF)
+}
 dev.off()
-shell.exec("CDF_toxcast_ecotox.pdf")
 
 # CDF2 <- CDF +
 #   geom_point(data=ACC)+

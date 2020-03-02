@@ -107,6 +107,61 @@ saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "pass
 write.csv(tox_fw,"R/Analyze/Out/ECOTOX_filtered.csv",row.names = FALSE)
 saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered.Rds")
 
+atrazine <- filter(tox_fw,chnm == "Atrazine")
+atrazine$group <- atrazine$Species.Group
+atrazine[grep("fish",atrazine$group,ignore.case = TRUE),"group"] <- "Fish"
+atrazine[grep("algae",atrazine$group,ignore.case = TRUE),"group"] <- "Algae"
+atrazine[grep("insects",atrazine$group,ignore.case = TRUE),"group"] <- "Insects/Spiders"
+atrazine[grep("amphibians",atrazine$group,ignore.case = TRUE),"group"] <- "Amphibians"
+atrazine[grep("Crustaceans",atrazine$group,ignore.case = TRUE),"group"] <- "Crustaceans"
+atrazine[grep("Invertebrates",atrazine$group,ignore.case = TRUE),"group"] <- "Invertebrates"
+atrazine[grep("Molluscs",atrazine$group,ignore.case = TRUE),"group"] <- "Molluscs"
+atrazine[grep("Flowers",atrazine$group,ignore.case = TRUE),"group"] <- "Other plants"
+atrazine[grep("Molluscs",atrazine$group,ignore.case = TRUE),"group"] <- "Molluscs"
+atrazine[grep("Worms",atrazine$group,ignore.case = TRUE),"group"] <- "Worms"
+
+
+unique(atrazine$group)
+
+n_obs <- as.numeric(table(atrazine$group))
+
+p <- ggplot(atrazine,aes(x=group,y=value)) +
+  geom_boxplot()+
+  scale_y_continuous(trans='log10',limits = c(1e-03,1e+13)) + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  annotate("text",x=1:length(n_obs),y=1e+13,label=n_obs)
+
+p
+
+atrazine_low <- filter(atrazine,value < 5)
+n_obs <- as.numeric(table(atrazine_low$group))
+
+p <- ggplot(atrazine_low,aes(x=group,y=value)) +
+  geom_boxplot()+
+  scale_y_continuous(trans='log10',limits = c(1e-03,10)) + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  annotate("text",x=1:length(n_obs),y=10,label=n_obs) +
+  annotate("text",x=0.6,y=10,label="n =") +
+  ylab("Endpoint Concentration ug/L")
+
+p
+
+n_obs <- as.numeric(table(atrazine_low$Effect))
+
+p <- ggplot(atrazine_low,aes(x=Effect,y=value)) +
+  geom_boxplot()+
+  scale_y_continuous(trans='log10',limits = c(1e-03,10)) + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  annotate("text",x=1:length(n_obs),y=10,label=n_obs) +
+  annotate("text",x=0.6,y=10,label="n =") +
+  ylab("Endpoint Concentration ug/L")
+
+p
+
+unique(atrazine_low$Reference.Number.)
+
+write.csv(atrazine_low,"R/Analyze/Out/Atrazine_less_than_1_endpoints.csv",row.names = FALSE)
+
 test <- benchmark_tab %>%
   filter(CAS == "1912-24-9")
 min(test$Value)

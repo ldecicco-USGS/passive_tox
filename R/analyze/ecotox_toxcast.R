@@ -1,4 +1,4 @@
-#Process and graph ECOTOX results for chemicals in toxcast
+#Process ECOTOX results for chemicals in toxcast
 
 library(tidyverse)
 library(ggforce)
@@ -11,10 +11,6 @@ ACC <- get_ACC(chem_CAS$CAS)
 file_loc <- file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ECOTOX_priority_chems","explore_priority_exceedances_chemicals.xlsx")
 file_loc_csv <- file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ECOTOX_priority_chems","explore_priority_exceedances_chemicals.csv")
 chem_CAS_priority <- read_xlsx(path = file_loc,sheet = 1)
-#chem_CAS_priority <- read.csv(file_loc_csv,stringsAsFactors = FALSE)
-
-#chem_CAS <- filter(chem_CAS,!(CAS %in% chem_CAS_priority$CAS))
-#write.csv(chem_CAS,file = file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ToxCast","chem_info_toxcast_nonpriority.csv"),row.names = FALSE)
 
 files <- list.files(file.path(Sys.getenv("PASSIVE_PATH"),"ECOTOX","ToxCast"), pattern="*.txt", all.files=FALSE, full.names=FALSE)
 
@@ -46,38 +42,50 @@ conc_max <- ifelse(!(tox$Conc.1.Max..Standardized.. > 0),NA, tox$Conc.1.Max..Sta
 tox <- transform(tox,value = pmin(conc_mean,conc_min,conc_max,na.rm=TRUE)*1000)
 sum(is.na(tox$value))
 
+exposure.type.keep <- c("Aquatic - not reported","Static","Flow-through", "Renewal","Lentic","Lotic")
+
 tox_fw <- tox %>%
   filter(Media.Type == "Fresh water",
-         Conc.1.Type..Standardized.. == "Active ingredient",
          Effect != "Accumulation",
-         Exposure.Type != "Intraperitoneal",
-         Exposure.Type != "Food",
-         Exposure.Type != "Injection, unspecified",
-         Exposure.Type != "Intramuscular",
-         Media.Type != "Salt water",
-         Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"),
-         Effect != "Biochemistry",
-         Effect != "Genetics",
-         Effect != "Enzyme(s)",
-         Effect != "Cell(s)",
-         Statistical.Significance. != "No significance",
+         Exposure.Type %in% exposure.type.keep,
+         Conc.1.Type..Standardized.. == "Active ingredient",
+         grepl("mg/L",Conc.1.Units..Standardized..),
+         !grepl("No significance",Statistical.Significance.),
          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
          !(value < 0.062 & CAS == "21145-77-7"))  #Tonalide outlier
 
-which(tox_fw$value < 4.80E-9 & tox_fw$CAS == "1912-24-9")
-# boxplot(value~Media.Type,log="y",las=2,data=tox)
+table(tox_fw$Effect)
+unique(tox_fw$Effect.Measurement)
+unique(tox_fw$Exposure.Type)
+table(tox_fw$Conc.1.Units..Standardized..)
+unique(tox_fw$Media.Type)
+table(tox_fw$Statistical.Significance.)
+table(tox_fw$Conc.1.Type..Standardized..)
 
-test <- tox[which(!(tox$value > 0)),]
+
+# tox_fw <- tox %>%
+#   filter(Media.Type == "Fresh water",
+#          Conc.1.Type..Standardized.. == "Active ingredient",
+#          Effect != "Accumulation",
+#          Exposure.Type != "Intraperitoneal",
+#          Exposure.Type != "Food",
+#          Exposure.Type != "Injection, unspecified",
+#          Exposure.Type != "Intramuscular",
+#          Media.Type != "Salt water",
+#          Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"),
+#          Effect != "Biochemistry",
+#          Effect != "Genetics",
+#          Effect != "Enzyme(s)",
+#          Effect != "Cell(s)",
+#          Statistical.Significance. != "No significance",
+#          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
+#          !(value < 0.062 & CAS == "21145-77-7"))  #Tonalide outlier
+
+# which(tox_fw$value < 4.80E-9 & tox_fw$CAS == "1912-24-9")
+# boxplot(value~Media.Type,log="y",las=2,data=tox)
 
 tox_fw <- tox_fw %>%
   arrange(chnm,value) 
-
-
-
-# %>%
-#   group_by(chnm) %>%
-#   transform(Endpoint_num = 1:length(chnm))
-# transform(Endpoint_num = 1:length(chnm))
 
 num_chems <- numeric()
 chem_index <- numeric()
@@ -89,7 +97,6 @@ tox_fw$index <- chem_index
 
 benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement")]
 names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement")
-
 
 benchmark_tab <- benchmark_tab %>%
   mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%
@@ -104,14 +111,14 @@ wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passiv
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_chems_in_toxcast.xlsx"),overwrite = TRUE)
-write.csv(tox_fw,"R/Analyze/Out/ECOTOX_filtered.csv",row.names = FALSE)
-saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered.Rds")
+write.csv(tox_fw,"R/Analyze/Out/ECOTOX_filtered_toxcast.csv",row.names = FALSE)
+saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered_toxcast.Rds")
 
 atrazine <- filter(tox_fw,chnm == "Atrazine")
 atrazine$group <- atrazine$Species.Group
-atrazine[grep("fish",atrazine$group,ignore.case = TRUE),"group"] <- "Fish"
-atrazine[grep("algae",atrazine$group,ignore.case = TRUE),"group"] <- "Algae"
-atrazine[grep("insects",atrazine$group,ignore.case = TRUE),"group"] <- "Insects/Spiders"
+atrazine[grep("Fish",atrazine$group,ignore.case = TRUE),"group"] <- "Fish"
+atrazine[grep("Algae",atrazine$group,ignore.case = TRUE),"group"] <- "Algae"
+atrazine[grep("Insects",atrazine$group,ignore.case = TRUE),"group"] <- "Insects/Spiders"
 atrazine[grep("amphibians",atrazine$group,ignore.case = TRUE),"group"] <- "Amphibians"
 atrazine[grep("Crustaceans",atrazine$group,ignore.case = TRUE),"group"] <- "Crustaceans"
 atrazine[grep("Invertebrates",atrazine$group,ignore.case = TRUE),"group"] <- "Invertebrates"
@@ -119,7 +126,6 @@ atrazine[grep("Molluscs",atrazine$group,ignore.case = TRUE),"group"] <- "Mollusc
 atrazine[grep("Flowers",atrazine$group,ignore.case = TRUE),"group"] <- "Other plants"
 atrazine[grep("Molluscs",atrazine$group,ignore.case = TRUE),"group"] <- "Molluscs"
 atrazine[grep("Worms",atrazine$group,ignore.case = TRUE),"group"] <- "Worms"
-
 
 unique(atrazine$group)
 
@@ -166,10 +172,6 @@ test <- benchmark_tab %>%
   filter(CAS == "1912-24-9")
 min(test$Value)
 
-test2 <- chem_data %>%
-  filter(CAS == "1912-24-9")
-max(test2$Value)
-4.1/0.00011
 
 p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
   geom_boxplot()+
@@ -177,64 +179,17 @@ p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) +
   theme(axis.text.x = element_text(angle = 90)) +
   facet_wrap(~chnm)
 
-num_cols <- 3
-num_rows <- 4
-pages <-  ceiling(length(unique(tox_fw$CAS.Number.))/(num_cols*num_rows))
-
-pdf("R/Analyze/Plots/ToxCast_chems_boxplots.pdf")
-for(i in 1:pages) {
-  p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
-    geom_boxplot()+
-    scale_y_continuous(trans='log10') + 
-    theme(axis.text.x = element_text(angle = 90)) +
-    facet_wrap_paginate(~chnm, ncol = num_cols, nrow = num_rows,page = i)
-  
-  print(p)
-}
-dev.off()
-
-
-#Cumulative distribution curve below:
-#There do not look to be any anamalously low values, so use the minimum value 
-#for each chemical to compare against.
-pdf("R/Analyze/Plots/ToxCast_chems_CDF.pdf")
-for(i in 1:pages) {
-  CDF <- ggplot(data = tox_fw,aes(y=index,x=value)) + 
-    geom_point()+
-    scale_x_continuous(trans='log10') + 
-    theme(axis.text.x = element_text(angle = 90)) +
-    facet_wrap_paginate(~chnm, ncol=num_cols,nrow=num_rows,page = i,scales="free")
-  
-  
-  print(CDF)
-}
-dev.off()
-
-# CDF2 <- CDF +
-#   geom_point(data=ACC)+
-#   theme(axis.text.x = element_text(angle = 90)) +
-#   facet_wrap(~chnm, scales="free_x")
-# 
-# CDF2
-# 
-ggplot(data = tox_fw,aes(x=value,y=index)) + 
-  geom_point()+
-  scale_x_continuous(trans='log10') + 
-  theme(axis.text.x = element_text(angle = 90)) +
-  facet_wrap(~chnm, scales="free_y")
-
-
-ggplot(data = tox_fw,aes(x=chnm,y=value)) + 
-  geom_boxplot()+
-  scale_y_continuous(trans='log10') + 
-  theme(axis.text.x = element_text(angle = 90))
-
-
 #Determine stats for each chem
-tox_stats <- tox_fw %>%
-  group_by(chnm,CAS.Number.,Chemical.Name) %>%
+tox_stats <- tox_fw[,-1] %>%
+  group_by(chnm,CAS,Chemical.Name) %>%
   summarize(min_endpoint = min(value),
             median_endpoint = median(value),
-            num_endpoints = length(unique(value)))
+            num_endpoints = length(unique(value))) %>%
+  full_join(chem_CAS) %>%
+  select("Class","chnm","CAS","min_endpoint","median_endpoint","num_endpoints","sites_tested","sites_det") %>%
+  arrange(is.na(num_endpoints),Class,chnm)
 
+tox_stats$num_endpoints <- ifelse(is.na(tox_stats$num_endpoints),0,tox_stats$num_endpoints)
+
+write.csv(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_toxcast.csv")
 c("Fish","Algae","Amphibians","Crustaceans","Flowers","insects/Spiders","Invertebrates","Molluscs")

@@ -114,6 +114,8 @@ AOP_pan <- chemicalSummary %>%
   select(Gene, chnm, endPoint, AOPs, Panther) %>% 
   arrange(Gene)
 
+#Run ECOTOX analysis
+suppressMessages(source("R/Analyze/ECOTOX_workflow.R"))
 
 ################################################
 # Create the supplemental:
@@ -169,6 +171,20 @@ writeData(wb = wb, sheet = "SI-7 AOP and Panther", colNames = FALSE, rowNames = 
 writeData(wb = wb, sheet = "SI-7 AOP and Panther", startRow = 3,
           x = AOP_pan,
           headerStyle = header_st)
+
+#SI-8 ECOTOX data
+addWorksheet(wb, "SI-8 ECOTOX data")
+writeData(wb = wb, sheet = "SI-8 ECOTOX data", colNames = FALSE, rowNames = FALSE,
+          x = "SI-8 ECOTOX data")
+writeData(wb = wb, sheet = "SI-8 ECOTOX data", startRow = 3,
+          x = include)
+
+#SI-9 ECOTOX summary stats
+addWorksheet(wb, "SI-9 ECOTOX summary")
+writeData(wb = wb, sheet = "SI-9 ECOTOX summary", colNames = FALSE, rowNames = FALSE,
+          x = "SI-9 ECOTOX summary")
+writeData(wb = wb, sheet = "SI-9 ECOTOX summary", startRow = 3,
+          x = tox_stats)
 
 # Save the whole thing:
 saveWorkbook(wb, file.path(Sys.getenv("PASSIVE_PATH"),"Supplemental",

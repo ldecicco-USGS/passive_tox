@@ -8,3 +8,6 @@ source("R/analyze/graph_toxcast_ECOTOX.R")
 # Chemicals not included in ToxCast
 source("R/analyze/ecotox_non_toxcast.R")
 source("R/analyze/graph_non_toxcast_ECOTOX.R")
+
+#Combine files with just chems in ToxCast with files that have chems not in ToxCast
+source("R/analyze/Combine_ecotox.R")

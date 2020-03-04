@@ -128,5 +128,6 @@ tox_stats <- tox_fw[,-1] %>%
 tox_stats$num_endpoints <- ifelse(is.na(tox_stats$num_endpoints),0,tox_stats$num_endpoints)
 
 write.csv(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_non_toxcast.csv")
+saveRDS(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_non_toxcast.rds")
 
 #c("Fish","Algae","Amphibians","Crustaceans","Flowers","insects/Spiders","Invertebrates","Molluscs")

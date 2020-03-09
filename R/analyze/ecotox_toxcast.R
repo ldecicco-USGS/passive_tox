@@ -52,7 +52,9 @@ tox_fw <- tox %>%
          grepl("mg/L",Conc.1.Units..Standardized..),
          !grepl("No significance",Statistical.Significance.),
          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
-         !(value < 0.062 & CAS == "21145-77-7"))  #Tonalide outlier
+         !(value < 0.062 & CAS == "21145-77-7"),  # Tonalide outlier
+         Reference.Number. != 51469)  #Pyrene study with sediment and pore water
+
 
 table(tox_fw$Effect)
 unique(tox_fw$Effect.Measurement)
@@ -107,7 +109,7 @@ benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm"
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
-wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passive.xlsx"))
+wb <- loadWorkbook(file.path(path_to_data, "data", "data_for_git_repo","clean", "passive.xlsx"))
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_chems_in_toxcast.xlsx"),overwrite = TRUE)

@@ -45,6 +45,9 @@ tox_fw <- tox %>%
          grepl("mg/L",Conc.1.Units..Standardized..),
          !grepl("No significance",Statistical.Significance.))
 
+#Remove Pyrene study that included sediment and pore water
+
+
 # 
 # table(tox_fw$Effect)
 # unique(tox_fw$Effect.Measurement)
@@ -91,9 +94,11 @@ tox_fw$index <- chem_index
 benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement")]
 names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement")
 
+
 #Add PCB benchmark
 pcbs <- data.frame(1336363,"Total PCBs",0.0015,1,"Ambient WQC","","",stringsAsFactors = FALSE)
 names(pcbs) <- names(benchmark_tab)
+
 
 benchmark_tab <- bind_rows(benchmark_tab,pcbs)
 
@@ -108,7 +113,7 @@ benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm"
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
-wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passive.xlsx"))
+wb <- loadWorkbook(file.path(path_to_data, "data", "data_for_git_repo","clean", "passive.xlsx"))
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_non_toxcast.xlsx"),overwrite = TRUE)

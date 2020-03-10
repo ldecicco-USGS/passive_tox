@@ -55,6 +55,13 @@ tox_fw <- tox %>%
          !(value < 0.062 & CAS == "21145-77-7"),  # Tonalide outlier
          Reference.Number. != 51469)  #Pyrene study with sediment and pore water
 
+tox_fw_test <- tox_fw %>%  #remove ref 166555 for endpoints that were not adverse effects
+  filter((Reference.Number. == 166555 & value < 0.0011))
+
+
+range(tox_fw_test$value)
+
+
 
 table(tox_fw$Effect)
 unique(tox_fw$Effect.Measurement)
@@ -64,27 +71,6 @@ unique(tox_fw$Media.Type)
 table(tox_fw$Statistical.Significance.)
 table(tox_fw$Conc.1.Type..Standardized..)
 
-
-# tox_fw <- tox %>%
-#   filter(Media.Type == "Fresh water",
-#          Conc.1.Type..Standardized.. == "Active ingredient",
-#          Effect != "Accumulation",
-#          Exposure.Type != "Intraperitoneal",
-#          Exposure.Type != "Food",
-#          Exposure.Type != "Injection, unspecified",
-#          Exposure.Type != "Intramuscular",
-#          Media.Type != "Salt water",
-#          Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"),
-#          Effect != "Biochemistry",
-#          Effect != "Genetics",
-#          Effect != "Enzyme(s)",
-#          Effect != "Cell(s)",
-#          Statistical.Significance. != "No significance",
-#          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
-#          !(value < 0.062 & CAS == "21145-77-7"))  #Tonalide outlier
-
-# which(tox_fw$value < 4.80E-9 & tox_fw$CAS == "1912-24-9")
-# boxplot(value~Media.Type,log="y",las=2,data=tox)
 
 tox_fw <- tox_fw %>%
   arrange(chnm,value) 
@@ -99,6 +85,17 @@ tox_fw$index <- chem_index
 
 benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement")]
 names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement")
+
+
+#Add Dieldrin benchmark
+dieldrin <- data.frame(60571,"Dieldrin",0.0019,1,"Ambient WQC","","",stringsAsFactors = FALSE)
+names(dieldrin) <- names(benchmark_tab)
+benchmark_tab <- bind_rows(benchmark_tab,dieldrin)
+
+# #Add DDT benchmark
+# DDT <- data.frame(50293,"p,p DDT",0.001,1,"Ambient WQC","","",stringsAsFactors = FALSE)
+# names(DDT) <- names(benchmark_tab)
+# benchmark_tab <- bind_rows(benchmark_tab,DDT)
 
 benchmark_tab <- benchmark_tab %>%
   mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%

@@ -45,7 +45,6 @@ tox_fw <- tox %>%
          grepl("mg/L",Conc.1.Units..Standardized..),
          !grepl("No significance",Statistical.Significance.))
 
-#Remove Pyrene study that included sediment and pore water
 
 
 # 
@@ -57,28 +56,7 @@ tox_fw <- tox %>%
 # table(tox_fw$Statistical.Significance.)
 # table(tox_fw$Conc.1.Type..Standardized..)
 # 
-# boxplot(value~Effect,data=tox_fw,las=2,log="y")
-# boxplot(value~Conc.1.Type..Standardized..,data=tox_fw,las=2,log="y")
-# boxplot(value~Statistical.Significance.,data=tox_fw,las=2,log="y")
-
-
-# tox_fw <- filter_ecotox(df) {
-#   tox %>%
-#     filter(Media.Type == "Fresh water",
-#            Conc.1.Type..Standardized.. == "Active ingredient",
-#            Effect != "Accumulation",
-#            Exposure.Type %in% exposure.type.keep,
-#            Exposure.Type != "Food",
-#            Exposure.Type != "Injection, unspecified",
-#            Exposure.Type != "Intramuscular",
-#            Media.Type != "Salt water",
-#            Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"),
-#            Effect != "Biochemistry",
-#            Effect != "Genetics",
-#            Effect != "Enzyme(s)",
-#            Effect != "Cell(s)",
-#            Statistical.Significance. != "No significance")
-  
+ 
 
 tox_fw <- tox_fw %>%
   arrange(chnm,value) 
@@ -98,7 +76,6 @@ names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "En
 #Add PCB benchmark
 pcbs <- data.frame(1336363,"Total PCBs",0.0015,1,"Ambient WQC","","",stringsAsFactors = FALSE)
 names(pcbs) <- names(benchmark_tab)
-
 
 benchmark_tab <- bind_rows(benchmark_tab,pcbs)
 

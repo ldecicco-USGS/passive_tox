@@ -45,9 +45,8 @@ site_exceed_toxcast <- chemical_summary_toxcast %>%
   left_join(num_sites_monitored) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
 #  filter(proportion_sites_exceeded > Site_proportion_threshold) %>%
-#  arrange(desc(proportion_sites_exceeded))
-  arrange(as.character(chnm))
-write.csv(site_exceed_toxcast,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_toxcast.csv",row.names = FALSE)
+  arrange(proportion_sites_exceeded<=Site_proportion_threshold,as.character(chnm))
+#write.csv(site_exceed_toxcast,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_toxcast.csv",row.names = FALSE)
 
 
 num_sites_monitored <- chemical_summary_non_toxcast %>%
@@ -63,36 +62,12 @@ site_exceed_non_toxcast <- chemical_summary_non_toxcast %>%
   left_join(num_sites_monitored) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
   #  filter(proportion_sites_exceeded > Site_proportion_threshold) %>%
-  arrange(desc(proportion_sites_exceeded))
-#  arrange(as.character(chnm))
-write.csv(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_toxcast.csv",row.names = FALSE)
+  arrange(proportion_sites_exceeded<=Site_proportion_threshold,as.character(chnm))
+#write.csv(site_exceed_non_toxcast,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_non_toxcast.csv",row.names = FALSE)
 
+site_exceed_toxcast$ToxCast <- "Yes"
+site_exceed_non_toxcast$ToxCast <- "No"
+site_exceed <- full_join(site_exceed_toxcast,site_exceed_non_toxcast) %>%
+  arrange(ToxCast,desc(proportion_sites_exceeded))
+write.csv(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_all.csv",row.names = FALSE)
 
-
-#Test why TCEP does not show up on the priority list
-
-test <- chemical_summary_toxcast %>%
-  filter(grepl("TDCPP",chnm),EAR > 0)
-boxplot(test$EAR,log="y")
-abline(h=0.1)
-
-test <- chemical_summary_toxcast %>%
-  group_by(site,date,chnm)%>%
-  summarize(EARsum = sum(EAR)) %>%
-  group_by(site,date,chnm) %>%
-  summarize(EARsummax = max(EARsum)) %>%
-  filter(grepl("TCEP",chnm),EARsummax > 0)
-boxplot(test$EARsummax,log="y",horizontal = TRUE)
-abline(v=0.1)
-
-test2 <- test %>%
-  filter(EARsummax > 0.1)
-unique(test2$site)
-
-
-test <- chemical_summary_toxcast %>%
-  group_by(site,date,chnm)%>%
-  summarize(EARmax = max(EAR)) %>%
-  filter(grepl("TCEP",chnm),EARmax > 0)
-boxplot(test$EARmax,log="y",horizontal = TRUE)
-abline(v=0.1)

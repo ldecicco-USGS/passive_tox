@@ -32,7 +32,7 @@ for (i in 1:length(files)) {
   }else tox <- bind_rows(tox,tox_temp)
 }
 
-unique(tox$CAS.Number.)
+#unique(tox$CAS.Number.)
 tox <- left_join(tox,chem_CAS)
 
 conc_mean <- ifelse(!(tox$Conc.1.Mean..Standardized.. > 0),NA, tox$Conc.1.Mean..Standardized..)
@@ -44,16 +44,19 @@ sum(is.na(tox$value))
 
 exposure.type.keep <- c("Aquatic - not reported","Static","Flow-through", "Renewal","Lentic","Lotic")
 
+remove_references <- c(67566, 168095, 171681, 168095, 168095, 11170, 11628)
+
 tox_fw <- tox %>%
   filter(Media.Type == "Fresh water",
          Effect != "Accumulation",
          Exposure.Type %in% exposure.type.keep,
-         Conc.1.Type..Standardized.. == "Active ingredient",
+         Conc.1.Type..Standardized..  %in% c("Active ingredient","Total","Formulation"),
          grepl("mg/L",Conc.1.Units..Standardized..),
          !grepl("No significance",Statistical.Significance.),
          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
          !(value < 0.062 & CAS == "21145-77-7"),  # Tonalide outlier
-         Reference.Number. != 51469)  #Pyrene study with sediment and pore water
+         !(Reference.Number. %in% remove_references))  #Pyrene study with sediment and pore water
+
 
 tox_fw_test <- tox_fw %>%  #remove ref 166555 for endpoints that were not adverse effects
   filter((Reference.Number. == 166555 & value < 0.0011))
@@ -63,13 +66,13 @@ range(tox_fw_test$value)
 
 
 
-table(tox_fw$Effect)
-unique(tox_fw$Effect.Measurement)
-unique(tox_fw$Exposure.Type)
-table(tox_fw$Conc.1.Units..Standardized..)
-unique(tox_fw$Media.Type)
-table(tox_fw$Statistical.Significance.)
-table(tox_fw$Conc.1.Type..Standardized..)
+# table(tox_fw$Effect)
+# unique(tox_fw$Effect.Measurement)
+# unique(tox_fw$Exposure.Type)
+# table(tox_fw$Conc.1.Units..Standardized..)
+# unique(tox_fw$Media.Type)
+# table(tox_fw$Statistical.Significance.)
+# table(tox_fw$Conc.1.Type..Standardized..)
 
 
 tox_fw <- tox_fw %>%
@@ -88,9 +91,9 @@ names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "En
 
 
 #Add Dieldrin benchmark
-dieldrin <- data.frame(60571,"Dieldrin",0.0019,1,"Ambient WQC","","",stringsAsFactors = FALSE)
-names(dieldrin) <- names(benchmark_tab)
-benchmark_tab <- bind_rows(benchmark_tab,dieldrin)
+# dieldrin <- data.frame(60571,"Dieldrin",0.0019,1,"Ambient WQC","","",stringsAsFactors = FALSE)
+# names(dieldrin) <- names(benchmark_tab)
+# benchmark_tab <- bind_rows(benchmark_tab,dieldrin)
 
 # #Add DDT benchmark
 # DDT <- data.frame(50293,"p,p DDT",0.001,1,"Ambient WQC","","",stringsAsFactors = FALSE)

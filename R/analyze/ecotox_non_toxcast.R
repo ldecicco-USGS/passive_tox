@@ -41,9 +41,11 @@ tox_fw <- tox %>%
   filter(Media.Type == "Fresh water",
          Effect != "Accumulation",
          Exposure.Type %in% exposure.type.keep,
-         Conc.1.Type..Standardized.. == "Active ingredient",
+         Conc.1.Type..Standardized..  %in% c("Active ingredient","Total","Formulation"),
          grepl("mg/L",Conc.1.Units..Standardized..),
-         !grepl("No significance",Statistical.Significance.))
+         !grepl("No significance",Statistical.Significance.),
+         !(Reference.Number.%in% c(168095))) #Sulfamethoxazole outlier
+
 
 # 
 # table(tox_fw$Effect)
@@ -54,28 +56,7 @@ tox_fw <- tox %>%
 # table(tox_fw$Statistical.Significance.)
 # table(tox_fw$Conc.1.Type..Standardized..)
 # 
-# boxplot(value~Effect,data=tox_fw,las=2,log="y")
-# boxplot(value~Conc.1.Type..Standardized..,data=tox_fw,las=2,log="y")
-# boxplot(value~Statistical.Significance.,data=tox_fw,las=2,log="y")
-
-
-# tox_fw <- filter_ecotox(df) {
-#   tox %>%
-#     filter(Media.Type == "Fresh water",
-#            Conc.1.Type..Standardized.. == "Active ingredient",
-#            Effect != "Accumulation",
-#            Exposure.Type %in% exposure.type.keep,
-#            Exposure.Type != "Food",
-#            Exposure.Type != "Injection, unspecified",
-#            Exposure.Type != "Intramuscular",
-#            Media.Type != "Salt water",
-#            Conc.1.Units..Standardized.. %in% c("AI mg/L", "ml/L"),
-#            Effect != "Biochemistry",
-#            Effect != "Genetics",
-#            Effect != "Enzyme(s)",
-#            Effect != "Cell(s)",
-#            Statistical.Significance. != "No significance")
-  
+ 
 
 tox_fw <- tox_fw %>%
   arrange(chnm,value) 
@@ -91,11 +72,12 @@ tox_fw$index <- chem_index
 benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement")]
 names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement")
 
-#Add PCB benchmark
+
+# Add PCB benchmark from here: https://www.epa.gov/wqc/national-recommended-water-quality-criteria-aquatic-life-criteria-table
 pcbs <- data.frame(1336363,"Total PCBs",0.0015,1,"Ambient WQC","","",stringsAsFactors = FALSE)
 names(pcbs) <- names(benchmark_tab)
 
-benchmark_tab <- bind_rows(benchmark_tab,pcbs)
+ benchmark_tab <- bind_rows(benchmark_tab,pcbs)
 
 benchmark_tab <- benchmark_tab %>%
   mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%
@@ -108,7 +90,7 @@ benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm"
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
-wb <- loadWorkbook(file.path(path_to_data, "data", "toxEval input file", "passive.xlsx"))
+wb <- loadWorkbook(file.path(path_to_data, "data", "data_for_git_repo","clean", "passive.xlsx"))
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_non_toxcast.xlsx"),overwrite = TRUE)
@@ -131,3 +113,36 @@ write.csv(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_non_toxcast.csv")
 saveRDS(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_non_toxcast.rds")
 
 #c("Fish","Algae","Amphibians","Crustaceans","Flowers","insects/Spiders","Invertebrates","Molluscs")
+
+pcb <- tox %>%
+  filter(grepl("PCB",chnm))
+
+
+
+pcb_fw <- pcb %>%
+  filter(Media.Type == "Fresh water",
+         Effect != "Accumulation",
+Exposure.Type %in% exposure.type.keep,
+Conc.1.Type..Standardized.. %in% c("Active ingredient","Total","Formulation"),
+grepl("mg/L",Conc.1.Units..Standardized..),
+!grepl("No significance",Statistical.Significance.))
+
+
+boxplot(value~Effect,data = pcb,log="y",las=2)
+boxplot(value~Effect,data = pcb_fw,log="y",las=2)
+
+
+sulfameth <- benchmark_tab %>% filter(CAS == "723-46-6")
+min(sulfameth$Value)
+
+conc_mins <- readWorkbook(wb,sheet = 1) %>%
+  filter(Value > 0) %>%
+  group_by(CAS) %>%
+  summarize(ConcMin = min(Value),
+            ConcMedian = median(Value),
+            ConcMean = mean(Value)) %>%
+  left_join(chem_CAS) %>%
+  filter(CAS == "723-46-6")
+
+
+            

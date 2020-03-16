@@ -9,5 +9,9 @@ source("R/analyze/graph_toxcast_ECOTOX.R")
 source("R/analyze/ecotox_non_toxcast.R")
 source("R/analyze/graph_non_toxcast_ECOTOX.R")
 
-#Combine files with just chems in ToxCast with files that have chems not in ToxCast
+#Combine ToxCast and non ToxCast results
 source("R/analyze/Combine_ecotox.R")
+source("R/analyze/Combine_ecotox_benchmark_tab.R")
+
+#graph TQs
+source("R/analyze/TQ_boxplots.R")

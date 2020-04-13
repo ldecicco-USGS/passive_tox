@@ -5,27 +5,28 @@ library(ggplot2)
 library(ggpubr)
 library(readxl)
 
+path_to_data <- Sys.getenv("PASSIVE_PATH")
 
-create_triple_fig <- function(){
-  tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
+create_triple_fig <- function(path_to_data){
+  tox_list <- create_toxEval(file.path(path_to_data,
                                        "data","data_for_git_repo","clean",
                                        "passive.xlsx"))
   
   source(file = "R/analyze/get_sites_ready.R")
   site_info <- prep_site_list(tox_list$chem_site)
-  cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+  cas_final <- readRDS(file.path(path_to_data,
                                  "data","data_for_git_repo","clean",
                                  "cas_df.rds"))
   
-  tox_list_concentrations <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+  tox_list_concentrations <- readRDS(file.path(path_to_data,
                                             "data","data_for_git_repo","clean",
                                             "tox_list_concentrations.rds"))
   
-  graphData_tox_det <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+  graphData_tox_det <- readRDS(file.path(path_to_data,
                                          "data", "data_for_git_repo",
                                          "clean","graphData_tox_det.rds"))
   
-  graphData_conc_det_match <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
+  graphData_conc_det_match <- readRDS(file.path(path_to_data,
                                                 "data", "data_for_git_repo",
                                                 "clean","graphData_conc_det_match.rds"))
    

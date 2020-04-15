@@ -144,3 +144,12 @@ site_exceed <- chemicalSummary %>% group_by(chnm, CAS,site) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
   filter(proportion_sites_exceeded > Site_proportion_threshold)
 
+
+#Menthol comparisons
+#Pblication on in-vitro: https://doi.org/10.1016/0009-2797(83)90031-5
+#convert mM to ug/L
+
+menthol_endpoints <- c(0.32,0.76) #mM (m-moles/L)
+menthol_mw <- 156.27/1000 #g/mole/1000 = g/m-moles
+menthol_endpoints_gL <- menthol_endpoints*(menthol_mw)  #g/L
+menthol_endpoints_ugL <- menthol_endpoints * 1000000 #ug/L

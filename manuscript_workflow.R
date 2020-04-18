@@ -11,11 +11,13 @@ path_to_data <- Sys.getenv("PASSIVE_PATH")
 # be needed to run this script
 
 source(file = "read_chemicalSummary.R")
+
 tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
                                      "data","data_for_git_repo","clean",
                                      "passive.xlsx"))
 
-
+tox_list$exclusions <- tox_list$exclusions %>% 
+  filter(!is.na(CAS) & !is.na(endPoint))
 ###################################################
 # Mixtures stuff:
 EAR_thresh <- 0.001
@@ -66,29 +68,11 @@ df_assays <- chemicalSummary %>%
   rename(`ToxCast Assay` = endPoint,
          `Assay Source` = source)
 
-
-ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
-                                  "data","data_for_git_repo","raw",
-                                  "all_tox.rds"))
-
-chem_data <- tox_list$chem_info
-
-ALL_TOX_DATA_in_study <-  ALL_TOX_DATA %>% 
-  select(CAS = casn, endPoint=aenm, modl_acc, flags, hitc) %>% 
-  filter(CAS %in% chem_data$CAS) %>% 
-  group_by(CAS) %>% 
-  summarize(`Total ToxCast assays` = length(unique(endPoint)),
-            `Assays with hits` = length(unique(endPoint[hitc == 1])))
-
 assays_left <- chemicalSummary %>% 
   select(CAS, endPoint) %>% 
   distinct() %>% 
   group_by(CAS) %>% 
   summarize(`Assays in study` = length(unique(endPoint)))
-
-chem_data <- chem_data %>% 
-  left_join(ALL_TOX_DATA_in_study, by="CAS") %>% 
-  left_join(assays_left, by="CAS")
 
 AOP_crosswalk <- data.table::fread(file.path(path_to_data, "data/data_for_git_repo/raw", "AOP_crosswalk.csv"), data.table = FALSE)
 
@@ -119,74 +103,89 @@ suppressMessages(source("R/Analyze/ECOTOX_workflow.R"))
 
 ################################################
 # Create the supplemental:
-wb <- createWorkbook()
+source(file = "R/analyze/update_SI_2.R")
+
+tab_names <- c("SI-1 Site Table",
+               "SI-2 Chemical Table",
+               "SI-3 ToxCast Assays",
+               "SI-4 Exclusions",
+               "SI-5 AOP",
+               "SI-6 AOP and Panther",
+               "SI-7 ECOTOX data",
+               "SI-8 ECOTOX summary")
+
+captions <- c("Table SI-1: Site information",
+              "Edit in file!",
+              "Table SI-3: ToxCast Assays",
+              "Table SI-4: Exclusions",
+              "Table SI-5: AOPs",
+              "Table SI-6: AOP and Panther",
+              "Table SI-7: ECOTOX data",
+              "Table SI-8: ECOTOX summary")
+
+wb <- update_table_2(path_to_data, tab_names[2])
+
+
+
 # SI-1: Site Table
-addWorksheet(wb, "SI-1 Site Table")
+addWorksheet(wb, tab_names[1])
 header_st <- createStyle(textDecoration = "Bold")
-writeData(wb = wb, sheet =  "SI-1 Site Table", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-1: Site information")
-writeData(wb = wb, sheet = "SI-1 Site Table", startRow = 3,
+writeData(wb = wb, sheet =  tab_names[1], colNames = FALSE, rowNames = FALSE,
+          x = captions[1])
+writeData(wb = wb, sheet = tab_names[1], startRow = 3,
           x = tox_list$chem_site, headerStyle = header_st)
 
+worksheetOrder(wb) <- c(2,1)
 #SI-2: Chemical Table
-addWorksheet(wb, "SI-2 Chemical Table")
-writeData(wb = wb, sheet =  "SI-2 Chemical Table", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-2: Chemical Information")
-writeData(wb = wb, sheet = "SI-2 Chemical Table", startRow = 3,
-          x = chem_data, headerStyle = header_st)
-
-# SI-3: POCIS sampling rates
-addWorksheet(wb, "SI-3 POCIS sampling rates")
-writeData(wb = wb, sheet = "SI-3 POCIS sampling rates", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-3: POCIS sampling rates")
+# See update_table_2
 
 
-# SI-4: ToxCast Assays
-addWorksheet(wb, "SI-4 ToxCast Assays")
-writeData(wb = wb, sheet = "SI-4 ToxCast Assays", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-4: ToxCast Assays")
-writeData(wb = wb, sheet = "SI-4 ToxCast Assays", startRow = 3,
+# SI-3: ToxCast Assays
+addWorksheet(wb, tab_names[3])
+writeData(wb = wb, sheet = tab_names[3], colNames = FALSE, rowNames = FALSE,
+          x = captions[3])
+writeData(wb = wb, sheet = tab_names[3], startRow = 3,
           x = df_assays, headerStyle = header_st)
 
-# SI-5: Exclusions
-addWorksheet(wb, "SI-5 Exclusions")
-writeData(wb = wb, sheet = "SI-5 Exclusions", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-5: Exclusions")
-writeData(wb = wb, sheet = "SI-5 Exclusions", startRow = 3,
+# SI-4: Exclusions
+addWorksheet(wb, tab_names[4])
+writeData(wb = wb, sheet = tab_names[4], colNames = FALSE, rowNames = FALSE,
+          x = captions[4])
+writeData(wb = wb, sheet = tab_names[4], startRow = 3,
           x = rename(tox_list$exclusions,
                      `ToxCast Assay` = endPoint, Chemical = chnm), headerStyle = header_st)
 
-#SI-6 AOP crosswalk
-addWorksheet(wb, "SI-6 AOP")
-writeData(wb = wb, sheet = "SI-6 AOP", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-6: AOP")
-writeData(wb = wb, sheet = "SI-6 AOP", startRow = 3,
+#SI-5 AOP crosswalk
+addWorksheet(wb, tab_names[5])
+writeData(wb = wb, sheet = tab_names[5], colNames = FALSE, rowNames = FALSE,
+          x = captions[5])
+writeData(wb = wb, sheet = tab_names[5], startRow = 3,
           x = AOP_sup,
           headerStyle = header_st)
 
-#SI-7 AOP and Panther
-addWorksheet(wb, "SI-7 AOP and Panther")
-writeData(wb = wb, sheet = "SI-7 AOP and Panther", colNames = FALSE, rowNames = FALSE,
-          x = "Table SI-7: AOP and Panther")
-writeData(wb = wb, sheet = "SI-7 AOP and Panther", startRow = 3,
+#SI-6 AOP and Panther
+addWorksheet(wb, tab_names[6])
+writeData(wb = wb, sheet = tab_names[6], colNames = FALSE, rowNames = FALSE,
+          x = captions[6])
+writeData(wb = wb, sheet = tab_names[6], startRow = 3,
           x = AOP_pan,
           headerStyle = header_st)
 
-#SI-8 ECOTOX data
-addWorksheet(wb, "SI-8 ECOTOX data")
-writeData(wb = wb, sheet = "SI-8 ECOTOX data", colNames = FALSE, rowNames = FALSE,
-          x = "SI-8 ECOTOX data")
-writeData(wb = wb, sheet = "SI-8 ECOTOX data", startRow = 3,
+#SI-7 ECOTOX data
+addWorksheet(wb, tab_names[7])
+writeData(wb = wb, sheet = tab_names[7], colNames = FALSE, rowNames = FALSE,
+          x = captions[7])
+writeData(wb = wb, sheet = tab_names[7], startRow = 3,
           x = include)
 
-#SI-9 ECOTOX summary stats
-addWorksheet(wb, "SI-9 ECOTOX summary")
-writeData(wb = wb, sheet = "SI-9 ECOTOX summary", colNames = FALSE, rowNames = FALSE,
-          x = "SI-9 ECOTOX summary")
-writeData(wb = wb, sheet = "SI-9 ECOTOX summary", startRow = 3,
+#SI-8 ECOTOX summary stats
+addWorksheet(wb, tab_names[8])
+writeData(wb = wb, sheet = tab_names[8], colNames = FALSE, rowNames = FALSE,
+          x = captions[8])
+writeData(wb = wb, sheet = tab_names[8], startRow = 3,
           x = tox_stats)
 
 # Save the whole thing:
 saveWorkbook(wb, file.path(Sys.getenv("PASSIVE_PATH"),"Supplemental",
-                           "Supplemental.xlsx"), overwrite = TRUE)
+                           "Supplemental_32.xlsx"), overwrite = TRUE)
 

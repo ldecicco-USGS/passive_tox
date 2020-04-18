@@ -1,5 +1,6 @@
-update_table_2 <- function(path_to_data){
-  wb <- loadWorkbook(file.path(path_to_data, "Supplemental", "Table S2 - Chemical list+conc ranges.xlsx"))
+update_table_2 <- function(path_to_data, tabname1){
+  
+  wb <- loadWorkbook(file.path(path_to_data, "Supplemental", "SI_table2_DONT_CHANGE.xlsx"))
   
   df <- readWorkbook(wb, startRow = 5, check.names = TRUE)
   
@@ -35,18 +36,6 @@ update_table_2 <- function(path_to_data){
   orig_cas <- df$CAS
   
   df$CAS <- new_CAS$CAS
-  
-  # writeData(wb, sheet = "Table S2",
-  #           startRow = 6, startCol = 3, 
-  #           x = df$CAS)
-  
-  # changedCAS <- createStyle(fgFill = "steelblue2")
-  # 
-  # addStyle(wb, sheet = "Table S2",
-  #          style = changedCAS,
-  #          cols = 3, gridExpand = FALSE, 
-  #          rows = 5 + which(!orig_cas == new_CAS))
-  
   
   ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                     "data","data_for_git_repo","raw",
@@ -97,11 +86,6 @@ update_table_2 <- function(path_to_data){
            `2014_MDL` = format_2(1000*`2014_MDL`, nd_text = "--"),
            `2014_MQL` = format_2(1000*`2014_MQL`, nd_text = "--"))
   
-  
-  # writeData(wb, sheet = "Table S2",
-  #           startRow = 5, startCol = 24, 
-  #           x = df_tox)
-  
   chem_stats <- tox_list$chem_data %>% 
     mutate(Value = 1000 * Value) %>%
     group_by(CAS) %>% 
@@ -139,10 +123,12 @@ update_table_2 <- function(path_to_data){
            min_2014, max_2014, median_2014, mean_2014, n_dets_2014, samples_2014, `2014_MDL`, `2014_MQL`,
            min_tots, max_tots, tots_median, tots_mean, sites_det, sites_tested)
   
-  writeData(wb, sheet = "Table S2",
+  writeData(wb, sheet = "Sheet1",
             startRow = 6, startCol =6, colNames = FALSE,
             x = select(chem_stats, -CAS))
   
-  saveWorkbook(wb, file = file.path(path_to_data, "Supplemental", "Table2_Combo.xlsx"), overwrite = TRUE)
+  renameWorksheet(wb, sheet = "Sheet1", newName = tabname1)
+  
+  return(wb)
   
 }

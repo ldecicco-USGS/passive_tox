@@ -62,11 +62,18 @@ y <- ToxCast_ACC %>%
 
 # Number of detected chemicals in Tox with hits:
 nrow(y)
-length(unique(filter(chemicalSummary,EAR > 0)$chnm))
+chem_data<- tox_list$chem_data
+length(unique(chem_data$CAS[chem_data$Value > 0]))
+#THIS DOES INCLUDE PCBs!
+
+x <- graph_chem_data(chemicalSummary) %>% 
+  filter(meanEAR > 10^-3)
+
+x %>% group_by(chnm) %>% summarize(nsites = length(unique(site))) %>% filter(nsites >= 10)
 
 ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                   "data","data_for_git_repo","raw",
-                                  "all_tox.rds"))
+                                  "all_tox_32.rds"))
 
 num_chems_tested <- ALL_TOX_DATA %>% 
   filter(casn %in% x)
@@ -75,7 +82,8 @@ num_chems_tested <- ALL_TOX_DATA %>%
 # and how many of those had measureable effects (102)
 length(unique(num_chems_tested$casn))
 length(unique(num_chems_tested$casn))/length(x)
-length(unique(chemicalSummary$CAS[chemicalSummary$EAR > 0]))
+
+length(unique(chemicalSummary$chnm[chemicalSummary$EAR > 0]))
 
 chemicalSummary %>% 
   filter(EAR > 0) %>% 

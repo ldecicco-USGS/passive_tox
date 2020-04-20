@@ -39,7 +39,7 @@ update_table_2 <- function(path_to_data, tabname1){
   
   ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                     "data","data_for_git_repo","raw",
-                                    "all_tox.rds"))
+                                    "all_tox_32.rds"))
   
   chem_info <- tox_list$chem_info
   

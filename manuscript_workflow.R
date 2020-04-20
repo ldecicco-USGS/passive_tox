@@ -125,8 +125,6 @@ captions <- c("Table SI-1: Site information",
 
 wb <- update_table_2(path_to_data, tab_names[2])
 
-
-
 # SI-1: Site Table
 addWorksheet(wb, tab_names[1])
 header_st <- createStyle(textDecoration = "Bold")

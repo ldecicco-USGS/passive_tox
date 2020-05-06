@@ -235,7 +235,7 @@ clean_top_mixes <- function(join_everything,
   
   top_mixes_wide <- top_mixes %>% 
     mutate(index = 1:nrow(top_mixes)) %>% 
-    separate(chems, sep = "\\|", 
+    separate(chems, sep = "\\|", # separate_rows?
              into =  letters[1:max(top_mixes$n_chems)]) %>% 
     pivot_longer(cols = c(-endPoint, -n_chems, 
                           -n_samples, -n_sites, -index)) %>% 

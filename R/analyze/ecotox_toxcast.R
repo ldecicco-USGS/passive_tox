@@ -113,6 +113,7 @@ wb <- loadWorkbook(file.path(path_to_data, "data", "data_for_git_repo","clean", 
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_chems_in_toxcast.xlsx"),overwrite = TRUE)
+dir.create("R/Analyze/Out", showWarnings = FALSE)
 write.csv(tox_fw,"R/Analyze/Out/ECOTOX_filtered_toxcast.csv",row.names = FALSE)
 saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered_toxcast.Rds")
 # 

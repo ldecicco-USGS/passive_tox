@@ -1,4 +1,6 @@
 # Ecotox workflow:
+dir.create("R/analyze/plots", showWarnings = FALSE)
+dir.create("R/analyze/out", showWarnings = FALSE)
 
 # Chemicals included in ToxCast
 source("R/analyze/ecotox_toxcast.R")

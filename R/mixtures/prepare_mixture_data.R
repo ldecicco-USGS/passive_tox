@@ -25,39 +25,28 @@ join_everything_fnx <- function(chemicalSummary){
   
   ##########################################
   # Gene targets
+
   gene_info <- select(end_point_info,
                       endPoint = assay_component_endpoint_name,
                       geneID = intended_target_gene_id,
                       geneName = intended_target_gene_name,
                       geneSymbol = intended_target_gene_symbol)
+
+  #Genes that don't have proper formatting:
+  gene_info$geneName[which(gene_info$geneID == "321|322|1463|1477")] <- c("thyroid hormone receptor, alpha|thyroid hormone receptor, beta|thyroid hormone receptor, alpha | thyroid hormone receptor, beta",
+                                                                          "thyroid hormone receptor, alpha|thyroid hormone receptor, beta|thyroid hormone receptor, alpha | thyroid hormone receptor, beta")
+
+  gene_info$geneSymbol[which(gene_info$geneID == "321|322|1463|1477")] <- c("THRA|THRB|THRA|THRB",
+                                                                            "THRA|THRB|THRA|THRB")
+  gene_info$geneSymbol[which(gene_info$geneID == "183|1476")] <- c("JUN|FOS")
+  gene_info$geneName[which(gene_info$geneID == "183|1476")] <- c("jun proto-oncogene|FBJ murine osteosarcoma viral oncogene homolog")
+
+  gene_info_long <- gene_info %>%
+    filter(!is.na(geneID)) %>%
+    separate_rows(geneSymbol, 
+                  geneName, sep = "\\|")
   
-  multiple_genes <- unique(gene_info$geneSymbol[grep(pattern = "\\|",
-                                                     x = gene_info$geneSymbol)])
-  
-  suppressWarnings({
-    gene_info_wide <- gene_info %>%
-      mutate(orig_symbol = geneSymbol) %>% 
-      separate(geneSymbol, into = c("a","b","c","d"),
-               sep = "\\|") %>% 
-      separate(geneID, into = c("IDa","IDb","IDc","IDd"),
-               sep = "\\|") %>% 
-      separate(geneName, into = c("Namea","Nameb","Namec","Named"),
-               sep = "\\|")  
-  })
-  
-  
-  gene_info_long <- gene_info_wide %>% 
-    select(endPoint, geneID = IDa, geneSymbol = a, geneName = Namea) %>% 
-    rbind(gene_info_wide %>% 
-            select(endPoint, geneID = IDb, geneSymbol = b, geneName = Nameb) %>% 
-            filter(!is.na(geneID))) %>% 
-    rbind(gene_info_wide %>% 
-            select(endPoint, geneID = IDc, geneSymbol = c, geneName = Namec) %>% 
-            filter(!is.na(geneID))) %>% 
-    rbind(gene_info_wide %>% 
-            select(endPoint, geneID = IDd, geneSymbol = d, geneName = Named) %>% 
-            filter(!is.na(geneID)))
-  
+ 
   gene <- select(gene_info_long,
                  endPoint,
                  gene = geneSymbol)

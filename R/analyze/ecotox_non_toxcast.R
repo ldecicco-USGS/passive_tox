@@ -97,6 +97,7 @@ saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "pass
 saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered_non_toxcast.rds")
 write.csv(tox_fw,"R/Analyze/Out/ECOTOX_filtered_non_toxcast.csv",row.names = FALSE)
 
+
 #Determine stats for each chem
 tox_stats <- tox_fw[,-1] %>%
   group_by(chnm,CAS,Chemical.Name) %>%
@@ -108,6 +109,11 @@ tox_stats <- tox_fw[,-1] %>%
   arrange(is.na(num_endpoints),Class,chnm)
 
 tox_stats$num_endpoints <- ifelse(is.na(tox_stats$num_endpoints),0,tox_stats$num_endpoints)
+
+tox_stats_ECOTOX <- filter(tox_stats, num_endpoints > 0)
+max(tox_stats_ECOTOX$num_endpoints)
+min(tox_stats_ECOTOX$num_endpoints)
+dim(tox_stats_ECOTOX)[1]             # number of chems in ECOTOX + ToxCast
 
 write.csv(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_non_toxcast.csv")
 saveRDS(tox_stats,file = "R/Analyze/Out/Tox_endpoint_stats_non_toxcast.rds")

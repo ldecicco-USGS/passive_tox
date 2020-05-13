@@ -14,8 +14,8 @@ source(file = "R/analyze/graph_chem_data_CAS.R")
 source(file = "R/report/plot_tox_endpoints_manuscript.R")
 
 data_analysis_plan <- drake_plan(
-  cas_final = readRDS(file_in("data/clean/cas_df.rds")),
-  tox_list = create_toxEval(file_in("data/clean/passive.xlsx")),
+  cas_final = readRDS(file_in(!!file.path(path_to_data, "data/data_for_git_repo/clean/cas_df.rds"))),
+  tox_list = create_toxEval(file_in(!!file.path(path_to_data, "data/data_for_git_repo/clean/passive.xlsx"))),
   ACC = get_ACC(tox_list$chem_info$CAS) %>%
     remove_flags(),
   cleaned_ep = clean_endPoint_info(end_point_info),
@@ -25,8 +25,6 @@ data_analysis_plan <- drake_plan(
                                remove_groups = c('Background Measurement','Undefined','Cell Cycle','NA')),
   
   chemicalSummary = get_chemical_summary(tox_list, ACC, filtered_ep),
-  chem_sum_save = saveRDS(chemicalSummary, 
-                          file = file_out("data/clean/chemical_summary.rds")),
   chem_sum_save_sync = saveRDS(chemicalSummary,
                           file = file_out(!!file.path(path_to_data,"data/data_for_git_repo/clean/chemical_summary.rds"))),
   benchmarks = tox_list$chem_data %>%
@@ -84,7 +82,7 @@ data_analysis_plan <- drake_plan(
   toxPlot_ear_conc_matches_filter = fancy_combo(graphData_tox_det_filter,
                                                 graphData_conc_det_match_filter,
                                                 tox_list),
-  AOP = readr::read_csv(file_in(readd(AOP_crosswalk))) %>%
+  AOP = readr::read_csv(file_in(!!file.path(path_to_data,"data/data_for_git_repo/raw/AOP_crosswalk.csv"))) %>%
                           select(endPoint=`Component Endpoint Name`, ID=`AOP #`) %>%
                           distinct(),
   aop_graph = plot_tox_endpoints_manuscript(chemicalSummary, AOP,
@@ -99,8 +97,7 @@ data_analysis_plan <- drake_plan(
 
 )
 
-config <- drake_config(data_analysis_plan)
-vis_drake_graph(config, build_times = "none")
+vis_drake_graph(data_analysis_plan, build_times = "none")
 
 make(data_analysis_plan, trigger = trigger(condition=TRUE))
 

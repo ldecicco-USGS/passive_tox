@@ -5,7 +5,7 @@ create_tox_object <- function(all_data, chem_info, sites, exclude){
            !(chnm == "Chlorpyrifos" & generic_class == "WW"),
            !(chnm == "Caffeine" & generic_class == "WW"),
            !(chnm == "Cotinine" & generic_class == "WW")) %>%
-    select(SiteID, `Sample Date`, CAS, Value, comment) 
+    select(SiteID, `Sample Date`, CAS, Value, comment, MDL, MQL, `Date Deployed`, `Date Retrieved`) 
   
   sites_ordered <- sites %>% 
     filter(SiteID %in% chem_data$SiteID)

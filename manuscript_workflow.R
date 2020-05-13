@@ -12,9 +12,7 @@ path_to_data <- Sys.getenv("PASSIVE_PATH")
 
 source(file = "read_chemicalSummary.R")
 
-tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
-                                     "data","data_for_git_repo","clean",
-                                     "passive.xlsx"))
+unique(tox_list$chem_data$CAS)[which(!(unique(tox_list$chem_data$CAS)) %in% tox_list$chem_info$CAS)]
 
 tox_list$exclusions <- tox_list$exclusions %>% 
   filter(!is.na(CAS) & !is.na(endPoint))
@@ -150,7 +148,7 @@ addWorksheet(wb, tab_names[4])
 writeData(wb = wb, sheet = tab_names[4], colNames = FALSE, rowNames = FALSE,
           x = captions[4])
 writeData(wb = wb, sheet = tab_names[4], startRow = 3,
-          x = rename(tox_list$exclusions,
+          x = rename(select(tox_list$exclusions, -Chemical),
                      `ToxCast Assay` = endPoint, Chemical = chnm), headerStyle = header_st)
 
 #SI-5 AOP crosswalk

@@ -224,12 +224,14 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
     } 
   }
   
+  chem_site$`Short Name` <- factor(chem_site$`Short Name`, levels = rev(levels(chem_site$`Short Name`)))
+  
   graphData <- graphData %>%
     dplyr::full_join(chem_site[, c("SiteID", "site_grouping", "Short Name")],
                      by=c("site"="SiteID"))
   
-  graphData$`Short Name` <- factor(graphData$`Short Name`, levels = rev(levels(graphData$`Short Name`)))
-  
+  # graphData$`Short Name` <- factor(graphData$`Short Name`, levels = rev(levels(graphData$`Short Name`)))
+  # 
   if(is.na(title)){
     graphData$count_title <- ""
   } else {
@@ -237,6 +239,7 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
   }
   
   counts_df <- chem_counts(chemical_summary, chem_site)
+  counts_df$`Short Name` <- factor(counts_df$`Short Name`, levels = levels(chem_site$`Short Name`))
   
   counts_df <- counts_df %>% 
     right_join(select(chem_site, `Short Name`, map_nm), by="Short Name")
@@ -246,7 +249,8 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
   labels_df <- data.frame(y = c(-0.05,-0.01),
                           x = c(Inf,Inf),
                           label = c("Map Name","# Chems"),
-                          site_grouping = c("Lake Superior","Lake Superior"))
+                          site_grouping = factor(c("Lake Superior","Lake Superior"), 
+                                                 levels = levels(counts_df$site_grouping)))
   
   classes <- c("Insecticide","Flavor/Fragrance",
                "Antimicrobial disinfectant", "Herbicide",                 

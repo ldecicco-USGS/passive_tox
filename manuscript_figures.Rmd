@@ -19,14 +19,11 @@ library(ggpubr)
 library(cowplot)
 
 source(file = "read_chemicalSummary.R")
-tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
-                                     "data","data_for_git_repo","clean",
-                                     "passive.xlsx"))
-
 source(file = "R/analyze/get_sites_ready.R")
+
 site_info <- prep_site_list(tox_list$chem_site)
-cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
-                               "data","data_for_git_repo","clean",
+
+cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"), "data","data_for_git_repo","clean",
                                "cas_df.rds"))
 
 ```
@@ -63,12 +60,13 @@ df <- Chem_Class_correlation_table()
 
 df <- tibble(x = 0.92,
              y = 0.92,
-             site_grouping = factor("Lake Superior", 
-                                    levels = lakes_ordered),
+             site_grouping = factor("Lake Superior", levels = lakes_ordered),
              tb = list(df))
 
 color_map <- class_colors(tox_list)
 font_size <- 5
+
+chemicalSummary$shortName <- factor(chemicalSummary$shortName, levels = levels(site_info$`Short Name`))
 
 upperPlot <- plot_tox_stacks_manuscript2(chemical_summary = chemicalSummary, 
                        chem_site = site_info, 

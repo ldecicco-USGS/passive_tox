@@ -25,28 +25,15 @@ get_chem_info <- function(all_data, chem_info_old){
               sites_det = length(unique(SiteID[Value != 0])))
   
   #DLs:
-  dls <- select(all_data, CAS, generic_class, MDL, MQL, Date = `Sample Date`, DL, RL) %>%
+  dls <- select(all_data, CAS, generic_class, MDL, MQL, Date = `Sample Date`) %>% #, DL, RL) %>%
     distinct() 
-  
-  dls$MDL[is.na(dls$MDL)] <- dls$DL[is.na(dls$MDL)]
-  dls$MQL[is.na(dls$MQL)] <- dls$RL[is.na(dls$MQL)]
-  
-  dls$MDL[dls$generic_class == "WW"] <- dls$MDL[dls$generic_class == "WW"]/1000
-  dls$MQL[dls$generic_class == "WW"] <- dls$MQL[dls$generic_class == "WW"]/1000
-  dls$MDL[dls$generic_class == "pharms"] <- dls$MDL[dls$generic_class == "pharms"]/1000
-  dls$MQL[dls$generic_class == "pharms"] <- dls$MQL[dls$generic_class == "pharms"]/1000
-  dls$MDL[dls$generic_class %in% c("OC-PCB-PBDE","PAHs")] <- dls$MDL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")]/1000000
-  dls$MQL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")] <- dls$MQL[dls$generic_class  %in% c("OC-PCB-PBDE","PAHs")]/1000000
-  
+
   x <- dls %>%
-    dplyr::select(-DL, -RL) %>%
     tidyr::gather(variable, value, -Date, -CAS, -generic_class) %>%
     tidyr::unite(temp, Date, variable) %>%
     tidyr::spread(temp, value) %>%
     dplyr::select(-generic_class)
-  
-    # select(-`2014.5_MDL`, -`2014.5_MQL`, -`2010.5_MQL`, -`2010.5_MDL`)
-  
+
   x$`2014_MQL`[x$CAS == "1912-24-9"] <- x$`2014_MQL`[x$CAS == "1912-24-9"][!is.na(x$`2014_MQL`[x$CAS == "1912-24-9"])]
   
   x <- x[-duplicated(x$CAS),]
@@ -61,9 +48,11 @@ get_chem_info <- function(all_data, chem_info_old){
 }
 
 get_exclude <- function(exclude_download){
-  exclude <- read.csv(exclude_download, stringsAsFactors = FALSE)
-  exclude <- left_join(exclude, select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
-  exclude <- select(exclude, CAS, endPoint, chnm, everything(), -X)
+  exclude <- data.table::fread(exclude_download, data.table = FALSE)
+  exclude <- left_join(exclude, 
+                       select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), 
+                       by = c("CAS"))
+  exclude <- select(exclude, CAS, endPoint, chnm, dplyr::everything())
   return(exclude)
 }
 

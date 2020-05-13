@@ -65,18 +65,20 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
     names(data_wide)[1] <- "chnm"
     
     if(sites_start == 4){
-      names(data_wide)[2] <- "DL"
-      names(data_wide)[3] <- "RL"
+      names(data_wide)[2] <- "MDL"
+      names(data_wide)[3] <- "MQL"
       data_long <- data_wide %>%
-        tidyr::gather(SiteID, Value, -chnm, -DL,-RL)
+        tidyr::gather(SiteID, Value, -chnm, -MDL,-MQL)
       sheet <- "WW"
     } else {
-      names(data_wide)[2] <- "RL"
+      names(data_wide)[2] <- "MQL"
       data_long <- data_wide %>%
-        tidyr::gather(SiteID, Value, -chnm, -RL)
+        tidyr::gather(SiteID, Value, -chnm, -MQL) %>% 
+        mutate(MDL = NA)
       sheet <- "pharms"
     }
   }
+
   data_long <- dplyr::filter(data_long, !is.na(Value))
   data_long <- dplyr::filter(data_long, !is.na(chnm))
   data_long$comment <- ""
@@ -100,6 +102,10 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
 
   data_long$Value <- signif(as.numeric(data_long$Value), digits = 2)
   data_long$Value <- data_long$Value/convert
+  data_long$MDL <- signif(as.numeric(data_long$MDL), digits = 2)
+  data_long$MDL <- data_long$MDL/convert
+  data_long$MQL <- signif(as.numeric(data_long$MQL), digits = 2)
+  data_long$MQL <- data_long$MQL/convert
   data_long$generic_class <- sheet
   data_long$`Sample Date` <- year
   data_long$SiteID <- gsub("site ","",data_long$SiteID, ignore.case = TRUE)

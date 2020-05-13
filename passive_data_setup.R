@@ -122,6 +122,3 @@ make(data_setup_plan, trigger = trigger(condition=TRUE))
 
 
 
-# sankey_drake_graph(config)
-
-

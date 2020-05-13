@@ -65,4 +65,6 @@ include <- ecotox %>%
          Publication.Year, value)
 )
 
+write.csv(ecotox,file = file.path("R","Analyze","Out","ECOTOX_combined.csv"),row.names = FALSE)
+saveRDS(ecotox,file = file.path("R","Analyze","Out","ECOTOX_combined.rds"))
 write.csv(include,file.path(Sys.getenv("PASSIVE_PATH"),"Supplemental","SI_table_ECOTOX.csv"),row.names = FALSE)

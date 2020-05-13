@@ -44,7 +44,8 @@ sum(is.na(tox$value))
 
 exposure.type.keep <- c("Aquatic - not reported","Static","Flow-through", "Renewal","Lentic","Lotic")
 
-remove_references <- c(67566, 168095, 171681, 168095, 168095, 11170, 11628)
+remove_references <- c(67566, 168095, 171681, 168095, 168095, 11170, 11628)#, 157699)
+# Carbamazepine (157699) moderate outlier: mRNA signals. Removed per Dan and Brett. All others are fairly large outliers.
 
 tox_fw <- tox %>%
   filter(Media.Type == "Fresh water",
@@ -101,8 +102,11 @@ names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "En
 # benchmark_tab <- bind_rows(benchmark_tab,DDT)
 
 benchmark_tab <- benchmark_tab %>%
-  mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%
-  mutate(groupCol = "ECOTOX")
+  mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) 
+
+tier1 <- c("Reproduction","Mortality","Growth","Development","Population", "Behavior")
+benchmark_tab$groupCol <- ifelse(benchmark_tab$Effect %in% tier1,"Tier 1","Tier 2")
+
 
 benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm")]) %>%
   rename(Chemical = chnm)
@@ -176,11 +180,11 @@ saveRDS(tox_fw,"R/Analyze/Out/ECOTOX_filtered_toxcast.Rds")
 # min(test$Value)
 
 
-p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
-  geom_boxplot()+
-  scale_y_continuous(trans='log10') + 
-  theme(axis.text.x = element_text(angle = 90)) +
-  facet_wrap(~chnm)
+# p <- ggplot(data = tox_fw,aes(x=Effect,y=value)) + 
+#   geom_boxplot()+
+#   scale_y_continuous(trans='log10') + 
+#   theme(axis.text.x = element_text(angle = 90)) +
+#   facet_wrap(~chnm)
 
 #Determine stats for each chem
 tox_stats <- tox_fw[,-1] %>%

@@ -148,7 +148,7 @@ addWorksheet(wb, tab_names[4])
 writeData(wb = wb, sheet = tab_names[4], colNames = FALSE, rowNames = FALSE,
           x = captions[4])
 writeData(wb = wb, sheet = tab_names[4], startRow = 3,
-          x = rename(tox_list$exclusions,
+          x = rename(select(tox_list$exclusions, -Chemical),
                      `ToxCast Assay` = endPoint, Chemical = chnm), headerStyle = header_st)
 
 #SI-5 AOP crosswalk

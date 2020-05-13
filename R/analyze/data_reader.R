@@ -5,10 +5,24 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
                           sheet = sheet,
                           skip = skip, n_max = n_max)
   
-  site_stuff <- read_excel(file_name,
+  site_stuff <- read_xlsx(file_name, 
                            sheet = site_sheet,
                            skip = skip_site)
   
+  if(inherits(site_stuff$`Date Deployed`, "POSIXct")){
+    site_stuff$`Date Deployed` <- as.Date(site_stuff$`Date Deployed`)    
+  } else {
+    site_stuff$`Date Deployed` <- as.Date(as.integer(site_stuff$`Date Deployed`), 
+                                          origin = "1899-12-30")    
+  }
+
+  if(inherits(site_stuff$`Date Retrieved`, "POSIXct")){
+    site_stuff$`Date Retrieved` <- as.Date(site_stuff$`Date Retrieved`)    
+  } else {
+    site_stuff$`Date Retrieved` <- as.Date(as.integer(site_stuff$`Date Retrieved`), 
+                                           origin = "1899-12-30")    
+  }
+
   if("CERC Site #" %in% names(site_stuff)){
     site_stuff <- rename(site_stuff, SiteID=`CERC Site #`)
   } else {
@@ -83,8 +97,8 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
   data_long$Value[which(data_long$Value == "ND")] <- data_long$MDL[which(data_long$Value == "ND")]
   data_long <- filter(data_long, Value != "NA")
   data_long$Value[data_long$Value == "7.0000000000000007-2"] <- "0.7"
-  
-  data_long$Value <- as.numeric(data_long$Value) 
+
+  data_long$Value <- signif(as.numeric(data_long$Value), digits = 2)
   data_long$Value <- data_long$Value/convert
   data_long$generic_class <- sheet
   data_long$`Sample Date` <- year
@@ -107,7 +121,8 @@ generic_file_opener <- function(file_name, cas_df, n_max, sheet, site_sheet,
     mutate(chnm = tolower(chnm)) %>%
     left_join(cas_df, by="chnm") %>%
     mutate(chnm = tools::toTitleCase(chnm)) %>%
-    left_join(select(site_stuff, SiteID, STAID, `Station shortname`), by="SiteID") 
+    left_join(select(site_stuff, SiteID, STAID, `Station shortname`, `Date Deployed`, `Date Retrieved`), 
+              by="SiteID") 
   
   #Keep replicates:
   # data_long$`Sample Date`[grepl(pattern = "Replicate",

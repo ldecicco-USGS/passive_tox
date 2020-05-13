@@ -12,9 +12,7 @@ path_to_data <- Sys.getenv("PASSIVE_PATH")
 
 source(file = "read_chemicalSummary.R")
 
-tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
-                                     "data","data_for_git_repo","clean",
-                                     "passive.xlsx"))
+unique(tox_list$chem_data$CAS)[which(!(unique(tox_list$chem_data$CAS)) %in% tox_list$chem_info$CAS)]
 
 tox_list$exclusions <- tox_list$exclusions %>% 
   filter(!is.na(CAS) & !is.na(endPoint))

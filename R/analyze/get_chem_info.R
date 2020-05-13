@@ -61,9 +61,11 @@ get_chem_info <- function(all_data, chem_info_old){
 }
 
 get_exclude <- function(exclude_download){
-  exclude <- read.csv(exclude_download, stringsAsFactors = FALSE)
-  exclude <- left_join(exclude, select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), by = "CAS")
-  exclude <- select(exclude, CAS, endPoint, chnm, everything(), -X)
+  exclude <- data.table::fread(exclude_download, data.table = FALSE)
+  exclude <- left_join(exclude, 
+                       select(toxEval::tox_chemicals, CAS=Substance_CASRN, chnm=Substance_Name), 
+                       by = c("CAS"))
+  exclude <- select(exclude, CAS, endPoint, chnm, dplyr::everything())
   return(exclude)
 }
 

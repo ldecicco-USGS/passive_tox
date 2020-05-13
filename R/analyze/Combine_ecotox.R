@@ -2,6 +2,10 @@
 
 library(openxlsx)
 library(readxl)
+library(readr)
+library(dplyr)
+
+path_to_data <- Sys.getenv("PASSIVE_PATH")
 
 ecotox_toxcast <- read_rds("R/Analyze/Out/ECOTOX_filtered_toxcast.Rds")
 ecotox_non_toxcast <- read_rds("R/Analyze/Out/ECOTOX_filtered_non_toxcast.Rds")

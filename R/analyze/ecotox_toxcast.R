@@ -114,6 +114,7 @@ benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm"
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
 wb <- loadWorkbook(file.path(path_to_data, "data", "data_for_git_repo","clean", "passive.xlsx"))
+#saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_TEST.xlsx"),overwrite = TRUE)
 addWorksheet(wb,sheetName = "Benchmarks")
 writeData(wb,sheet = "Benchmarks",x=benchmark_tab)
 saveWorkbook(wb,file=file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_chems_in_toxcast.xlsx"),overwrite = TRUE)

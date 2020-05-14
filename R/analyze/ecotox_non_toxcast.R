@@ -26,7 +26,8 @@ for (i in 1:length(files)) {
   }else tox <- bind_rows(tox,tox_temp)
 }
 
-tox <- left_join(tox,chem_CAS)
+tox <- left_join(tox,chem_CAS) %>%
+  filter(!is.na(chnm))
 
 conc_mean <- ifelse(!(tox$Conc.1.Mean..Standardized.. > 0),NA, tox$Conc.1.Mean..Standardized..)
 conc_min <- ifelse(!(tox$Conc.Min.1..Standardized.. > 0),NA, tox$Conc.Min.1..Standardized..)
@@ -80,8 +81,11 @@ names(pcbs) <- names(benchmark_tab)
  benchmark_tab <- bind_rows(benchmark_tab,pcbs)
 
 benchmark_tab <- benchmark_tab %>%
-  mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) %>%
-  mutate(groupCol = "ECOTOX")
+  mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) 
+
+tier1 <- c("Reproduction","Mortality","Growth","Development","Population", "Behavior")
+benchmark_tab$groupCol <- ifelse(benchmark_tab$Effect %in% tier1,"Tier 1","Tier 2")
+
 
 benchmark_tab <- left_join(benchmark_tab,chem_CAS[,c("CAS.Number.", "CAS","chnm")]) %>%
   rename(Chemical = chnm)

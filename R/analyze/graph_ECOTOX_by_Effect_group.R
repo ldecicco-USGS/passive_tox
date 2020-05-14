@@ -8,7 +8,7 @@ library(ggforce)
 
 tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),
                                      "data","toxEval input file",
-                                     "passive_benchmarks.xlsx"))
+                                     "passive_benchmarks_all.xlsx"))
 benchmarks <- tox_list$benchmarks
 
 endpoints <- unique(benchmarks$endPoint)

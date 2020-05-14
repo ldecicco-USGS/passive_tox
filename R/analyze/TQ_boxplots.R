@@ -1,15 +1,16 @@
 library(toxEval)
 
-file_path <- file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_ECOTOX.xlsx")
+file_path <- file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_all.xlsx")
 
 tox_list_bench <- create_toxEval(file_path)
 summary_bench <- get_chemical_summary(tox_list_bench)
 
 pdf(file.path("R","Analyze","plots","TQ_boxplots.pdf"),height = 11)
-plot_tox_boxplots(summary_bench, 
+p <- plot_tox_boxplots(summary_bench, 
                   category = "Chemical", 
                   sum_logic = FALSE,
                   x_label = "Toxicity Quotient")
+print(p)
 dev.off()
 
 
@@ -31,7 +32,8 @@ gd_bench <- graph_chem_data(summary_bench,
 combo <- side_by_side_data(gd_tox, gd_bench, 
                            left_title = "ToxCast", 
                            right_title = "ECOTOX")
-plot_chemical_boxplots(combo, guide_side,
+p <- plot_chemical_boxplots(combo, guide_side,
                        x_label = "") +
   ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
+print(p)
 dev.off()

@@ -25,7 +25,7 @@ num_sites_monitored <- chemical_summary_ecotox %>%
   summarize(sites_monitored = length(unique(site))) %>%
   arrange(sites_monitored,chnm)
 
-site_exceed <- chemical_summary_ecotox %>% 
+site_exceed_init <- chemical_summary_ecotox %>% 
   group_by(site,Class,chnm,CAS,Bio_category) %>%
   summarize(maxEAR = max(EAR)) %>%
   group_by(Class,chnm, CAS, Bio_category) %>%
@@ -34,26 +34,22 @@ site_exceed <- chemical_summary_ecotox %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
   arrange(proportion_sites_exceeded<=Site_proportion_threshold,as.character(chnm))
 
-chem_order <- site_exceed %>%
+chem_order <- site_exceed_init %>%
   group_by(CAS,chnm) %>%
   summarize(max_site_exceed = max(proportion_sites_exceeded)) %>%
   arrange(max_site_exceed) %>%
-  mutate(chnm = factor(CAS,levels = CAS)) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(CAS = factor(CAS,levels = CAS))
 
-site_exceed$chnm <- factor(site_exceed$CAS,levels = chem_order$CAS)
+site_exceed_init$CAS <- factor(site_exceed_init$CAS,levels = chem_order$CAS)
 
-site_exceed <- site_exceed %>%
+site_exceed_init <- site_exceed_init %>%
   arrange(desc(CAS),Bio_category)
 
-site_exceed2 <- pivot_wider(site_exceed, names_from = Bio_category, values_from = c(num_sites_exceeded,proportion_sites_exceeded)) %>%
-  arrange(desc(chnm))
+site_exceed <- pivot_wider(site_exceed_init, names_from = Bio_category, values_from = c(num_sites_exceeded,proportion_sites_exceeded)) %>%
+  arrange(desc(CAS))
 
 write.csv(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_all.csv",row.names = FALSE)
+saveRDS(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_all.rds")
 
-
-us_rent_income <- us_rent_income
-
-us_rent_income %>%
-  pivot_wider(names_from = variable, values_from = c(estimate, moe))
 

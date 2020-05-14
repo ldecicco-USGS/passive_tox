@@ -53,6 +53,7 @@ tox_fw <- tox %>%
          Exposure.Type %in% exposure.type.keep,
          Conc.1.Type..Standardized..  %in% c("Active ingredient","Total","Formulation"),
          grepl("mg/L",Conc.1.Units..Standardized..),
+         grepl("ug/L",Conc.1.Units..Standardized..),
          !grepl("No significance",Statistical.Significance.),
          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier
          !(value < 0.062 & CAS == "21145-77-7"),  # Tonalide outlier
@@ -104,7 +105,9 @@ names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "En
 benchmark_tab <- benchmark_tab %>%
   mutate(endPoint = ifelse(duration > 4,"Chronic","Acute")) 
 
+All_effects <- unique(tox$Effect)
 tier1 <- c("Reproduction","Mortality","Growth","Development","Population", "Behavior")
+tier2 <- All_effects[!(All_effects %in% tier1)]
 benchmark_tab$groupCol <- ifelse(benchmark_tab$Effect %in% tier1,"Tier 1","Tier 2")
 
 

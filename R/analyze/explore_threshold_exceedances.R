@@ -1,3 +1,6 @@
+#!! This script is for exploration only. The analysis for inclusion in the manuscript text
+#is "get_text_data.R" in the main direcory of this repository
+
 
 library(toxEval)
 library(tidyverse)

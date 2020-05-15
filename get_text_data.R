@@ -149,7 +149,11 @@ exceedances <- max_EAR_chnm %>%
   filter(EARmax > thresh) %>%
   arrange(desc(num_sites_exceed))
 
+priority_chems_EAR <- exceedances # %>%
+#  filter(num_sites_exceed/Num_sites >=0.1)
 unique(exceedances$chnm)                                          
+
+saveRDS(priority_chems_EAR,"R/analyze/out/priority_chems_EAR.rds")
 
 num_sites_monitored <- tox_list$chem_data %>% 
   group_by(CAS) %>% 
@@ -166,6 +170,7 @@ site_exceed <- chemicalSummary %>%
   left_join(num_sites_monitored, by = "CAS") %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
   filter(proportion_sites_exceeded > Site_proportion_threshold)
+
 
 
 #Menthol comparisons

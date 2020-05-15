@@ -28,7 +28,7 @@ site_thresh <- ceiling((site_thresh_percent/100) * nrow(tox_list$chem_site))
 mix_df <- get_final_mixtures(chemicalSummary,
                              EAR_thresh,
                              site_thresh)
-
+saveRDS(mix_df,"R/mixtures/out/mixtures_table.rds")
 
 
 wb <- create_Excel_wb_mix(mix_df)
@@ -98,6 +98,10 @@ AOP_pan <- chemicalSummary %>%
 
 #Run ECOTOX analysis
 suppressMessages(source("R/Analyze/ECOTOX_workflow.R"))
+
+#Combine EAR and TQ-based chem priorities
+source("R/Analyze/combine_TQ_EAR_chem_priorities.R")
+
 
 ################################################
 # Create the supplemental:

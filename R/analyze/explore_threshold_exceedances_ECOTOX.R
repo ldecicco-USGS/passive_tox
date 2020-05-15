@@ -30,6 +30,7 @@ site_exceed_init <- chemical_summary_ecotox %>%
   summarize(maxEAR = max(EAR)) %>%
   group_by(Class,chnm, CAS, Bio_category) %>%
   summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
+  summarize(TQmax = max(maxEAR) %>%
   left_join(num_sites_monitored) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
   arrange(proportion_sites_exceeded<=Site_proportion_threshold,as.character(chnm))

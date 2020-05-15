@@ -29,8 +29,8 @@ site_exceed_init <- chemical_summary_ecotox %>%
   group_by(site,Class,chnm,CAS,Bio_category) %>%
   summarize(maxEAR = max(EAR)) %>%
   group_by(Class,chnm, CAS, Bio_category) %>%
-  summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
-  summarize(TQmax = max(maxEAR) %>%
+  summarize(num_sites_exceeded = sum(maxEAR > thresh), 
+            TQmax = max(maxEAR)) %>%
   left_join(num_sites_monitored) %>%
   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
   arrange(proportion_sites_exceeded<=Site_proportion_threshold,as.character(chnm))
@@ -47,7 +47,7 @@ site_exceed_init$CAS <- factor(site_exceed_init$CAS,levels = chem_order$CAS)
 site_exceed_init <- site_exceed_init %>%
   arrange(desc(CAS),Bio_category)
 
-site_exceed <- pivot_wider(site_exceed_init, names_from = Bio_category, values_from = c(num_sites_exceeded,proportion_sites_exceeded)) %>%
+site_exceed <- pivot_wider(site_exceed_init, names_from = Bio_category, values_from = c(num_sites_exceeded,proportion_sites_exceeded,TQmax)) %>%
   arrange(desc(CAS))
 
 write.csv(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_all.csv",row.names = FALSE)

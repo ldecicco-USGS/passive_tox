@@ -22,6 +22,6 @@ source("R/analyze/ecotox_stats.R")
 
 
 #graph TQs
-source("R/analyze/TQ_boxplots.R")
-source("R/analyze/graph_ECOTOX_by_effect_group.R")
+#source("R/analyze/TQ_boxplots.R")
+#source("R/analyze/graph_ECOTOX_by_effect_group.R")
 source("R/analyze/explore_threshold_exceedances_ECOTOX.R")

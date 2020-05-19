@@ -102,6 +102,10 @@ suppressMessages(source("R/Analyze/ECOTOX_workflow.R"))
 #Combine EAR and TQ-based chem priorities
 source("R/Analyze/combine_TQ_EAR_chem_priorities.R")
 
+################################################
+#Create table 2: summary of priority chemicals
+
+
 
 ################################################
 # Create the supplemental:

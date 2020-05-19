@@ -66,10 +66,14 @@ chem_data<- tox_list$chem_data
 length(unique(chem_data$CAS[chem_data$Value > 0]))
 #THIS DOES INCLUDE PCBs!
 
-x <- graph_chem_data(chemicalSummary) %>% 
-  filter(meanEAR > 10^-3)
-
-x %>% group_by(chnm) %>% summarize(nsites = length(unique(site))) %>% filter(nsites >= 10)
+# x <- graph_chem_data(chemicalSummary) %>% 
+#   filter(meanEAR > 10^-3)
+# 
+# x %>% 
+#   group_by(chnm) %>% 
+#   summarize(nsites = length(unique(site))) %>% 
+#   filter(nsites >= 10) %>% 
+#   ungroup()
 
 ALL_TOX_DATA <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"),
                                   "data","data_for_git_repo","raw",
@@ -131,12 +135,14 @@ Site_proportion_threshold <- 0
 max_EAR_chnm <- chemicalSummary %>% 
   group_by(site,CAS,chnm,date) %>%
   summarize(EARsum = sum(EAR)) %>%
+  ungroup() %>% 
   group_by(site,CAS,chnm) %>%
   summarize(EARmax = max(EARsum)) %>%
   group_by(chnm,CAS) %>%
   summarize(Num_sites = length(unique(site)),
             num_sites_exceed = sum(EARmax > thresh),
             EARmax = max(EARmax)) %>%
+  ungroup() %>% 
   arrange(desc(EARmax))
 
 exceedances <- max_EAR_chnm %>%
@@ -149,12 +155,22 @@ unique(exceedances$chnm)
 
 saveRDS(priority_chems_EAR,"R/analyze/out/priority_chems_EAR.rds")
 
+num_sites_monitored <- tox_list$chem_data %>% 
+  group_by(CAS) %>% 
+  summarise(sites_monitored = length(unique(SiteID)))
 
-# site_exceed <- chemicalSummary %>% group_by(chnm, CAS,site) %>%
-#   summarize(num_sites_exceeded = sum(maxEAR > thresh)) %>%
-#   left_join(num_sites_monitored) %>%
-#   mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
-#   filter(proportion_sites_exceeded > Site_proportion_threshold)
+site_exceed <- chemicalSummary %>% 
+  group_by(site,CAS,chnm,date) %>%
+  summarize(EARsum = sum(EAR)) %>%
+  ungroup() %>% 
+  group_by(chnm, CAS, site) %>%
+  summarize(maxEAR = max(EARsum),
+            num_sites_exceeded = sum(maxEAR > thresh)) %>%
+  ungroup() %>% 
+  left_join(num_sites_monitored, by = "CAS") %>%
+  mutate(proportion_sites_exceeded = num_sites_exceeded/sites_monitored) %>%
+  filter(proportion_sites_exceeded > Site_proportion_threshold)
+
 
 
 #Menthol comparisons

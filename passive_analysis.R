@@ -20,9 +20,8 @@ data_analysis_plan <- drake_plan(
     remove_flags(),
   cleaned_ep = clean_endPoint_info(end_point_info),
   filtered_ep = filter_groups(cleaned_ep, 
-                               groupCol = 'intended_target_family',
-                               assays = c('ATG','NVS','OT','TOX21','CEETOX','APR','CLD','TANGUAY','NHEERL_PADILLA','NCCT_SIMMONS','ACEA'),
-                               remove_groups = c('Background Measurement','Undefined','Cell Cycle','NA')),
+                              groupCol = 'intended_target_family',
+                              remove_groups = c('Background Measurement','Undefined','Cell Cycle','NA')),
   
   chemicalSummary = get_chemical_summary(tox_list, ACC, filtered_ep),
   chem_sum_save_sync = saveRDS(chemicalSummary,

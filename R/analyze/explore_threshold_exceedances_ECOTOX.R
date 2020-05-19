@@ -48,7 +48,7 @@ site_exceed_init <- site_exceed_init %>%
   arrange(desc(CAS),Bio_category)
 
 site_exceed <- pivot_wider(site_exceed_init, names_from = Bio_category, values_from = c(num_sites_exceeded,proportion_sites_exceeded,TQmax)) %>%
-  arrange(desc(CAS))
+  arrange(desc(num_sites_exceeded_1))
 
 write.csv(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_all.csv",row.names = FALSE)
 saveRDS(site_exceed,file="R/Analyze/Out/ECOTOX_site_threshold_exceedances_all.rds")

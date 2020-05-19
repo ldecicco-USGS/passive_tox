@@ -86,7 +86,7 @@ length(unique(num_chems_tested$casn))/length(x)
 length(unique(chemicalSummary$chnm[chemicalSummary$EAR > 0]))
 
 chemicalSummary %>% 
-  filter(EAR > 0) %>% 
+!  filter(EAR > 0) %>% 
   group_by(CAS, chnm) %>% 
   summarize(n_eps = length(unique(endPoint))) %>% 
   ungroup() %>% 
@@ -140,7 +140,7 @@ max_EAR_chnm <- chemicalSummary %>%
   arrange(desc(EARmax))
 
 exceedances <- max_EAR_chnm %>%
-  filter(EARmax > thresh) %>%
+#  filter(EARmax > thresh) %>%
   arrange(desc(num_sites_exceed))
 
 priority_chems_EAR <- exceedances # %>%

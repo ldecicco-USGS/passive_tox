@@ -4,6 +4,7 @@ library(tidyverse)
 
 source("read_chemicalSummary.R")
 chem_data <- tox_list$chem_data
+chem_info <- tox_list$chem_info
 
 
 EAR_priorities <- readRDS("R/analyze/out/priority_chems_EAR.rds")
@@ -34,6 +35,6 @@ priority_chems <- full_join(EAR_priorities,TQ_priorities) %>%
 write.csv(priority_chems,"R/analyze/out/priority_chem_EAR_TQ.csv",row.names = FALSE)
 saveRDS(priority_chems,"R/analyze/out/priority_chem_EAR_TQ.rds")
 
-priority_chems$CAS %in% chem_info$CAS
+#priority_chems$CAS %in% chem_info$CAS
 
 

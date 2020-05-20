@@ -134,7 +134,20 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
     group_by(endPoint, shortName, date) %>% 
     summarize(chems = list(get_combos(chnm, EAR, {{ear_cutoff}}))) %>% 
     unnest(chems) %>% 
-    group_by(endPoint, chems, n_chems) %>% 
+    ungroup()
+  
+  CASs <- EAR_sum_endpoint %>% 
+    ungroup() %>% 
+    filter(EAR > 0) %>% 
+    group_by(endPoint, shortName, date) %>% 
+    summarize(CASs = list(get_combos(CAS, EAR, {{ear_cutoff}}))) %>% 
+    unnest(CASs) %>% 
+    select(endPoint, CASs = chems, EARsum, n_chems, date, shortName) %>% 
+    ungroup()
+
+  df <- df %>% 
+    left_join(CASs, by = c("endPoint", "EARsum", "n_chems", "date", "shortName")) %>% 
+    group_by(endPoint, chems, CASs, n_chems) %>% 
     summarize(n_samples = n(),
               n_sites = length(unique(shortName))) %>% 
     ungroup()
@@ -163,7 +176,8 @@ get_final_mixtures <- function(chemicalSummary,
            Genes = genes,
            Pathways = pathways,
            Chemicals = chem_list,
-           Class = class_list)
+           Class,
+           CASs = CAS_list)
   
   mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
     ifelse(x == "Di(2-ethylhexyl) phthalate", "DEHP", x), 
@@ -217,10 +231,11 @@ create_Excel_wb_mix <- function(df){
 
 class_key_fnx <- function(chemicalSummary){
   x <- chemicalSummary %>%
-    select(chnm, Class) %>%
+    select(chnm, Class, CAS) %>%
     distinct() %>%
     mutate(chnm = as.character(chnm),
-           Class = as.character(Class))
+           Class = as.character(Class),
+           CAS = as.character(CAS))
   return(x)
 }
 
@@ -233,47 +248,29 @@ clean_top_mixes <- function(join_everything,
   
   class_key <- class_key_fnx(chemicalSummary)
   
-  top_mixes_wide <- top_mixes %>% 
-    mutate(index = 1:nrow(top_mixes)) %>% 
-    separate(chems, sep = "\\|", # separate_rows?
-             into =  letters[1:max(top_mixes$n_chems)]) %>% 
-    pivot_longer(cols = c(-endPoint, -n_chems, 
-                          -n_samples, -n_sites, -index)) %>% 
-    filter(!is.na(value)) %>% 
-    left_join(class_key, by = c("value"="chnm")) %>% 
-    pivot_wider(names_from = "name", 
-                values_from = "value") %>%
-    unite(col = "Chemicals", 
-          letters[1:max(top_mixes$n_chems)], 
-          sep = "|", remove = TRUE) %>% 
-    mutate(Chemicals = gsub(pattern = "|NA", 
-                            replacement = "", 
-                            x = Chemicals),
-           Chemicals = stringr::str_replace_all(pattern = "(\\|)\\1+", 
-                                                replacement = "\\1", 
-                                                string = Chemicals)) %>% 
-    filter(n_sites >= !!n_sites)
-  
   df <- join_everything  %>% 
-    left_join(select(top_mixes_wide, 
-                     endPoint, Class, Chemicals, n_chems), 
-              by = "endPoint") %>% 
+    left_join(top_mixes, by = "endPoint") %>% 
     group_by(endPoint, AOPs, genes, pathways) %>%
     filter(n_chems == max(n_chems)) %>%
-    summarize(Class = paste(unique(Class), collapse = "|"),
-              Chemicals = paste(unique(Chemicals), collapse = "|")) %>% 
     ungroup() %>% 
-    mutate(chem_list = c(strsplit(Chemicals, split = "\\|")),
+    mutate(chem_list = c(strsplit(chems, split = "\\|")),
            chem_list = sapply(chem_list, function(x) x[!(x %in% "")]),
            chem_list = sapply(chem_list, function(x) unique(x)),
-           class_list = c(strsplit(Class, split = "\\|")),
-           class_list = sapply(class_list, function(x) x[!(x %in% "")]),
-           class_list = sapply(class_list, function(x) unique(x)),
+           CAS_list = c(strsplit(CASs, split = "\\|")),
+           CAS_list = sapply(CAS_list, function(x) x[!(x %in% "")]),
+           CAS_list = sapply(CAS_list, function(x) unique(x)),
            AOPs = c(strsplit(AOPs, split = ",")),
            AOPs =  sapply(AOPs, function(x) x[!(x %in% "")]),
            AOPs = sapply(AOPs, function(x) unique(x)),
            max_n_chems = sapply(chem_list, function(x) length(x)))
 
+  #Never do this! :)
+  df$Class <- NA
+  for(i in 1:nrow(df)){
+    CAS_i <- df$CAS_list[i][[1]]
+    df$Class[i] <- list(filter(class_key, CAS %in% CAS_i) %>% select(Class) %>% distinct() %>% pull(Class))
+  }
+  
   df$AOPs[sapply(df$AOPs, function(x) length(x) == 0)] <- ""
   
   return(df)

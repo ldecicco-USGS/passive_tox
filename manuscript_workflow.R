@@ -28,6 +28,7 @@ site_thresh <- ceiling((site_thresh_percent/100) * nrow(tox_list$chem_site))
 mix_df <- get_final_mixtures(chemicalSummary,
                              EAR_thresh,
                              site_thresh)
+dir.create("R/mixtures/out", showWarnings = FALSE)
 saveRDS(mix_df,"R/mixtures/out/mixtures_table.rds")
 
 

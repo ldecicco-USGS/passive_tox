@@ -165,6 +165,9 @@ get_final_mixtures <- function(chemicalSummary,
   
   top_mixes <- all_mixes_fn(EARsum_endpoint, EAR_thresh)
   
+  top_mixes <- top_mixes %>% 
+    filter(n_sites >= site_thresh)
+  
   join_everything <- join_everything_fnx(chemicalSummary)
   
   mix_df <- clean_top_mixes(join_everything, 

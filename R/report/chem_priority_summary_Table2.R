@@ -1,6 +1,11 @@
+library(toxEval)
+library(tidyverse)
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
+source("read_chemicalSummary.R")
+chem_data <- tox_list$chem_data
+chem_info <- tox_list$chem_info
 
 priority_chems <- readRDS("R/analyze/out/priority_chem_EAR_TQ.rds")
 mixture_chems <- read.csv(file.path(path_to_data,"/Tables/mixture_chems.csv"),stringsAsFactors = FALSE)
@@ -30,8 +35,8 @@ priority_chems$Chemicals <- priority_chems$chnm
 chem.chnm <- c("Diethylhexylphthalate (DEHP)", "Tris(1,3-dichloro-2-propyl)phosphate (TDCPP)", 
        "Tris(2-butoxyethyl)phosphate (TBEP)", "Tris(1-chloro-2-propyl)phosphate (TCPP)",
        "N,N-diethyltoluamide (DEET)")
-chem.Chemicals <- c("Diethylhexylphthalate", "Tris(1,3-dichloro-2-propyl)phosphate", 
-                    "Tris(2-butoxyethyl)phosphate", "Tris(1-chloro-2-propyl)phosphate", "DEET")
+chem.Chemicals <- c("DEHP", "TDCPP", 
+                    "TBEP", "TCPP", "DEET")
        
 priority_chems$Chemicals <- priority_chems$chnm
 priority_chems$Chemicals[which(priority_chems$chnm %in% chem.chnm)] <- chem.Chemicals

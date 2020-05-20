@@ -110,7 +110,7 @@ source("R/report/chem_priority_summary_Table2.R")
 table_2 <- get_table_2()
 names(table_2) <- c("Chemical use class","Chemical name","Sites monitored","Individual","Mixtures"," ","Group 1","Group 2")
 
-ms_tables_wb <- loadWorkbook(file.path(path_to_data,"Tables","Manuscript_tables.xlsx"))
+ms_tables_wb <- loadWorkbook(file.path(path_to_data,"Tables","Manuscript_tables_test.xlsx"))
 writeData(wb = ms_tables_wb,sheet = "Table 2. Chemical Summary",x = table_2,startCol = 1,startRow = 4)
 saveWorkbook(wb = ms_tables_wb,file = file.path(path_to_data,"Tables","Manuscript_tables_test.xlsx"),overwrite = TRUE)
 

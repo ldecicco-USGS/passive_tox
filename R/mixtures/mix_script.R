@@ -180,7 +180,8 @@ get_final_mixtures <- function(chemicalSummary,
            Pathways = pathways,
            Chemicals = chem_list,
            Class,
-           CASs = CAS_list)
+           CASs = CAS_list,
+           `# Sites` = n_sites)
   
   mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
     ifelse(x == "Di(2-ethylhexyl) phthalate", "DEHP", x), 
@@ -222,11 +223,11 @@ create_Excel_wb_mix <- function(df){
   setRowHeights(wb, "Mixtures", 
                 rows = 1:nrow(df)+1, 
                 heights = 15*max_chems)
-  setColWidths(wb, "Mixtures", cols = 6, widths = 25)
+  setColWidths(wb, "Mixtures", cols = 7, widths = 25)
   setColWidths(wb, "Mixtures", cols = 5, widths = 25)
   setColWidths(wb, "Mixtures", cols = 2, widths = 25)
-  setColWidths(wb, "Mixtures", cols = c(1,3:4), widths = "auto")
-  addStyle(wb, sheet = "Mixtures", cols = 1:6, 
+  setColWidths(wb, "Mixtures", cols = c(1,3:4, 6), widths = "auto")
+  addStyle(wb, sheet = "Mixtures", cols = 1:7, 
            rows = 1:nrow(df)+1, gridExpand = TRUE,
            style = createStyle(valign = 'top'))
   return(wb)

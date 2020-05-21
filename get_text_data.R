@@ -181,3 +181,128 @@ menthol_endpoints <- c(0.32,0.76) #mM (m-moles/L)
 menthol_mw <- 156.27/1000 #g/mole/1000 = g/m-moles
 menthol_endpoints_gL <- menthol_endpoints*(menthol_mw)  #g/L
 menthol_endpoints_ugL <- menthol_endpoints * 1000000 #ug/L
+
+
+#ECOTOX text numbers
+source(file.path("R","report","chem_priority_summary_Table2.R"))
+
+t2 <- get_table_2()
+priority_chems.orig <- readRDS("R/analyze/out/priority_chem_EAR_TQ.rds")
+
+site_thresh <- 0.1
+
+t2$ToxCast <- as.numeric(t2$ToxCast)
+t2$ECOTOX_group_1 <- as.numeric(t2$ECOTOX_group_1)
+t2$ECOTOX_group_2 <- as.numeric(t2$ECOTOX_group_2)
+
+t2_exceed <- t2 %>%
+  mutate(g1_exceed = ECOTOX_group_1/sites_monitored,
+         g2_exceed = ECOTOX_group_2/sites_monitored,
+         EAR_exceed = ToxCast/sites_monitored,
+         max_ecotox = pmax(g1_exceed,g2_exceed,na.rm=TRUE)) %>%
+  mutate(g1_boolean = g1_exceed > site_thresh,
+         g2_boolean = g2_exceed > site_thresh,
+         EAR_boolean = EAR_exceed > site_thresh)
+
+t2_exceed$EAR_G1_exceed <- rowSums(t2_exceed[,c("g1_boolean","EAR_boolean")],na.rm=TRUE)
+t2_exceed$EAR_G2_exceed <- rowSums(t2_exceed[,c("EAR_boolean","g2_boolean")],na.rm=TRUE)
+t2_exceed$G1_G2_exceed <- rowSums(t2_exceed[,c("g1_boolean","g2_boolean")],na.rm=TRUE)
+t2_exceed$sum_exceed <- rowSums(t2_exceed[,c("g1_boolean","g2_boolean","EAR_boolean")],na.rm=TRUE)
+
+#Determine info for text
+# 1. how many EAR priorities and which chems
+# 2. how many ECOTOX priorities and which chems
+# 3. how many Group 1 priorities and which chems
+# 4. how many Group 2 priorities and which chems
+# 5. What chems match between all three
+#                             EAR and Group 1
+#                             EAR and Group 2
+#                             Group 1 and Group 2
+
+#1. how many EAR priorities and which chems
+sum(t2_exceed$EAR_boolean,na.rm=TRUE) # 10 chems
+test <- t2_exceed %>%
+  filter(EAR_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+#2. how many ECOTOX priorities and which chems
+sum(t2_exceed$g1_boolean + t2_exceed$g2_boolean > 0,na.rm=TRUE) # 14 chems
+test <- t2_exceed %>%
+  filter(g1_boolean | g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+#3. how many Group 1 priorities and which chems
+sum(t2_exceed$g1_boolean,na.rm=TRUE) # 14 chems
+test <- t2_exceed %>%
+  filter(g1_boolean) %>%
+  arrange(Class,Chemicals)
+group_1 <- test$Chemicals; group_1
+
+#4. how many Group 2 priorities and which chems
+sum(t2_exceed$g2_boolean,na.rm=TRUE) # 14 chems
+test <- t2_exceed %>%
+  filter(g2_boolean) %>%
+  arrange(Class,Chemicals)
+group_2 <- test$Chemicals; group_2
+
+# How many common among Group 1 and 2
+sum(group_2 %in% group_1)
+
+#5. What chems match between all three
+#                             EAR and Group 1
+#                             EAR and Group 2
+#                             Group 1 and Group 2
+
+# EAR and G1 (same as EAR and G2)
+test <- t2_exceed %>%
+  filter(EAR_boolean & g1_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+# EAR and G1 (same as EAR and G2)
+test <- t2_exceed %>%
+  filter(EAR_boolean & g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+# G1 and G2
+test <- t2_exceed %>%
+  filter(g1_boolean & g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+test <- t2_exceed %>%
+  filter(g1_boolean | g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals # 11 total ECOTOX priority chems
+               # 2 chems with EAR exceedance, 6 without EAR exceedance, 3 not in toxcast
+sum(test$ToxCast < 7,na.rm=TRUE)
+sum(test$ToxCast >= 7,na.rm=TRUE)
+sum(is.na(test$ToxCast))
+
+
+
+priority_chems <- priority_chems.orig %>%
+  mutate(g1_exceed = ECOTOX_group_1/sites_monitored,
+         g2_exceed = ECOTOX_group_2/sites_monitored,
+         EAR_exceed ) %>%
+  arrange(desc(g2_exceed)) %>%
+  filter(g1_exceed >= site_thresh | g2_exceed >= site_thresh)
+
+group1_chems <- t2 %>%
+  filter(!(ECOTOX_group_1=="--")) %>%
+  filter(as.numeric(ECOTOX_group_1)/sites_monitored >= site_thresh)
+group1_chems$Chemicals  
+
+group2_chems <- t2 %>%
+  filter(!(ECOTOX_group_1=="--")) %>%
+  filter(as.numeric(ECOTOX_group_2)/sites_monitored >= site_thresh)
+group2_chems$Chemicals  
+
+group2_chems$Chemicals   %in% group1_chems$Chemicals  
+
+
+
+which(group1_chems$ECOTOX_group_1 == "--")

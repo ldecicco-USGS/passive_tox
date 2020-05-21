@@ -10,7 +10,7 @@ get_table_2 <- function(){
   chem_data <- tox_list$chem_data
   chem_info <- tox_list$chem_info
   
-  #Read individual priority chems and mixture priority chems
+  #Read individual priority chems and mixture priority chems   priority_chem_EAR_TQ.rds
   priority_chems <- readRDS("R/analyze/out/priority_chem_EAR_TQ.rds")
   mixtures <- readRDS("R/mixtures/out/mixtures_table.rds")
   names(mixtures)[8]

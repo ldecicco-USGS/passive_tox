@@ -31,6 +31,12 @@ length(unique(ToxCast_IN_STUDY$endPoint)) #Assays available for chems in this st
 
 length(unique(chemicalSummary$endPoint)) #Assays used in this study after filtering
 
+length(unique(chemicalSummary$CAS)) #number of chemicals with associated assays after filtering
+
+chemicalSummary %>%
+  filter(EAR > 0) %>%
+  distinct(CAS)          #Number of detected chemicals with associated assays after filtering
+
 #Number of assays per chemical
 num_assays <- ToxCast_IN_STUDY %>%
   group_by(CAS) %>%
@@ -45,7 +51,7 @@ num_assays <- chemicalSummary %>%
 
 range(num_assays$num_assays)# 1-57 assays used per chemical
 
-#CAS numbers for detected chemicals (142 chemicals detected)
+#CAS numbers for detected chemicals (143 chemicals detected)
 
 x <- tox_list$chem_data %>% 
   filter(Value > 0) %>% 
@@ -53,7 +59,7 @@ x <- tox_list$chem_data %>%
   distinct() %>% 
   pull()
 
-length(x)
+length(x) #detected chemicals
 
 y <- ToxCast_ACC %>% 
   filter(CAS %in% x) %>% 
@@ -89,8 +95,8 @@ length(unique(num_chems_tested$casn))/length(x)
 
 length(unique(chemicalSummary$chnm[chemicalSummary$EAR > 0]))
 
-chemicalSummary %>% 
-!  filter(EAR > 0) %>% 
+n_endpoints <- chemicalSummary %>% 
+  filter(EAR > 0) %>% 
   group_by(CAS, chnm) %>% 
   summarize(n_eps = length(unique(endPoint))) %>% 
   ungroup() %>% 
@@ -210,6 +216,23 @@ t2_exceed$G1_G2_exceed <- rowSums(t2_exceed[,c("g1_boolean","g2_boolean")],na.rm
 t2_exceed$sum_exceed <- rowSums(t2_exceed[,c("g1_boolean","g2_boolean","EAR_boolean")],na.rm=TRUE)
 
 #Determine info for text
+# General
+# How many of the detected chems were represented
+
+benchmarks <- read_xlsx(path = file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_all.xlsx"),sheet = "Benchmarks")
+ecotox_CAS_nums <- (unique(benchmarks$CAS)) #106 chemicals
+
+max(as.data.frame(table(benchmarks$CAS))[,2])
+
+#Compare ecotox and toxcast chems analyzed
+sum(ecotox_CAS_nums %in% CAS_detected_in_toxcast ) #83 chems in both ecotox and toxcast
+106 - 83 # chems in ecotox but not in toxcast
+
+dim(y)[1] - 83 # chems in toxcast but not in ecotox
+
+
+
+# Priority chems
 # 1. how many EAR priorities and which chems
 # 2. how many ECOTOX priorities and which chems
 # 3. how many Group 1 priorities and which chems
@@ -303,6 +326,12 @@ group2_chems$Chemicals
 
 group2_chems$Chemicals   %in% group1_chems$Chemicals  
 
-
-
 which(group1_chems$ECOTOX_group_1 == "--")
+
+
+
+
+#SI information
+#Are there any remaining NHEERL assays after filtering?
+length(grep("NHEERL",chemicalSummary$endPoint,ignore.case = TRUE)) #yes there are
+unique(grep("NHEERL",chemicalSummary$endPoint,ignore.case = TRUE,value = TRUE)) #yes there are

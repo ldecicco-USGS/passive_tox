@@ -103,7 +103,8 @@ update_table_2 <- function(path_to_data, tabname1){
            min = format_2(min),
            mean = format_2(mean),
            median = format_2(median),
-           n_dets = format_2(n_dets, nd_text = "0")) %>% 
+           n_dets = format_2(n_dets, nd_text = "0"),
+           samples = as.character(samples)) %>% 
     pivot_wider(id_cols = c("CAS", "tots_mean", "tots_median"), 
                 names_from = `Sample Date`, values_fill = list(mean = "--",
                                                                min = "--",

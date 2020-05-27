@@ -48,14 +48,14 @@ sum(is.na(tox$value))
 
 exposure.type.keep <- c("Aquatic - not reported","Static","Flow-through", "Renewal","Lentic","Lotic")
 
-remove_references <- c(67566, 168095, 171681, 168095, 168095, 11170, 11628)#, 157699)
+remove_references <- c(67566, 168095, 171681, 168095, 168095, 11170, 11628,160420,89736,174456)#, 157699)
 # Carbamazepine (157699) moderate outlier: mRNA signals. Removed per Dan and Brett. All others are fairly large outliers.
 
 tox_fw <- tox %>%
   filter(Media.Type == "Fresh water",
          Effect != "Accumulation",
          Exposure.Type %in% exposure.type.keep,
-         Conc.1.Type..Standardized..  %in% c("Active ingredient","Total","Formulation"),
+         Conc.1.Type..Standardized..  %in% c("Active ingredient","Total"),
          grepl("mg/L|ug/L",Conc.1.Units..Standardized..),
          !grepl("No significance",Statistical.Significance.),
          !(value < 4.80E-9 & CAS == "1912-24-9"), #Atrazine outlier

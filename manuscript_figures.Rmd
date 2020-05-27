@@ -34,7 +34,7 @@ knitr::include_graphics(path = file.path(Sys.getenv("PASSIVE_PATH"),
                                          "Figures","Polished figures",
                                          "GLRI_all_basin_LC_viewing_FY19_Mod3.pdf"))
 ```
-Figure 1: Map of sample sites and associated land cover.  Identification of site codes are presented in Figure 2 and in SI Table XX. 
+Figure 1: Map of sample sites and associated land cover.  Identification of site codes are presented in SI Table 1. 
 
 
 ```{r fig2, fig.width=9, fig.height=11}

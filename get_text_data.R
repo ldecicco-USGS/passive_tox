@@ -31,6 +31,12 @@ length(unique(ToxCast_IN_STUDY$endPoint)) #Assays available for chems in this st
 
 length(unique(chemicalSummary$endPoint)) #Assays used in this study after filtering
 
+length(unique(chemicalSummary$CAS)) #number of chemicals with associated assays after filtering
+
+chemicalSummary %>%
+  filter(EAR > 0) %>%
+  distinct(CAS)          #Number of detected chemicals with associated assays after filtering
+
 #Number of assays per chemical
 num_assays <- ToxCast_IN_STUDY %>%
   group_by(CAS) %>%
@@ -45,7 +51,7 @@ num_assays <- chemicalSummary %>%
 
 range(num_assays$num_assays)# 1-57 assays used per chemical
 
-#CAS numbers for detected chemicals (142 chemicals detected)
+#CAS numbers for detected chemicals (143 chemicals detected)
 
 x <- tox_list$chem_data %>% 
   filter(Value > 0) %>% 
@@ -53,7 +59,7 @@ x <- tox_list$chem_data %>%
   distinct() %>% 
   pull()
 
-length(x)
+length(x) #detected chemicals
 
 y <- ToxCast_ACC %>% 
   filter(CAS %in% x) %>% 
@@ -89,8 +95,8 @@ length(unique(num_chems_tested$casn))/length(x)
 
 length(unique(chemicalSummary$chnm[chemicalSummary$EAR > 0]))
 
-chemicalSummary %>% 
-!  filter(EAR > 0) %>% 
+n_endpoints <- chemicalSummary %>% 
+  filter(EAR > 0) %>% 
   group_by(CAS, chnm) %>% 
   summarize(n_eps = length(unique(endPoint))) %>% 
   ungroup() %>% 
@@ -181,3 +187,151 @@ menthol_endpoints <- c(0.32,0.76) #mM (m-moles/L)
 menthol_mw <- 156.27/1000 #g/mole/1000 = g/m-moles
 menthol_endpoints_gL <- menthol_endpoints*(menthol_mw)  #g/L
 menthol_endpoints_ugL <- menthol_endpoints * 1000000 #ug/L
+
+
+#ECOTOX text numbers
+source(file.path("R","report","chem_priority_summary_Table2.R"))
+
+t2 <- get_table_2()
+priority_chems.orig <- readRDS("R/analyze/out/priority_chem_EAR_TQ.rds")
+
+site_thresh <- 0.1
+
+t2$ToxCast <- as.numeric(t2$ToxCast)
+t2$ECOTOX_group_1 <- as.numeric(t2$ECOTOX_group_1)
+t2$ECOTOX_group_2 <- as.numeric(t2$ECOTOX_group_2)
+
+t2_exceed <- t2 %>%
+  mutate(g1_exceed = ECOTOX_group_1/sites_monitored,
+         g2_exceed = ECOTOX_group_2/sites_monitored,
+         EAR_exceed = ToxCast/sites_monitored,
+         max_ecotox = pmax(g1_exceed,g2_exceed,na.rm=TRUE)) %>%
+  mutate(g1_boolean = g1_exceed > site_thresh,
+         g2_boolean = g2_exceed > site_thresh,
+         EAR_boolean = EAR_exceed > site_thresh)
+
+t2_exceed$EAR_G1_exceed <- rowSums(t2_exceed[,c("g1_boolean","EAR_boolean")],na.rm=TRUE)
+t2_exceed$EAR_G2_exceed <- rowSums(t2_exceed[,c("EAR_boolean","g2_boolean")],na.rm=TRUE)
+t2_exceed$G1_G2_exceed <- rowSums(t2_exceed[,c("g1_boolean","g2_boolean")],na.rm=TRUE)
+t2_exceed$sum_exceed <- rowSums(t2_exceed[,c("g1_boolean","g2_boolean","EAR_boolean")],na.rm=TRUE)
+
+#Determine info for text
+# General
+# How many of the detected chems were represented
+
+benchmarks <- read_xlsx(path = file.path(path_to_data, "data", "toxEval input file", "passive_benchmarks_all.xlsx"),sheet = "Benchmarks")
+ecotox_CAS_nums <- (unique(benchmarks$CAS)) #106 chemicals
+
+max(as.data.frame(table(benchmarks$CAS))[,2])
+
+#Compare ecotox and toxcast chems analyzed
+sum(ecotox_CAS_nums %in% CAS_detected_in_toxcast ) #83 chems in both ecotox and toxcast
+106 - 83 # chems in ecotox but not in toxcast
+
+dim(y)[1] - 83 # chems in toxcast but not in ecotox
+
+
+
+# Priority chems
+# 1. how many EAR priorities and which chems
+# 2. how many ECOTOX priorities and which chems
+# 3. how many Group 1 priorities and which chems
+# 4. how many Group 2 priorities and which chems
+# 5. What chems match between all three
+#                             EAR and Group 1
+#                             EAR and Group 2
+#                             Group 1 and Group 2
+
+#1. how many EAR priorities and which chems
+sum(t2_exceed$EAR_boolean,na.rm=TRUE) # 10 chems
+test <- t2_exceed %>%
+  filter(EAR_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+#2. how many ECOTOX priorities and which chems
+sum(t2_exceed$g1_boolean + t2_exceed$g2_boolean > 0,na.rm=TRUE) # 14 chems
+test <- t2_exceed %>%
+  filter(g1_boolean | g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+#3. how many Group 1 priorities and which chems
+sum(t2_exceed$g1_boolean,na.rm=TRUE) # 14 chems
+test <- t2_exceed %>%
+  filter(g1_boolean) %>%
+  arrange(Class,Chemicals)
+group_1 <- test$Chemicals; group_1
+
+#4. how many Group 2 priorities and which chems
+sum(t2_exceed$g2_boolean,na.rm=TRUE) # 14 chems
+test <- t2_exceed %>%
+  filter(g2_boolean) %>%
+  arrange(Class,Chemicals)
+group_2 <- test$Chemicals; group_2
+
+# How many common among Group 1 and 2
+sum(group_2 %in% group_1)
+
+#5. What chems match between all three
+#                             EAR and Group 1
+#                             EAR and Group 2
+#                             Group 1 and Group 2
+
+# EAR and G1 (same as EAR and G2)
+test <- t2_exceed %>%
+  filter(EAR_boolean & g1_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+# EAR and G1 (same as EAR and G2)
+test <- t2_exceed %>%
+  filter(EAR_boolean & g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+# G1 and G2
+test <- t2_exceed %>%
+  filter(g1_boolean & g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals
+
+test <- t2_exceed %>%
+  filter(g1_boolean | g2_boolean) %>%
+  arrange(Class,Chemicals)
+test$Chemicals # 11 total ECOTOX priority chems
+               # 2 chems with EAR exceedance, 6 without EAR exceedance, 3 not in toxcast
+sum(test$ToxCast < 7,na.rm=TRUE)
+sum(test$ToxCast >= 7,na.rm=TRUE)
+sum(is.na(test$ToxCast))
+
+
+
+priority_chems <- priority_chems.orig %>%
+  mutate(g1_exceed = ECOTOX_group_1/sites_monitored,
+         g2_exceed = ECOTOX_group_2/sites_monitored,
+         EAR_exceed ) %>%
+  arrange(desc(g2_exceed)) %>%
+  filter(g1_exceed >= site_thresh | g2_exceed >= site_thresh)
+
+group1_chems <- t2 %>%
+  filter(!(ECOTOX_group_1=="--")) %>%
+  filter(as.numeric(ECOTOX_group_1)/sites_monitored >= site_thresh)
+group1_chems$Chemicals  
+
+group2_chems <- t2 %>%
+  filter(!(ECOTOX_group_1=="--")) %>%
+  filter(as.numeric(ECOTOX_group_2)/sites_monitored >= site_thresh)
+group2_chems$Chemicals  
+
+group2_chems$Chemicals   %in% group1_chems$Chemicals  
+
+which(group1_chems$ECOTOX_group_1 == "--")
+
+
+
+
+#SI information
+#Are there any remaining NHEERL assays after filtering?
+length(grep("NHEERL",chemicalSummary$endPoint,ignore.case = TRUE)) #yes there are
+unique(grep("NHEERL",chemicalSummary$endPoint,ignore.case = TRUE,value = TRUE)) #yes there are

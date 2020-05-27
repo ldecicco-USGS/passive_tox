@@ -24,8 +24,6 @@ ACC_min <- ACC %>%
   left_join(tox_list$chem_info[,c("CAS","chnm","Class")]) %>%
   arrange(chnm)
 
-ACC$chnm <- factor(ACC$chnm,levels = ACC_min$chnm)
-
 
 ACC$EP_group <- ACC$Effect
 tier1 <- c("Reproduction","Mortality","Growth","Development","Population", "Behavior")

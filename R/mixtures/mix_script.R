@@ -229,7 +229,7 @@ create_Excel_wb_mix <- function(df){
   setColWidths(wb, "Mixtures", cols = c(1,3:4, 6), widths = "auto")
   addStyle(wb, sheet = "Mixtures", cols = 1:7, 
            rows = 1:nrow(df)+1, gridExpand = TRUE,
-           style = createStyle(valign = 'top'))
+           style = createStyle(valign = 'top', wrapText = TRUE))
   return(wb)
 }
 

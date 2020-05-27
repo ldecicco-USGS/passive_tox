@@ -145,7 +145,7 @@ general_lp <- c(0.05,0.87)
 create_DL_plot(tox_list)
 
 ```
-Figure SI 1: Detection level EARs.
+Figure SI 1: Exposure activity ratios (EARs) at the detection level for chemicals monitored with passive samplers in Great Lakes tributaries, 2010-2014.
 
 ```{r fig2A}
 

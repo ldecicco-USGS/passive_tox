@@ -40,7 +40,7 @@ stack2 <- upperPlot +
   geom_table_npc(data = df,
                  aes(npcx = x, 
                      npcy = y,
-                     label = tb), size = 2,
+                     label = tb), size = 1.5,
                  hjust = 1, vjust = 1)
 
 ggsave(stack2, filename = "plots/new_stack_w_table.pdf", height = 8, width = 5)

@@ -15,28 +15,20 @@ Chem_Individual_correlation_table <- function() {
   
   df_lu <- read_xlsx(path = file.path("data","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
   names(df_lu) <- make.names(names(df_lu))
+  df_ww_lu_2012 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2012_annualaverage.csv"), 
+                                     colClasses = c("USGS_STAID"="character"))
+  df_ww_lu_2012 <- as.data.frame(df_ww_lu_2012)
+  names(df_ww_lu_2012)[1] <- "site"
+  ww_vars <- c("PopServed","DW_PopServed","FlowFraction","DW_FlowFraction","Effluent_mgalperday","AnnualEffluent_mgal")
   
-  path_to_file <- 'passive.xlsx' 
-  tox_list <- create_toxEval(file.path("data","clean",path_to_file))
-  ACC <- get_ACC(tox_list$chem_info$CAS)
-  ACC <- remove_flags(ACC = ACC,
-                      flagsShort = c('Borderline','OnlyHighest','GainAC50','Biochemical'))
-  
-  cleaned_ep <- clean_endPoint_info(end_point_info)
-  filtered_ep <- filter_groups(cleaned_ep, 
-                               groupCol = 'intended_target_family',
-                               assays = c('ATG','NVS','OT','TOX21','CEETOX','APR','CLD','TANGUAY','NHEERL_PADILLA','NCCT_SIMMONS','ACEA'),
-                               remove_groups = c('Background Measurement','Undefined'))
-  
-  chemical_summary <- get_chemical_summary(tox_list, ACC, filtered_ep)
-  
+  chemicalSummary <- readRDS(file = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","clean","chemical_summary.rds"))
   
   ########################################################################################
   # 1). Determine EARs summation for this analysis using by endpoints within chemical classes 
   # 2). Find max of those EAR summations
   
   # Determine EAR_sum by site/chemical/endpoint
-  chnm_EP_summary <- chemical_summary %>%
+  chnm_EP_summary <- chemicalSummary %>%
     group_by(site,date,chnm) %>%
     summarize(EAR_sum = sum(EAR)) %>%
     group_by(site,chnm) 
@@ -49,7 +41,8 @@ Chem_Individual_correlation_table <- function() {
   # Add land use
   lu_columns <- c("STAID", "Urban.......6","Parking.Lot....","Agriculture.......7","Crops....","Water.......14","Wetlands....","Population.Density..people.km2.","Pasture.Hay....")
   names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density","Pasture_Hay")
-  chnm_EP_max <- left_join(chnm_EP_max,df_lu[,lu_columns],by=c("site"="STAID"))
+  chnm_EP_max <- left_join(chnm_EP_max,df_lu[,lu_columns],by=c("site"="STAID")) %>%
+    left_join(df_ww_lu_2012[,c("site",ww_vars)])
   names(chnm_EP_max)[c(1,4:11)] <- names(lu_columns)
   
   
@@ -57,7 +50,7 @@ Chem_Individual_correlation_table <- function() {
   chnm_EP_max$exceed_thresh <- as.integer(ifelse(chnm_EP_max$EAR_max >= 0.001,1,0))
   
   ### Choose chemicals that have at least 5% EAR exceedances
-  LU <- names(lu_columns)[-1]
+  LU <- c(names(lu_columns)[-1],ww_vars)
   chnm_EP_max_tbl <- tbl_df(chnm_EP_max[,c(LU,"chnm","exceed_thresh")])
   chnm_exceed <- chnm_EP_max_tbl %>% group_by(chnm) %>%
     summarise(exceed_pct = mean(exceed_thresh)) %>%
@@ -110,7 +103,7 @@ Chem_Individual_correlation_table <- function() {
     LU_signif_table[,i] <- ifelse(signif_accum[,i] <= 0.05,"X","")
   }
   
-  trimmed_signif_table <- LU_signif_table[,c("chnm","Urban","Crops","Pasture_Hay")]
+  trimmed_signif_table <- LU_signif_table[,c("chnm","Urban","Crops","Pasture_Hay","DW_FlowFraction")]
   
   return(LU_signif_table)
 }

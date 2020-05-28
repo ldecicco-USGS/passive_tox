@@ -16,18 +16,17 @@ Chem_Class_correlation_table <- function() {
   df_lu <- read_xlsx(path = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","GLRItox_summary.xlsx"),sheet = 1,skip=1)
   names(df_lu) <- make.names(names(df_lu))
   
-  df_ww_lu_2010 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2010_deployment.csv"), 
-                                     colClasses = c("USGS_STAID"="character"))
-  
-  df_ww_lu_2014 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2014_deployment.csv"), 
-                                     colClasses = c("USGS_STAID"="character"))
-  
+  # df_ww_lu_2010 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2010_deployment.csv"), 
+  #                                    colClasses = c("USGS_STAID"="character"))
+  # 
+  # df_ww_lu_2014 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2014_deployment.csv"), 
+  #                                    colClasses = c("USGS_STAID"="character"))
+  # 
   df_ww_lu_2012 <- data.table::fread(file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","raw","WatershedSummary2012_annualaverage.csv"), 
                                      colClasses = c("USGS_STAID"="character"))
-  
-  
-  
-  
+  names(df_ww_lu_2012)[1] <- "site"
+  ww_vars <- c("PopServed","DW_PopServed","FlowFraction","DW_FlowFraction","Effluent_mgalperday","AnnualEffluent_mgal")
+
   chemicalSummary <- readRDS(file = file.path(Sys.getenv("PASSIVE_PATH"),"data","data_for_git_repo","clean","chemical_summary.rds"))
   
   ########################################################################################
@@ -51,7 +50,8 @@ Chem_Class_correlation_table <- function() {
   names(lu_columns) <- c("site","Urban","Parking_lot","Agriculture","Crops","Water","Wetlands","Population_density","Pasture_Hay")
   
   class_EP_max <- class_EP_max %>% 
-    left_join(df_lu[,lu_columns], by=c("site"="STAID"))
+    left_join(df_lu[,lu_columns], by=c("site"="STAID")) %>%
+    left_join(df_ww_lu_2012[,c("site","DW_FlowFraction")])
   
   names(class_EP_max)[c(1,5:12)] <- names(lu_columns)
 
@@ -59,7 +59,7 @@ Chem_Class_correlation_table <- function() {
   class_EP_max$exceed_thresh <- as.integer(ifelse(class_EP_max$EAR_max >= 0.001,1,0))
   
   ### Choose chemical classes that have at least 5% EAR exceedances
-  LU <- c("Urban","Crops","Pasture_Hay")
+  LU <- c("Urban","Crops","Pasture_Hay","DW_FlowFraction")
   class_EP_max_tbl <- tbl_df(class_EP_max[,c(LU,"Class","exceed_thresh")])
   
   classes_exceed <- class_EP_max_tbl %>% group_by(Class) %>%
@@ -84,9 +84,15 @@ Chem_Class_correlation_table <- function() {
     group_by(Class) %>%
     do(w = wilcox.test(Pasture_Hay~exceed_thresh,data=.,paired=FALSE)) %>%
     summarize(Class, P_H_p = round(w$p.value,5))
+
+  WW <- class_EP_max_tbl %>%
+    group_by(Class) %>%
+    do(w = wilcox.test(DW_FlowFraction~exceed_thresh,data=.,paired=FALSE)) %>%
+    summarize(Class, WW_Effluent = round(w$p.value,5))
   
   signif <- left_join(urban_signif,Crop_signif) %>%
-    left_join(P_H_signif)
+    left_join(P_H_signif) %>%
+    left_join(WW)
   
   signif_best_landuse <- signif %>% pivot_longer(-Class,names_to = "LU",values_to = "p") %>%
     group_by(Class) %>%
@@ -113,8 +119,9 @@ Chem_Class_correlation_table <- function() {
     mutate(Urban = ifelse(urban_p <= 0.05,"X","")) %>%
     mutate(Crops = ifelse(crop_p <= 0.05,"X","")) %>%
     mutate(Pasture_and_Hay = ifelse(P_H_p <= 0.05,"X","")) %>%
-    select(Class,Urban,Crops,Pasture_and_Hay) %>% 
-    filter(!(Urban == "" & Crops == "" & Pasture_and_Hay == ""))
+    mutate(WW_Effluent = ifelse(WW_Effluent <= 0.05,"X","")) %>%
+    select(Class,Urban,Crops,Pasture_and_Hay,WW_Effluent) %>% 
+    filter(!(Urban == "" & Crops == "" & Pasture_and_Hay == "" & WW_Effluent == ""))
   
   return(LU_signif_table)
 }

@@ -121,9 +121,26 @@ combo_all$guide_side <- factor(combo_all$guide_side,
 
 combo_all_no_NDs <- combo_all[combo_all$meanEAR > 0,]
 
-pretty_logs_new <- toxEval:::prettyLogs(combo_all_no_NDs$meanEAR[!is.na(combo_all_no_NDs$meanEAR)])
+pretty_logs_with_check <- function(x){
+  x <- x[!is.na(x)]
+  pretty_range <- range(x[x > 0])
+  pretty_logs <- 10^(-10:10)
+  log_index <- which(pretty_logs < pretty_range[2] & pretty_logs > pretty_range[1])
+  pretty_index_range <- diff(range(log_index))
+  
+  log_index <- c(log_index[1]-1, log_index, log_index[length(log_index)] + 1)
+  pretty_logs_new <-  pretty_logs[log_index] 
 
-pretty_logs_new <- pretty_logs_new[c(TRUE, FALSE, FALSE)]
+  if(pretty_index_range > 6 & pretty_index_range < 9){
+    pretty_logs_new <- pretty_logs_new[c(TRUE, FALSE)]
+  } else if(pretty_index_range >= 9 & pretty_index_range < 12){
+    pretty_logs_new <- pretty_logs_new[c(TRUE, FALSE, FALSE)]
+  } else if(pretty_index_range >= 12){
+    pretty_logs_new <- pretty_logs_new[c(TRUE, FALSE, FALSE, FALSE)]
+  }
+  
+  return(pretty_logs_new)
+}
 
 class_colors <- function(chemicalSummary){
   
@@ -150,21 +167,6 @@ class_colors <- function(chemicalSummary){
   
 }
 
-# test_plot2 <- ggplot() +
-#   geom_boxplot(data = combo_all_no_NDs, 
-#                aes(y = chnm, x = meanEAR, fill = Class),
-#                lwd = 0.1, outlier.size = 0.1, na.rm = TRUE) +
-#   facet_grid(. ~ guide_side, scales = "free_x") +
-#   theme_minimal() +
-#   scale_fill_manual(values = class_colors(), drop=FALSE) +
-#   theme(axis.text.y = element_text(size = 5),
-#         axis.title = element_blank(),
-#         panel.grid.major = element_line(size = 0.1),
-#         legend.text =  element_text(size = 8)) +
-#   scale_x_log10(breaks = pretty_logs_new, labels = toxEval:::fancyNumbers)
-# 
-# ggsave(test_plot2, filename = "test2.pdf", height = 9, width = 11)
-
 
 benchChems <- combo_all_no_NDs %>% 
   filter(guide_side != "Conc") %>% 
@@ -177,6 +179,26 @@ combo_all_at_least2 <- combo_all_no_NDs %>%
   filter(as.character(chnm) %in% benchChems) %>% 
   mutate(chnm = droplevels(chnm))
   
+facet_labels <- combo_all_at_least2 %>% 
+  select(guide_side) %>% 
+  distinct() %>% 
+  mutate(chnm = factor(tail(levels(combo_all_at_least2$chnm),1), levels = levels(combo_all_at_least2$chnm)),
+         label = c("A", "D", "B", "C"),
+         x = c(10^-8, 0, 0, 0))
+
+site_labels <- data.frame(
+  guide_side = factor("ToxCast", levels = levels(facet_labels$guide_side)),
+  label = "# Sites",
+  x = 0,
+  chnm = facet_labels$chnm[1]
+)
+
+counts <- combo_all_at_least2 %>% 
+  group_by(chnm) %>% 
+  summarize(n_sites = as.character(length(unique(site)))) %>% 
+  ungroup() %>% 
+  mutate(guide_side = factor("ToxCast", levels = levels(facet_labels$guide_side)),
+         x = 0)
 
 test_plot3 <- ggplot() +
   geom_boxplot(data = combo_all_at_least2, 
@@ -184,12 +206,23 @@ test_plot3 <- ggplot() +
                lwd = 0.1, outlier.size = 0.1, na.rm = TRUE) +
   facet_grid(. ~ guide_side, scales = "free_x") +
   theme_minimal() +
+  geom_text(data = facet_labels, 
+            aes(y = chnm, label = label, x = x),
+            hjust = 0, vjust = 1) +
+  geom_text(data = site_labels, size = 2.5,
+            aes(y = chnm, label = label, x = x),
+            hjust = "center", vjust = -1) +
+  geom_text(data = counts, size = 2,
+            aes(y = chnm, label = n_sites, x = x),
+            hjust = "center",  position = position_nudge(x = -0.05)) +
   scale_fill_manual(values = class_colors(), drop=FALSE) +
   theme(axis.text.y = element_text(size = 6),
         axis.title = element_blank(),
         panel.grid.major = element_line(size = 0.1),
         legend.text =  element_text(size = 8)) +
-  scale_x_log10(breaks = pretty_logs_new, labels = toxEval:::fancyNumbers)
+  scale_x_log10(breaks = pretty_logs_with_check,
+                labels = toxEval:::fancyNumbers) +
+  coord_cartesian(clip = "off")
 
 ggsave(test_plot3, filename = "test5.pdf", height = 11, width = 9)
 

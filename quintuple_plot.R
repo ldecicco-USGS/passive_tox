@@ -79,24 +79,24 @@ cs <- chemicalSummary %>%
 gd_tox <- graph_chem_data(cs)
 
 combo1 <- side_by_side_data(gd_tox, gd_conc,
-                            left_title = "ToxCast",
-                            right_title = "Conc")
+                            left_title = "ToxCast EAR",
+                            right_title = "Concentration [\U003BCg/L]")
 
 
 combo2 <- side_by_side_data(gd_eco_1, gd_conc,
-                           left_title = "Eco_1",
-                           right_title = "Conc")
+                           left_title = "ECOTOX Hazards TQ",
+                           right_title = "Concentration [\U003BCg/L]")
 
 combo3 <- side_by_side_data(gd_eco_2, gd_conc,
-                            left_title = "Eco_2",
-                            right_title = "Conc")
+                            left_title = "ECOTOX Other TQ",
+                            right_title = "Concentration [\U003BCg/L]")
 
 combo_all <- combo1 %>%
   bind_rows(combo2 %>%
-              filter(guide_side == "Eco_1")
+              filter(guide_side == "ECOTOX Hazards TQ")
   ) %>%
   bind_rows(combo3 %>%
-              filter(guide_side == "Eco_2")
+              filter(guide_side == "ECOTOX Other TQ")
   )
 
 combo_all$Class <- factor(combo_all$Class,
@@ -104,20 +104,10 @@ combo_all$Class <- factor(combo_all$Class,
 combo_all$chnm <- factor(combo_all$chnm,
                            levels = levels(combo1$chnm))
 combo_all$guide_side <- factor(combo_all$guide_side,
-                                 levels = c("ToxCast",
-                                            "Eco_1",
-                                            "Eco_2",
-                                            "Conc"))
-
-
-
-# test_plot <- plot_chemical_boxplots(combo_all, guide_side,
-#                        x_label = "", plot_ND = FALSE) +
-#   ggplot2::facet_grid(. ~ guide_side, scales = "free_x")
-# 
-# ggsave(test_plot, filename = "test.pdf", height = 11, width = 9)
-
-
+                                 levels = c("ToxCast EAR",
+                                            "ECOTOX Hazards TQ",
+                                            "ECOTOX Other TQ",
+                                            "Concentration [\U003BCg/L]"))
 
 combo_all_no_NDs <- combo_all[combo_all$meanEAR > 0,]
 
@@ -167,9 +157,8 @@ class_colors <- function(chemicalSummary){
   
 }
 
-
 benchChems <- combo_all_no_NDs %>% 
-  filter(guide_side != "Conc") %>% 
+  filter(as.character(guide_side) != "Concentration [\U003BCg/L]") %>% 
   select(chnm) %>% 
   distinct() %>% 
   mutate(chnm = as.character(chnm)) %>% 
@@ -187,7 +176,7 @@ facet_labels <- combo_all_at_least2 %>%
          x = c(10^-8, 0, 0, 0))
 
 site_labels <- data.frame(
-  guide_side = factor("ToxCast", levels = levels(facet_labels$guide_side)),
+  guide_side = factor("ToxCast EAR", levels = levels(facet_labels$guide_side)),
   label = "# Sites",
   x = 0,
   chnm = facet_labels$chnm[1]
@@ -197,7 +186,7 @@ counts <- combo_all_at_least2 %>%
   group_by(chnm) %>% 
   summarize(n_sites = as.character(length(unique(site)))) %>% 
   ungroup() %>% 
-  mutate(guide_side = factor("ToxCast", levels = levels(facet_labels$guide_side)),
+  mutate(guide_side = factor("ToxCast EAR", levels = levels(facet_labels$guide_side)),
          x = 0)
 
 test_plot3 <- ggplot() +
@@ -219,7 +208,7 @@ test_plot3 <- ggplot() +
   theme(axis.text.y = element_text(size = 6),
         axis.title = element_blank(),
         panel.grid.major = element_line(size = 0.1),
-        legend.text =  element_text(size = 8)) +
+        legend.text =  element_text(size = 7)) +
   scale_x_log10(breaks = pretty_logs_with_check,
                 labels = toxEval:::fancyNumbers) +
   coord_cartesian(clip = "off")

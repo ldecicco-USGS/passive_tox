@@ -97,10 +97,18 @@ fnc = function(var) {
   var
 }
 
-median_conc <- graph_chem_data(cs_conc) %>% 
+library(sparkline)
+
+gd_conc <- graph_chem_data(cs_conc) %>% 
+  filter(meanEAR > 0)
+
+minEAR <- min(log10(gd_conc$meanEAR))
+maxEAR <- max(log10(gd_conc$meanEAR))
+
+median_conc <-  gd_conc  %>% 
   group_by(chnm, Class) %>% 
-  summarise(n_sites = length(unique(site[meanEAR > 0])),
-            conc_median = median(meanEAR[meanEAR > 0])) %>% 
+  summarise(n_sites = length(unique(site)),
+            conc_median = median(meanEAR)) %>% 
   ungroup() 
 
 median_tox <- graph_chem_data(cs) %>% 
@@ -145,24 +153,29 @@ styleColorBarLOG <- function(data, color, angle = 90){
 
 datatable(
   median_all,
+  escape = FALSE,
   extensions = 'RowGroup',
   options = list(rowGroup = list(dataSrc = 2),
                  orderFixed = list(list(8,'asc')),
                  pageLength = 100,
                  autoWidth = TRUE,
-                 columnDefs = list(list(visible=FALSE, targets=c(2,8))))) %>% 
+                 columnDefs = list(list(visible=FALSE, targets=c(2,8))),
+  fnDrawCallback = htmlwidgets::JS('function(){
+                                    HTMLWidgets.staticRender();
+                                    }'))) %>%
+  spk_add_deps() %>%
 
-  formatSignif(4:7, digits = 3) %>% 
+  formatSignif(5:8, digits = 3) %>%
   formatStyle("conc_median",
               background = styleColorBarLOG(as.numeric(median_all$conc_median), 'goldenrod'),
               backgroundSize = '95% 80%',
               backgroundRepeat = 'no-repeat',
-              backgroundPosition = 'center' ) %>% 
+              backgroundPosition = 'center' ) %>%
   formatStyle("tox_median",
               background = styleColorBarLOG(as.numeric(median_all$tox_median), 'goldenrod'),
               backgroundSize = '95% 80%',
               backgroundRepeat = 'no-repeat',
-              backgroundPosition = 'center' ) %>% 
+              backgroundPosition = 'center' ) %>%
   formatStyle("eco1_median",
               background = styleColorBarLOG(as.numeric(median_all$eco1_median), 'goldenrod'),
               backgroundSize = '95% 80%',

@@ -238,11 +238,41 @@ fnc = function(var) {
   var
 }
 
-median_conc <- graph_chem_data(cs_conc) %>% 
+library(sparkline)
+
+gd_conc <- graph_chem_data(cs_conc) %>% 
+  filter(meanEAR > 0)
+
+minEAR <- min(log10(gd_conc$meanEAR))
+maxEAR <- max(log10(gd_conc$meanEAR))
+
+median_conc <- gd_conc %>% 
   group_by(chnm, Class) %>% 
-  summarise(n_sites = length(unique(site[meanEAR > 0])),
-            conc_median = median(meanEAR)) %>% 
+  summarise(n_sites = length(unique(site)),
+            conc_median = median(meanEAR),
+            conc_box = spk_chr(log10(meanEAR),
+                               lineColor = 'black', 
+                               fillColor = '#ccc',
+                               chartRangeMin = minEAR,
+                               chartRangeMax = maxEAR,
+                               width = 200,
+                               height = 60,
+                               type = "box",
+                               #target = 8,
+                               highlightLineColor = 'orange', 
+                               highlightSpotColor = 'orange')) %>% 
   ungroup() 
+
+datatable(median_conc,
+          escape = F,
+          extensions = 'RowGroup',
+          options = list(rowGroup = list(dataSrc = 2),
+                         orderFixed = list(list(2,'asc')),
+                         pageLength = 100,
+                         fnDrawCallback = htmlwidgets::JS('function(){
+                                                          HTMLWidgets.staticRender();
+                                                          }'))) %>% 
+  spk_add_deps()
 
 median_tox <- graph_chem_data(cs) %>% 
   group_by(chnm, Class) %>% 
@@ -260,7 +290,6 @@ median_eco2 <- graph_chem_data(summary_eco_2) %>%
   ungroup() 
 
 median_all <- median_conc %>% 
-  filter(conc_median > 0) %>% 
   left_join(median_tox, by = c("chnm","Class")) %>% 
   left_join(median_eco1, by = c("chnm","Class")) %>% 
   left_join(median_eco2, by = c("chnm","Class")) %>% 
@@ -270,30 +299,29 @@ median_all <- median_conc %>%
          conc_median = fnc(conc_median),
          tox_median = fnc(tox_median),
          eco1_median = fnc(eco1_median),
-         eco2_median = fnc(eco2_median),
-         class_col = class_colors()[Class])
+         eco2_median = fnc(eco2_median))
 
 
-mylog <- function(x){
-
-  x <- as.numeric(x)
-
-  x <- log10(x)
-  
-  x[!is.finite(x) & !is.na(x)] <- min(x[is.finite(x) & !is.na(x)])-2
-  
-  max_x = max(x, na.rm = TRUE)
-  min_x = min(x, na.rm = TRUE)
-  x <- (x - min_x)/(max_x - min_x)
-  
-}
-
-
-df_f <- formattable(median_all,
-            list(conc_median = color_bar("goldenrod", fun = mylog),
-                 tox_median = color_bar("goldenrod", fun = mylog),
-                 eco1_median = color_bar("goldenrod", fun = mylog),
-                 eco2_median = color_bar("goldenrod", fun = mylog)))
+# mylog <- function(x){
+# 
+#   x <- as.numeric(x)
+# 
+#   x <- log10(x)
+#   
+#   x[!is.finite(x) & !is.na(x)] <- min(x[is.finite(x) & !is.na(x)])-2
+#   
+#   max_x = max(x, na.rm = TRUE)
+#   min_x = min(x, na.rm = TRUE)
+#   x <- (x - min_x)/(max_x - min_x)
+#   
+# }
+# 
+# 
+# df_f <- formattable(median_all,
+#             list(conc_median = color_bar("goldenrod", fun = mylog),
+#                  tox_median = color_bar("goldenrod", fun = mylog),
+#                  eco1_median = color_bar("goldenrod", fun = mylog),
+#                  eco2_median = color_bar("goldenrod", fun = mylog)))
 
 styleColorBarLOG <- function(data, color, angle = 90){
 
@@ -307,15 +335,14 @@ styleColorBarLOG <- function(data, color, angle = 90){
 }
 
 datatable(
-  median_all,
+  median_all[,-5],
   extensions = 'RowGroup',
   options = list(rowGroup = list(dataSrc = 2),
                  orderFixed = list(list(8,'asc')),
                  pageLength = 100,
                  autoWidth = TRUE,
-                 columnDefs = list(list(visible=FALSE, targets=c(2,3,8))))) %>% 
-
-  formatSignif(4:7, digits = 3) %>% 
+                 columnDefs = list(list(visible=FALSE, targets=c(2,8))))) %>% 
+  formatSignif(c(4:7), digits = 3) %>%  
   formatStyle("conc_median",
               background = styleColorBarLOG(as.numeric(median_all$conc_median), 'goldenrod'),
               backgroundSize = '95% 80%',
@@ -337,3 +364,4 @@ datatable(
               backgroundRepeat = 'no-repeat',
               backgroundPosition = 'center' )
 
+library(sparkline)

@@ -1,0 +1,179 @@
+---
+title: "table_fun"
+author: "Laura"
+date: "5/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Sortable table
+
+The printed values are ug/L, EAR, TQ, TQ. The color bar is scaled to the log10 of those values:
+
+```{r allthestuff, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(toxEval)
+library(DT)
+
+path_to_data <- Sys.getenv("PASSIVE_PATH")
+source(file = "read_chemicalSummary.R")
+
+eco_list <- create_toxEval(file.path(path_to_data, "data/toxEval input file/","passive_benchmarks_all.xlsx"))
+
+tox_list$chem_info <- tox_list$chem_info %>% 
+  rename(Chemical = chnm)
+
+chmn_df <-  tox_list$chem_info %>% 
+  select(CAS, Chemical) %>% 
+  distinct()
+
+eco_list$chem_info <- eco_list$chem_info %>% 
+  rename(Chemical = chnm)
+
+summary_conc <- get_concentration_summary(tox_list)
+
+chmn_conc_df <- summary_conc %>% 
+  select(CAS, chnm) %>% 
+  distinct() %>%
+  left_join(chmn_df, by = "CAS")
+
+orig_levels_conc <- data.frame(chnm = levels(chmn_conc_df$chnm)) %>% 
+  left_join(chmn_conc_df %>% 
+              mutate(chnm = as.character(chnm)), 
+            by = "chnm")
+
+cs_conc <- summary_conc %>% 
+  select(-chnm) %>% 
+  left_join(chmn_conc_df, by = "CAS") %>% 
+  select(-chnm) %>%
+  mutate(chnm = factor(Chemical, 
+                       levels = orig_levels_conc$Chemical))
+
+chmn_tox_df <-  chemicalSummary %>% 
+  select(CAS, chnm) %>% 
+  distinct() %>%
+  left_join(chmn_df, by = "CAS")
+
+orig_levels_tox <- data.frame(chnm = levels(chmn_tox_df$chnm)) %>% 
+  left_join(chmn_tox_df %>% 
+              mutate(chnm = as.character(chnm)), by = "chnm")
+
+cs <- chemicalSummary %>% 
+  select(-chnm) %>% 
+  left_join(chmn_tox_df, by = "CAS") %>% 
+  select(-chnm) %>%
+  mutate(chnm = factor(Chemical, 
+                       levels = orig_levels_tox$Chemical))
+
+summary_eco <- get_chemical_summary(eco_list)
+
+chmn_eco_df <- summary_eco %>% 
+  select(CAS, chnm) %>% 
+  distinct() %>%
+  left_join(chmn_df, by = "CAS")
+
+orig_levels_eco <- data.frame(chnm = levels(chmn_eco_df$chnm)) %>% 
+  left_join(chmn_eco_df %>% 
+              mutate(chnm = as.character(chnm)), by = "chnm")
+
+cs_eco <- summary_eco %>% 
+  select(-chnm) %>% 
+  left_join(chmn_eco_df, by = "CAS") %>% 
+  select(-chnm) %>%
+  mutate(chnm = factor(Chemical, levels = orig_levels_eco$Chemical))
+
+summary_eco_1 <- cs_eco %>% 
+  filter(Bio_category == 1)
+
+summary_eco_2 <- cs_eco %>% 
+  filter(Bio_category == 2)
+
+fnc = function(var) {
+  var <- prettyNum(var)
+  var[var=="NA"] = ""
+  var
+}
+
+median_conc <- graph_chem_data(cs_conc) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(n_sites = length(unique(site[meanEAR > 0])),
+            conc_median = median(meanEAR[meanEAR > 0])) %>% 
+  ungroup() 
+
+median_tox <- graph_chem_data(cs) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(tox_median = median(meanEAR[meanEAR > 0])) %>% 
+  ungroup() 
+
+median_eco1 <- graph_chem_data(summary_eco_1) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(eco1_median = median(meanEAR[meanEAR > 0])) %>% 
+  ungroup() 
+
+median_eco2 <- graph_chem_data(summary_eco_2) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(eco2_median = median(meanEAR[meanEAR > 0])) %>% 
+  ungroup() 
+
+median_all <- median_conc %>% 
+  filter(conc_median > 0) %>% 
+  left_join(median_tox, by = c("chnm","Class")) %>% 
+  left_join(median_eco1, by = c("chnm","Class")) %>% 
+  left_join(median_eco2, by = c("chnm","Class")) %>% 
+  ungroup() %>% 
+  mutate(Class = factor(Class, levels = levels(cs_conc$Class)),
+         class_num = as.integer(Class),
+         conc_median = fnc(conc_median),
+         tox_median = fnc(tox_median),
+         eco1_median = fnc(eco1_median),
+         eco2_median = fnc(eco2_median))
+
+
+styleColorBarLOG <- function(data, color, angle = 90){
+
+  data <- log10(data)
+  rg = range(data, na.rm = TRUE, finite = TRUE)
+  r1 = rg[1]
+  r2 = rg[2]
+  r = r2 - r1
+  JS(sprintf("isNaN(Math.log10(parseFloat(value))) || Math.log10(value) <= %f ? '' : 'linear-gradient(%fdeg, transparent ' + (%f - Math.log10(value))/%f * 100 + '%%, %s ' + (%f - Math.log10(value))/%f * 100 + '%%)'", 
+             r1, angle, r2, r, color, r2, r))
+}
+
+datatable(
+  median_all,
+  extensions = 'RowGroup',
+  options = list(rowGroup = list(dataSrc = 2),
+                 orderFixed = list(list(8,'asc')),
+                 pageLength = 100,
+                 autoWidth = TRUE,
+                 columnDefs = list(list(visible=FALSE, targets=c(2,8))))) %>% 
+
+  formatSignif(4:7, digits = 3) %>% 
+  formatStyle("conc_median",
+              background = styleColorBarLOG(as.numeric(median_all$conc_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' ) %>% 
+  formatStyle("tox_median",
+              background = styleColorBarLOG(as.numeric(median_all$tox_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' ) %>% 
+  formatStyle("eco1_median",
+              background = styleColorBarLOG(as.numeric(median_all$eco1_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' ) %>%
+  formatStyle("eco2_median",
+              background = styleColorBarLOG(as.numeric(median_all$eco2_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' )
+
+
+
+```

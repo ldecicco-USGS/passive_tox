@@ -164,9 +164,10 @@ benchChems <- combo_all_no_NDs %>%
   mutate(chnm = as.character(chnm)) %>% 
   pull(chnm)
 
-combo_all_at_least2 <- combo_all_no_NDs %>% 
-  filter(as.character(chnm) %in% benchChems) %>% 
-  mutate(chnm = droplevels(chnm))
+combo_all_at_least2 <- combo_all_no_NDs 
+
+  # filter(as.character(chnm) %in% benchChems) %>% 
+  # mutate(chnm = droplevels(chnm))
   
 facet_labels <- combo_all_at_least2 %>% 
   select(guide_side) %>% 
@@ -213,23 +214,126 @@ test_plot3 <- ggplot() +
                 labels = toxEval:::fancyNumbers) +
   coord_cartesian(clip = "off")
 
-ggsave(test_plot3, filename = "test5.pdf", height = 11, width = 9)
+ggsave(test_plot3, filename = "test_all.pdf", height = 11, width = 9)
+
+# Plot chemicals that aren't in either:
+
+cs_conc_filtered <- cs_conc %>% 
+  filter(!(as.character(chnm) %in% benchChems),
+         EAR > 0)
+
+cs_conc_filtered$Class <- droplevels(cs_conc_filtered$Class)
+
+plot_chemical_boxplots(cs_conc_filtered, plot_ND = FALSE, 
+                       x_label =  "Concentration [\U003BCg/L]" )
+
+library(formattable)
+library(DT)
+
+# Table of chemical, class, and median:
+
+fnc = function(var) {
+  var <- prettyNum(var)
+  var[var=="NA"] = ""
+  var
+}
+
+median_conc <- graph_chem_data(cs_conc) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(n_sites = length(unique(site[meanEAR > 0])),
+            conc_median = median(meanEAR)) %>% 
+  ungroup() 
+
+median_tox <- graph_chem_data(cs) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(tox_median = median(meanEAR)) %>% 
+  ungroup() 
+
+median_eco1 <- graph_chem_data(summary_eco_1) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(eco1_median = median(meanEAR)) %>% 
+  ungroup() 
+
+median_eco2 <- graph_chem_data(summary_eco_2) %>% 
+  group_by(chnm, Class) %>% 
+  summarise(eco2_median = median(meanEAR)) %>% 
+  ungroup() 
+
+median_all <- median_conc %>% 
+  filter(conc_median > 0) %>% 
+  left_join(median_tox, by = c("chnm","Class")) %>% 
+  left_join(median_eco1, by = c("chnm","Class")) %>% 
+  left_join(median_eco2, by = c("chnm","Class")) %>% 
+  ungroup() %>% 
+  mutate(Class = factor(Class, levels = levels(cs_conc$Class)),
+         class_num = as.integer(Class),
+         conc_median = fnc(conc_median),
+         tox_median = fnc(tox_median),
+         eco1_median = fnc(eco1_median),
+         eco2_median = fnc(eco2_median),
+         class_col = class_colors()[Class])
 
 
-combo_eco <- bind_rows(mutate(gd_eco_1,
-                              guide_side = "1"),
-                       mutate(gd_eco_2,
-                              guide_side = "2"))
+mylog <- function(x){
 
-test_plotECO <- ggplot() +
-  geom_boxplot(data = combo_eco, 
-               aes(y = chnm, x = meanEAR, fill = Class),
-               lwd = 0.1, outlier.size = 0.1, na.rm = TRUE) +
-  facet_grid(. ~ guide_side, scales = "free_x") +
-  theme_minimal() +
-  scale_fill_manual(values = class_colors(), drop=FALSE) +
-  theme(axis.text.y = element_text(size = 6),
-        axis.title = element_blank(),
-        panel.grid.major = element_line(size = 0.1),
-        legend.text =  element_text(size = 8)) +
-  scale_x_log10(breaks = pretty_logs_new, labels = toxEval:::fancyNumbers)
+  x <- as.numeric(x)
+
+  x <- log10(x)
+  
+  x[!is.finite(x) & !is.na(x)] <- min(x[is.finite(x) & !is.na(x)])-2
+  
+  max_x = max(x, na.rm = TRUE)
+  min_x = min(x, na.rm = TRUE)
+  x <- (x - min_x)/(max_x - min_x)
+  
+}
+
+
+df_f <- formattable(median_all,
+            list(conc_median = color_bar("goldenrod", fun = mylog),
+                 tox_median = color_bar("goldenrod", fun = mylog),
+                 eco1_median = color_bar("goldenrod", fun = mylog),
+                 eco2_median = color_bar("goldenrod", fun = mylog)))
+
+styleColorBarLOG <- function(data, color, angle = 90){
+
+  data <- log10(data)
+  rg = range(data, na.rm = TRUE, finite = TRUE)
+  r1 = rg[1]
+  r2 = rg[2]
+  r = r2 - r1
+  JS(sprintf("isNaN(Math.log10(parseFloat(value))) || Math.log10(value) <= %f ? '' : 'linear-gradient(%fdeg, transparent ' + (%f - Math.log10(value))/%f * 100 + '%%, %s ' + (%f - Math.log10(value))/%f * 100 + '%%)'", 
+             r1, angle, r2, r, color, r2, r))
+}
+
+datatable(
+  median_all,
+  extensions = 'RowGroup',
+  options = list(rowGroup = list(dataSrc = 2),
+                 orderFixed = list(list(8,'asc')),
+                 pageLength = 100,
+                 autoWidth = TRUE,
+                 columnDefs = list(list(visible=FALSE, targets=c(2,3,8))))) %>% 
+
+  formatSignif(4:7, digits = 3) %>% 
+  formatStyle("conc_median",
+              background = styleColorBarLOG(as.numeric(median_all$conc_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' ) %>% 
+  formatStyle("tox_median",
+              background = styleColorBarLOG(as.numeric(median_all$tox_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' ) %>% 
+  formatStyle("eco1_median",
+              background = styleColorBarLOG(as.numeric(median_all$eco1_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' ) %>%
+  formatStyle("eco2_median",
+              background = styleColorBarLOG(as.numeric(median_all$eco2_median), 'goldenrod'),
+              backgroundSize = '95% 80%',
+              backgroundRepeat = 'no-repeat',
+              backgroundPosition = 'center' )
+

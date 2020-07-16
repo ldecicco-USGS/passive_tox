@@ -40,8 +40,10 @@ Figure 1: Map of sample sites and associated land cover.  Identification of site
 
 ```{r fig2, fig.width=9, fig.height=11}
 source(file = "R/report/combo_plot2.R")
-source(file = "create_triple_fig.R")
-plot_out <- create_triple_fig(path_to_data)
+# source(file = "create_triple_fig.R")
+source(file = "quintuple_plot.R")
+
+plot_out <- quad_fun(path_to_data)
 plot_out
 ```
 

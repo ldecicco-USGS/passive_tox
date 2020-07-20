@@ -94,9 +94,10 @@ Chem_Class_correlation_table <- function() {
     left_join(P_H_signif) %>%
     left_join(WW)
   
-  signif_best_landuse <- signif %>% pivot_longer(-Class,names_to = "LU",values_to = "p") %>%
+  signif_best_landuse <- signif %>% 
+    pivot_longer(-Class,names_to = "LU",values_to = "p") %>%
     group_by(Class) %>%
-    slice(which.min(p)) %>%
+    dplyr::slice(which.min(p)) %>%
     mutate(significant = ifelse(p <= 0.05,1,0))
   
   
@@ -120,7 +121,7 @@ Chem_Class_correlation_table <- function() {
     mutate(Crops = ifelse(crop_p <= 0.05,"X","")) %>%
     mutate(Pasture_and_Hay = ifelse(P_H_p <= 0.05,"X","")) %>%
     mutate(WW_Effluent = ifelse(WW_Effluent <= 0.05,"X","")) %>%
-    select(Class,Urban,Crops,Pasture_and_Hay,WW_Effluent) %>% 
+    dplyr::select(Class,Urban,Crops,Pasture_and_Hay,WW_Effluent) %>% 
     filter(!(Urban == "" & Crops == "" & Pasture_and_Hay == "" & WW_Effluent == ""))
   
   return(LU_signif_table)

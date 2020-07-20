@@ -242,7 +242,7 @@ plot_tox_stacks_manuscript2 <- function(chemical_summary,
   counts_df$`Short Name` <- factor(counts_df$`Short Name`, levels = levels(chem_site$`Short Name`))
   
   counts_df <- counts_df %>% 
-    right_join(select(chem_site, `Short Name`, map_nm), by="Short Name")
+    dplyr::right_join(dplyr::select(chem_site, `Short Name`, map_nm), by="Short Name")
   
   counts_df <- counts_df[!duplicated(counts_df$`Short Name`),]
   

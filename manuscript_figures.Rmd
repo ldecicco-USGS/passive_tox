@@ -11,13 +11,15 @@ knitr::opts_chunk$set(echo = FALSE,
                       warning = FALSE,
                       fig.width = 7,
                       fig.height = 9)
-options(tinytex.verbose = TRUE)
 
 library(tidyverse)
 library(toxEval)
 library(ggpmisc)
 library(ggpubr)
 library(cowplot)
+
+options(tinytex.verbose = TRUE,
+        dplyr.summarise.inform = FALSE)
 
 source(file = "read_chemicalSummary.R")
 source(file = "R/analyze/get_sites_ready.R")
@@ -40,10 +42,10 @@ Figure 1: Map of sample sites and associated land cover.  Identification of site
 
 ```{r fig2, fig.width=9, fig.height=11}
 source(file = "R/report/combo_plot2.R")
-# source(file = "create_triple_fig.R")
+source(file = "create_triple_fig.R")
 source(file = "quintuple_plot.R")
 
-plot_out <- quad_fun(path_to_data)
+plot_out <- quad_fun(path_to_data, tox_list)
 plot_out
 ```
 
@@ -52,6 +54,7 @@ Figure 2: Exposure activity ratios (EARs) using ToxCast endpoints for screening 
 ```{r fig3}
 
 source(file = "R/report/stack_plots.R")
+source(file = "R/report/combo_plot2.R")
 source(file = "R/analyze/table_chem_class_Land_use_correlation.R")
 
 lakes_ordered <- c("Lake Superior",
@@ -89,7 +92,7 @@ stack2 <- upperPlot +
   geom_table_npc(data = df,
                  aes(npcx = x, 
                      npcy = y,
-                     label = tb), size = 2,
+                     label = tb), size = 2.5,
                  hjust = 1, vjust = 1) +
   geom_text(data = title_text, size = 2.5,
             aes(x=x, y=y, label=label),

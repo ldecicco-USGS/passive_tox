@@ -3,9 +3,11 @@ library(toxEval)
 library(tidyverse)
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
-source(file = "read_chemicalSummary.R")
 
-quad_fun <- function(path_to_data){
+
+quad_fun <- function(path_to_data, tox_list){
+  # source(file = here::here("read_chemicalSummary.R"))
+
   eco_list <- create_toxEval(file.path(path_to_data, "data/toxEval input file/","passive_benchmarks_all.xlsx"))
   
   tox_list$chem_info <- tox_list$chem_info %>% 

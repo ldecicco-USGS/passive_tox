@@ -256,13 +256,30 @@ captions <- c("Table SI-1: Sampling locations and primary land cover characteris
 
 wb <- update_table_2(path_to_data, tab_names[2])
 
+sites <- tox_list$chem_site %>% 
+  rename(`Site ID on Map` = map_nm,
+         `USGS Site ID` = SiteID,
+         `Site Name (Full)` = Fullname)
+
+deployments <- readxl::read_xlsx(file.path(Sys.getenv("PASSIVE_PATH"),
+                                           "Supplemental/deployments.xlsx"))
+
+
+
 # SI-1: Site Table
 addWorksheet(wb, tab_names[1])
 header_st <- createStyle(textDecoration = "Bold")
 writeData(wb = wb, sheet =  tab_names[1], colNames = FALSE, rowNames = FALSE,
           x = captions[1])
 writeData(wb = wb, sheet = tab_names[1], startRow = 3,
-          x = tox_list$chem_site, headerStyle = header_st)
+          x = sites[,1:5], headerStyle = header_st)
+writeData(wb = wb, sheet = tab_names[1], 
+          startRow = 2, startCol = 6,
+          x = deployments, headerStyle = header_st)
+writeData(wb = wb, sheet = tab_names[1], 
+          startRow = 3, startCol = 8,
+          x = sites[,6:10], headerStyle = header_st)
+
 
 worksheetOrder(wb) <- c(2,1)
 #SI-2: Chemical Table

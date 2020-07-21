@@ -4,6 +4,8 @@ library(openxlsx)
 
 path_to_data <- Sys.getenv("PASSIVE_PATH")
 
+options(dplyr.summarise.inform = FALSE)
+
 # shiny::runApp("apps/Mixture_Exploration/")
 
 # Data setup is done in drake plan
@@ -20,6 +22,7 @@ tox_list$exclusions <- tox_list$exclusions %>%
 # Mixtures stuff:
 EAR_thresh <- 0.001
 site_thresh_percent <- 10
+TQ_thresh <- 0.1
 
 source(file = "R/mixtures/mix_script.R")
 source(file = "R/mixtures/prepare_mixture_data.R")
@@ -100,6 +103,8 @@ AOP_pan <- chemicalSummary %>%
 #Run ECOTOX analysis
 suppressMessages(source("R/Analyze/ECOTOX_workflow.R"))
 
+
+
 #Combine EAR and TQ-based chem priorities
 source("R/Analyze/combine_TQ_EAR_chem_priorities.R")
 
@@ -113,6 +118,126 @@ names(table_2) <- c("Chemical use class","Chemical name","Sites monitored","Indi
 ms_tables_wb <- loadWorkbook(file.path(path_to_data,"Tables","Manuscript_tables.xlsx"))
 writeData(wb = ms_tables_wb,sheet = "Table 2. Chemical Summary",x = table_2,startCol = 1,startRow = 4)
 saveWorkbook(wb = ms_tables_wb,file = file.path(path_to_data,"Tables","Manuscript_tables.xlsx"),overwrite = TRUE)
+
+################################################
+# Venn diagram
+eco_list <- create_toxEval(file.path(path_to_data, "data/toxEval input file/","passive_benchmarks_all.xlsx"))
+eco_list$chem_info <- eco_list$chem_info %>% 
+  rename(Chemical = chnm)
+
+summary_conc <- get_concentration_summary(tox_list)
+summary_eco <- get_chemical_summary(eco_list)
+
+
+n_tox = length(unique(chemicalSummary$CAS))
+n_tots = length(unique(summary_conc$CAS))
+n_eco = length(unique(summary_eco$CAS))
+n_tox_eco = length(unique(chemicalSummary$CAS[chemicalSummary$CAS %in% summary_eco$CAS]))
+
+chmn_df <-  tox_list$chem_info %>% 
+  select(CAS, chnm) %>% 
+  distinct()
+
+summarize_dets <- bind_rows(select(chemicalSummary, Class, chnm, CAS, EAR) %>% 
+                              mutate(cat = "Tox",
+                                     chnm = as.character(chnm)),
+                            select(summary_conc, Class, chnm, CAS, EAR)%>% 
+                              mutate(cat = "Conc",
+                                     chnm = as.character(chnm)),
+                            select(summary_eco, Class, chnm, CAS, EAR)%>% 
+                              mutate(cat = "Eco",
+                                     chnm = as.character(chnm))) %>% 
+  group_by(CAS, Class, cat) %>% 
+  summarize(detect = any(EAR > 0)) %>% 
+  pivot_wider(names_from = cat,
+              values_from = detect) %>%  
+  mutate(in_both = Eco + Tox == 2,
+         in_neither = is.na(Eco) & is.na(Tox),
+         Tox = as.logical(Tox),
+         Eco = as.logical(Eco),
+         Conc = as.logical(Conc)) %>% 
+  ungroup() %>% 
+  left_join(chmn_df, by = "CAS")
+
+no_dets <- summarize_dets %>% 
+  filter(!Conc) %>%
+  select(Class, chnm) %>% 
+  arrange(Class)
+  
+
+no_det_not_in_db <- summarize_dets %>% 
+  filter(!Conc & in_neither) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+no_det_in_Tox <- summarize_dets %>% 
+  filter(!Conc & !Tox & is.na(Eco)) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+no_det_in_Eco <- summarize_dets %>% 
+  filter(!Conc & is.na(Tox) & !Eco) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+no_det_in_both <- summarize_dets %>% 
+  filter(!Conc & !in_neither) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+det_in_both <- summarize_dets %>% 
+  filter(Conc & in_both) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+det_in_neither <- summarize_dets %>% 
+  filter(Conc & in_neither) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+det_only_tox <- summarize_dets %>% 
+  filter(Conc & Tox & is.na(Eco)) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+det_only_eco <- summarize_dets %>% 
+  filter(Conc & is.na(Tox) & Eco) %>% 
+  select(Class, chnm) %>% 
+  arrange(Class)
+
+library(openxlsx)
+
+wb = createWorkbook()
+addWorksheet(wb, "Venn")
+
+writeData(wb = wb, startRow = 1, startCol = 1, 
+          x = "Not Detected", sheet = "Venn")
+writeData(wb = wb, startRow = 2, startCol = 1, 
+          x = no_dets, sheet = "Venn")
+
+writeData(wb = wb, startRow = 1, startCol = 3, 
+          x = "Detected", sheet = "Venn")
+writeData(wb = wb, startRow = 2, startCol = 3, 
+          x = det_in_neither, sheet = "Venn")
+
+writeData(wb = wb, startRow = 1, startCol = 5, 
+          x = "Detected ToxCast", sheet = "Venn")
+writeData(wb = wb, startRow = 2, startCol = 5, 
+          x = det_only_tox, sheet = "Venn")
+
+writeData(wb = wb, startRow = 1, startCol = 7, 
+          x = "Detected Both", sheet = "Venn")
+writeData(wb = wb, startRow = 2, startCol = 7, 
+          x = det_in_both, sheet = "Venn")
+
+writeData(wb = wb, startRow = 1, startCol = 9, 
+          x = "Detected Ecotox", sheet = "Venn")
+writeData(wb = wb, startRow = 2, startCol = 9, 
+          x = det_only_eco, sheet = "Venn")
+
+saveWorkbook(wb, file = file.path(Sys.getenv("PASSIVE_PATH"),
+                                  "Dan_V_2020_06_19/venn_diagram_table_data.xlsx"), overwrite = TRUE)
+             
 
 ################################################
 # Create the supplemental:

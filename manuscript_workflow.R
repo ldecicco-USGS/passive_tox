@@ -128,12 +128,6 @@ eco_list$chem_info <- eco_list$chem_info %>%
 summary_conc <- get_concentration_summary(tox_list)
 summary_eco <- get_chemical_summary(eco_list)
 
-
-n_tox = length(unique(chemicalSummary$CAS))
-n_tots = length(unique(summary_conc$CAS))
-n_eco = length(unique(summary_eco$CAS))
-n_tox_eco = length(unique(chemicalSummary$CAS[chemicalSummary$CAS %in% summary_eco$CAS]))
-
 chmn_df <-  tox_list$chem_info %>% 
   select(CAS, chnm) %>% 
   distinct()

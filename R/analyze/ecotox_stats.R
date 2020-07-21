@@ -11,9 +11,10 @@ tox_stats <- tox_fw[,-1] %>%
   group_by(chnm,CAS,Chemical.Name,EffectCategory) %>%
   summarize(min_endpoint = min(value),
             median_endpoint = median(value),
+            fifth_endpoint = quantile(value, probs = 0.05),
             num_endpoints = length(unique(value))) %>%
   full_join(chem_CAS) %>%
-  select("Class","chnm","CAS","EffectCategory","min_endpoint","median_endpoint","num_endpoints","sites_tested","sites_det") %>%
+  select("Class","chnm","CAS","EffectCategory","min_endpoint","fifth_endpoint","median_endpoint","num_endpoints","sites_tested","sites_det") %>%
   arrange(is.na(num_endpoints),Class,chnm)
 
 tox_stats$num_endpoints <- ifelse(is.na(tox_stats$num_endpoints),0,tox_stats$num_endpoints)

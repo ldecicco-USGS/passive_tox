@@ -85,6 +85,8 @@ EffectCategory1 <- c("Reproduction","Mortality","Growth","Development","Populati
 EffectCategory2 <- All_effects[!(All_effects %in% EffectCategory1)]
 tox_fw$EffectCategory <- ifelse(tox_fw$Effect %in% EffectCategory1,1,2)
 
+
+
 benchmark_tab <- tox_fw[,c("CAS.Number.","Chemical.Name","value", "Observed.Duration.Mean..Days..", "Endpoint","Effect","Effect.Measurement","EffectCategory")]
 names(benchmark_tab) <- c("CAS.Number.","Chemical.Name","Value", "duration", "Endpoint_type","Effect","Effect.Measurement","groupCol")
 

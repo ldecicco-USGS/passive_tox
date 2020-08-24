@@ -83,22 +83,29 @@ AOP_sup <- AOP_crosswalk %>%
   distinct() %>% 
   filter(AOP_shortname != "")
 
+library(ToxMixtures)
+
 all_join <- join_everything_fnx(chemicalSummary) %>% 
   separate(genes, sep  = ",", into = letters[1:5]) %>% 
   pivot_longer(letters[1:5], "names", values_to = "Gene") %>% 
   select(-names) %>% 
   filter(!is.na(Gene),
          Gene != "") %>% 
-  mutate(AOPs = ifelse(AOPs == "", "No", "Yes"),
-         Panther = ifelse(pathways == "", "No", "Yes")) %>% 
-  select(-pathways)
+  mutate(AOPs = ifelse(AOPs == "", "No", "Yes")) %>% 
+  left_join(select(ToxMixtures::david_full,
+                   GeneSymbol, 
+                   David = SpeciesGeneSymbol), 
+            by = c("Gene"="GeneSymbol")) %>% 
+  mutate(David = ifelse(is.na(David), "No", "Yes"))
 
 AOP_pan <- chemicalSummary %>% 
   select(chnm, endPoint) %>% 
   distinct() %>% 
   left_join(all_join, by = "endPoint") %>% 
-  select(Gene, chnm, endPoint, AOPs, Panther) %>% 
-  arrange(Gene)
+  select(Gene, chnm, endPoint, AOPs, David) %>% 
+  distinct() %>% 
+  arrange(Gene) %>% 
+  mutate(Gene = ifelse(is.na(Gene), "No gene association", Gene))
 
 #Run ECOTOX analysis
 suppressMessages(source("R/Analyze/ECOTOX_workflow.R"))
@@ -242,7 +249,7 @@ tab_names <- c("SI-1 Site Table",
                "SI-5 ECOTOX data",
                "SI-6 ECOTOX summary",
                "SI-7 AOP",
-               "SI-8 AOP and Panther"
+               "SI-8 AOP and DAVID"
 )
 
 captions <- c("Table SI-1: Sampling locations and primary land cover characteristics for Great Lakes tributaries sampled by passive samplers, 2010-2014.",

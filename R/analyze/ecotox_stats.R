@@ -8,14 +8,19 @@ tox_fw <- readRDS("R/Analyze/Out/ECOTOX_combined.Rds")
 
 #Determine stats for each chem
 tox_stats <- tox_fw[,-1] %>%
-  group_by(chnm,CAS,Chemical.Name,EffectCategory) %>%
+  group_by(chnm, CAS, Chemical.Name, EffectCategory) %>%
   summarize(min_endpoint = min(value),
+            max_endpoint = max(value), 
             median_endpoint = median(value),
             fifth_endpoint = quantile(value, probs = 0.05),
             num_endpoints = length(unique(value))) %>%
+  ungroup() %>% 
   full_join(chem_CAS) %>%
-  select("Class","chnm","CAS","EffectCategory","min_endpoint","fifth_endpoint","median_endpoint","num_endpoints","sites_tested","sites_det") %>%
-  arrange(is.na(num_endpoints),Class,chnm)
+  select("Class","chnm","CAS","EffectCategory","min_endpoint","fifth_endpoint","median_endpoint", "max_endpoint","num_endpoints","sites_tested","sites_det") %>%
+  arrange(is.na(num_endpoints),Class,chnm) %>% 
+  rename(`max endpoint` = max_endpoint,
+         `5th endpoint percentile` = fifth_endpoint,
+         `min endpoint` = min_endpoint)
 
 tox_stats$num_endpoints <- ifelse(is.na(tox_stats$num_endpoints),0,tox_stats$num_endpoints)
 

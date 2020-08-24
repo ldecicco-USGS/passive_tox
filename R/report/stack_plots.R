@@ -44,6 +44,29 @@ chem_count_plot <- function(chem_df, axis_size){
   
 }
 
+class_colors <- function(){
+  
+  classes <- c("Insecticide","Flavor/Fragrance",
+               "Antimicrobial disinfectant", "Herbicide",
+               "Fire retardant", "Detergent metabolites",
+               "Pharmaceuticals", "Plasticizer",
+               "WW", "PAHs",
+               "Other", "OC Pesticides",
+               "Food Additive/Plasticizer", "Dye/Pigment",
+               "Solvent", "PBDEs", "Sterol", "Fuel", "PCBs")
+  
+  
+  cbValues <- c("brown1", "gold","darkred","darkblue","yellow","grey10",
+                "darkolivegreen","darksalmon", "darkolivegreen1","cyan3","deeppink2","grey50",
+                "aquamarine","azure2","darkorange","darkorchid","cornflowerblue","cornsilk","white")
+  
+  names(cbValues) <- classes
+  
+  
+  return(cbValues)
+  
+}
+
 prep_site_list <- function(Sites){
   
   lakes_ordered <- c("Lake Superior",
@@ -186,121 +209,15 @@ whole_stack <- function(chemicalSummary,
   return(list(chem_count=chem_count_graph,no_axis=no_axis_plot_back))
 }
 
-
-plot_tox_stacks_manuscript2 <- function(chemical_summary, 
-                                       chem_site,cbValues,
-                                       category = "Biological",
-                                       mean_logic = FALSE,
-                                       sum_logic = TRUE,
-                                       manual_remove = NULL,
-                                       include_legend = TRUE, 
-                                       font_size = NA,
-                                       title = NA){
+strip_graph <- function(plot_full, font_size = 5){
   
-  match.arg(category, c("Biological","Chemical Class","Chemical"))
+  no_axis <- plot_full +
+    theme(axis.title.y=element_blank(),
+          strip.text.x = element_text(size = font_size),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          legend.position = "none",
+          plot.margin = unit(c(0, 0.25, 0, 0), "cm"))
   
-  site <- EAR <- sumEAR <- meanEAR <- groupCol <- nonZero <- maxEAR <- ".dplyr"
-  SiteID <- site_grouping <- n <- index <- `Short Name` <- count <- x <- y <- label <- ".dplyr"
-  
-  if(!("site_grouping" %in% names(chem_site))){
-    chem_site$site_grouping <- ""
-  }
-  
-  if(category == "Chemical"){
-    graphData <- graph_chem_data(chemical_summary = chemical_summary,
-                                 manual_remove = manual_remove,
-                                 mean_logic = mean_logic,
-                                 sum_logic = sum_logic)   
-    names(graphData)[names(graphData) == "maxEAR"] <- "meanEAR"
-    names(graphData)[names(graphData) == "chnm"] <- "category"
-  } else {
-    graphData <- tox_boxplot_data(chemical_summary = chemical_summary,
-                                  category = category,
-                                  manual_remove = manual_remove,
-                                  mean_logic = mean_logic,
-                                  sum_logic = sum_logic) 
-    if(category == "Chemical"){
-      graphData$category <- graphData$chnm
-    } 
-  }
-  
-  chem_site$`Short Name` <- factor(chem_site$`Short Name`, levels = rev(levels(chem_site$`Short Name`)))
-  
-  graphData <- graphData %>%
-    dplyr::full_join(chem_site[, c("SiteID", "site_grouping", "Short Name")],
-                     by=c("site"="SiteID"))
-  
-  # graphData$`Short Name` <- factor(graphData$`Short Name`, levels = rev(levels(graphData$`Short Name`)))
-  # 
-  if(is.na(title)){
-    graphData$count_title <- ""
-  } else {
-    graphData$count_title <- title
-  }
-  
-  counts_df <- chem_counts(chemical_summary, chem_site)
-  counts_df$`Short Name` <- factor(counts_df$`Short Name`, levels = levels(chem_site$`Short Name`))
-  
-  counts_df <- counts_df %>% 
-    dplyr::right_join(dplyr::select(chem_site, `Short Name`, map_nm), by="Short Name")
-  
-  counts_df <- counts_df[!duplicated(counts_df$`Short Name`),]
-  
-  labels_df <- data.frame(y = c(-0.05,-0.01),
-                          x = c(Inf,Inf),
-                          label = c("Map Name","# Chems"),
-                          site_grouping = factor(c("Lake Superior","Lake Superior"), 
-                                                 levels = levels(counts_df$site_grouping)))
-  
-  classes <- c("Insecticide","Flavor/Fragrance",
-               "Antimicrobial disinfectant", "Herbicide",                 
-               "Fire retardant", "Detergent metabolites",  
-               "Pharmaceuticals", "Plasticizer",               
-               "WW", "PAHs",                      
-               "Other", "OC Pesticides",             
-               "Food Additive/Plasticizer", "Dye/Pigment",             
-               "Solvent", "PBDEs", "Sterol", "Fuel")
-  
-  graphData$category <- factor(graphData$category,
-                               levels = classes)
-  
-  upperPlot <- ggplot() +
-    geom_col(data = graphData, 
-             aes(x=`Short Name`, y=meanEAR, fill = category), position = position_stack())  +
-    theme_minimal() +
-    ylab("Sum of Maximum EAR Values") +
-    geom_text(data = counts_df, 
-              aes(x=`Short Name`, label = count, y=-0.01), 
-              hjust = 0.5, vjust = 0.35, size = font_size/2.5) +
-    geom_text(data = counts_df, 
-              aes(x=`Short Name`, label = map_nm, y=-0.05), 
-              hjust = 0.5, vjust = 0.35, size = font_size/2.5) +
-    geom_text(data = labels_df,
-              aes(y = y, x = x, label = label), 
-              vjust = -0.5, size = font_size/3) +
-    facet_grid(site_grouping ~ ., scales="free", space="free") +
-    coord_flip(clip = "off") + 
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
-    scale_fill_manual(name = category,
-                      values = cbValues, drop=TRUE) +
-    theme(strip.background = element_blank(),
-          strip.text.x = element_text(size = 8),
-          strip.text.y = element_text(size = font_size),
-          axis.title.y = element_blank(),
-          legend.position="bottom",
-          panel.grid.minor = element_blank(),
-          panel.grid.major.x = element_line(size = 0.1),
-          panel.grid.major.y = element_blank(),
-          legend.justification = "left",
-          legend.background = element_rect(fill = "transparent", colour = "transparent"),
-          legend.title=element_blank(),
-          legend.text = element_text(size=7),
-          legend.key.height = unit(0.5,"line"),
-          legend.key.width = unit(0.5, "line"),
-          axis.text = element_text(size = font_size, vjust = 0.35),
-          axis.title =   element_text(size= font_size))
-  upperPlot
-  return(upperPlot)
+  return(no_axis)
 }
-
-

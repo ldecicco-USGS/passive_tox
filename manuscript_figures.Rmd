@@ -34,8 +34,8 @@ cas_final <- readRDS(file.path(Sys.getenv("PASSIVE_PATH"), "data","data_for_git_
 
 ```{r fig1, fig.height=7}
 knitr::include_graphics(path = file.path(Sys.getenv("PASSIVE_PATH"),
-                                         "Figures","Polished figures",
-                                         "GLRI_all_basin_LC_viewing_FY19_Mod3.pdf"))
+                                         "Figures",
+                                         "GLRI_all_basin_LC_viewing_FY19_Mod2_NonEditable.pdf"))
 ```
 Figure 1: Map of sample sites and associated land cover.  Identification of site codes are presented in SI Table 1. 
 

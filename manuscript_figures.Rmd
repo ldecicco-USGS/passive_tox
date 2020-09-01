@@ -39,8 +39,14 @@ knitr::include_graphics(path = file.path(Sys.getenv("PASSIVE_PATH"),
 ```
 Figure 1: Map of sample sites and associated land cover.  Identification of site codes are presented in SI Table 1. 
 
+```{r fig2, out.width = "500px"}
+knitr::include_graphics(path = file.path(Sys.getenv("PASSIVE_PATH"), 
+          "Figures", "Venn.png"))
+```
 
-```{r fig2, fig.width=9, fig.height=11}
+Figure 2: Chemicals with information from ToxCast and ECOTOX used in the current study from passive samplers deployed at 69 sites within 62 tributaries of the Great Lakes, 2010-2014. [(n), number of chemicals represented in each category.]
+
+```{r fig3, fig.width=9, fig.height=11}
 source(file = "R/report/combo_plot2.R")
 source(file = "create_triple_fig.R")
 source(file = "quintuple_plot.R")
@@ -49,9 +55,9 @@ plot_out <- quad_fun(path_to_data, tox_list)
 plot_out
 ```
 
-Figure 2: Exposure activity ratios (EARs) using ToxCast endpoints for screening of potential pathway-based bioactivity from detected chemicals (A), concentrations of detected chemicals that are represented in ToxCast (B), and concentrations of detected chemicals that are not represented in ToxCast (C) from analysis of passive samplers deployed in 69 sites within XX tributaries of the Great Lakes, 2010-2014. Compounds are grouped by chemical class and ordered by largest to smallest median EAR. Boxplots represent only sites where chemicals were detected. Compounds that were not detected are not included.  [Sites, number of sampling locations with detections of each chemical. Boxes, 25th to 75th percentiles; dark line, median; whiskers, data within 1.5 x the interquartile range (IQR); circles, values outside 1.5 x the IQR.]
+Figure 3: Exposure activity ratios (EARs) using ToxCast endpoints for screening of potential pathway-based bioactivity from detected chemicals (A), concentrations of detected chemicals that are represented in ToxCast (B), and concentrations of detected chemicals that are not represented in ToxCast (C) from analysis of passive samplers deployed in 69 sites within XX tributaries of the Great Lakes, 2010-2014. Compounds are grouped by chemical class and ordered by largest to smallest median EAR. Boxplots represent only sites where chemicals were detected. Compounds that were not detected are not included.  [Sites, number of sampling locations with detections of each chemical. Boxes, 25th to 75th percentiles; dark line, median; whiskers, data within 1.5 x the interquartile range (IQR); circles, values outside 1.5 x the IQR.]
 
-```{r fig3}
+```{r fig4}
 
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
@@ -101,4 +107,4 @@ stack2 <- upperPlot +
 stack2
 ```
 
-Figure 3: Maximum exposure-activity ratios (EAR) by chemical class computed from passive sampler chemistry data from 69 Great Lakes tributary sites collected in 2010 and 2014 for chemicals included in the ToxCast database. An “X” in the embedded table indicates major land uses within the watersheds that are significantly correlated with exceedance of an EAR threshold of 0.001 for chemical classes. Chemical classes not represented in the table did not have significant correlations. [Map name, references locations included on the map in Figure 1; Chemicals, number of chemicals with computed EAR values.]
+Figure 4: Maximum exposure-activity ratios (EAR) by chemical class computed from passive sampler chemistry data from 69 Great Lakes tributary sites collected in 2010 and 2014 for chemicals included in the ToxCast database. An “X” in the embedded table indicates major land uses within the watersheds that are significantly correlated with exceedance of an EAR threshold of 0.001 for chemical classes. Chemical classes not represented in the table did not have significant correlations. [Map name, references locations included on the map in Figure 1; Chemicals, number of chemicals with computed EAR values.]

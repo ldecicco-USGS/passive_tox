@@ -22,6 +22,7 @@ source(file = "R/analyze/get_sites_ready.R")
 source(file = "R/report/stack_plots.R")
 source(file = "R/report/combo_plot2.R")
 source(file = "R/analyze/explore_detection_limits.R")
+source(file = "SI_site_mix_figure.R")
 
 tox_list <- create_toxEval(file.path(Sys.getenv("PASSIVE_PATH"),                        "data","data_for_git_repo","clean",
                 "passive.xlsx"))
@@ -303,3 +304,11 @@ Sum of Maximum EAR\textsubscript{chem} Values
 \end{center}
 
 Figure SI 2-D: Maximum exposure-activity ratios (EAR) for `r paste0(tolower(ordered_class[12:16]), collapse = ", ")` computed from passive sampler chemistry data from 69 Great Lakes tributaries collected in 2010 and 2014 for chemicals included in the ToxCast database. [Site names are followed parenthetically by the map names from Figure 1; # Chems, number of chemicals with computed EAR values; EAR~chem~, exposure activity ratio]")
+
+
+```{r fig3}
+plot_mixes()
+
+```
+
+Figure SI 3: Monitoring sites with exposure activity ratios > 10-3 at 10% or more of monitored sites for gene targets and associated chemical mixtures as defined in Table 1.

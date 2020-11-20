@@ -150,8 +150,8 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
     group_by(endPoint, chems, CASs, n_chems) %>% 
     summarize(n_samples = n(),
               n_sites = length(unique(site)),
-              siteIDs = paste0(site, collapse = "|"),
-              siteNames = paste0(shortName, collapse = "|")) %>% 
+              siteIDs = paste0(unique(site), collapse = "|"),
+              siteNames = paste0(unique(shortName), collapse = "|")) %>% 
     ungroup() 
 
   return(df)

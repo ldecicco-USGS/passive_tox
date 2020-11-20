@@ -131,7 +131,7 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
   df <- EAR_sum_endpoint %>% 
     ungroup() %>% 
     filter(EAR > 0) %>% 
-    group_by(endPoint, shortName, date) %>% 
+    group_by(endPoint, site, shortName, date) %>% 
     summarize(chems = list(get_combos(chnm, EAR, {{ear_cutoff}}))) %>% 
     unnest(chems) %>% 
     ungroup()
@@ -139,30 +139,20 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
   CASs <- EAR_sum_endpoint %>% 
     ungroup() %>% 
     filter(EAR > 0) %>% 
-    group_by(endPoint, shortName, date) %>% 
+    group_by(endPoint, site, shortName, date) %>% 
     summarize(CASs = list(get_combos(CAS, EAR, {{ear_cutoff}}))) %>% 
     unnest(CASs) %>% 
-    select(endPoint, CASs = chems, EARsum, n_chems, date, shortName) %>% 
+    select(endPoint, CASs = chems, EARsum, n_chems, date, site, shortName) %>% 
     ungroup()
-  
-  # mix_w_NDs <- EAR_sum_endpoint %>% 
-  #   ungroup() %>% 
-  #   group_by(endPoint, shortName, date) %>% 
-  #   summarize(CASs = list(get_combos(CAS, EAR, 0))) %>% 
-  #   unnest(CASs) %>% 
-  #   select(endPoint, CASs = chems, EARsum, n_chems, date, shortName) %>% 
-  #   ungroup() %>% 
-  #   group_by(endPoint, CASs, n_chems) %>% 
-  #   summarize(n_sites_total = length(unique(shortName))) %>% 
-  #   ungroup()
 
   df <- df %>% 
-    left_join(CASs, by = c("endPoint", "EARsum", "n_chems", "date", "shortName")) %>% 
+    left_join(CASs, by = c("endPoint", "EARsum", "n_chems", "date", "site", "shortName")) %>% 
     group_by(endPoint, chems, CASs, n_chems) %>% 
     summarize(n_samples = n(),
-              n_sites = length(unique(shortName))) %>% 
+              n_sites = length(unique(site)),
+              siteIDs = paste0(site, collapse = "|"),
+              siteNames = paste0(shortName, collapse = "|")) %>% 
     ungroup() 
-    # left_join(mix_w_NDs, by = c("endPoint", "CASs", "n_chems"))
 
   return(df)
   
@@ -202,7 +192,9 @@ get_final_mixtures <- function(chemicalSummary,
            Chemicals = chem_list,
            Class,
            CASs = CAS_list,
-           `# Sites` = n_sites)
+           `# Sites` = n_sites,
+           siteIDs = siteIDs,
+           siteNames = siteNames)
   
   mix_df$Chemicals <- rapply(mix_df$Chemicals, function(x)
     ifelse(x == "Di(2-ethylhexyl) phthalate", "DEHP", x), 

@@ -18,19 +18,20 @@ unique(tox_list$chem_data$CAS)[which(!(unique(tox_list$chem_data$CAS)) %in% tox_
 
 tox_list$exclusions <- tox_list$exclusions %>% 
   filter(!is.na(CAS) & !is.na(endPoint))
+
 ###################################################
 # Mixtures stuff:
 EAR_thresh <- 0.001
 site_thresh_percent <- 10
+n_sites <- 7 
 TQ_thresh <- 0.1
 
 source(file = "R/mixtures/mix_script.R")
 source(file = "R/mixtures/prepare_mixture_data.R")
-site_thresh <- ceiling((site_thresh_percent/100) * nrow(tox_list$chem_site))
 
 mix_df <- get_final_mixtures(chemicalSummary,
                              EAR_thresh,
-                             site_thresh)
+                             site_thresh_percent, tox_list)
 dir.create("R/mixtures/out", showWarnings = FALSE)
 saveRDS(mix_df,"R/mixtures/out/mixtures_table.rds")
 

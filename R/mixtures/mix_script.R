@@ -135,7 +135,7 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
     summarize(chems = list(get_combos(chnm, EAR, {{ear_cutoff}}))) %>% 
     unnest(chems) %>% 
     ungroup()
-  
+
   CASs <- EAR_sum_endpoint %>% 
     ungroup() %>% 
     filter(EAR > 0) %>% 
@@ -144,13 +144,25 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
     unnest(CASs) %>% 
     select(endPoint, CASs = chems, EARsum, n_chems, date, shortName) %>% 
     ungroup()
+  
+  # mix_w_NDs <- EAR_sum_endpoint %>% 
+  #   ungroup() %>% 
+  #   group_by(endPoint, shortName, date) %>% 
+  #   summarize(CASs = list(get_combos(CAS, EAR, 0))) %>% 
+  #   unnest(CASs) %>% 
+  #   select(endPoint, CASs = chems, EARsum, n_chems, date, shortName) %>% 
+  #   ungroup() %>% 
+  #   group_by(endPoint, CASs, n_chems) %>% 
+  #   summarize(n_sites_total = length(unique(shortName))) %>% 
+  #   ungroup()
 
   df <- df %>% 
     left_join(CASs, by = c("endPoint", "EARsum", "n_chems", "date", "shortName")) %>% 
     group_by(endPoint, chems, CASs, n_chems) %>% 
     summarize(n_samples = n(),
               n_sites = length(unique(shortName))) %>% 
-    ungroup()
+    ungroup() 
+    # left_join(mix_w_NDs, by = c("endPoint", "CASs", "n_chems"))
 
   return(df)
   
@@ -158,16 +170,25 @@ all_mixes_fn <- function(EAR_sum_endpoint, ear_cutoff) {
 
 get_final_mixtures <- function(chemicalSummary,
                                EAR_thresh,
-                               site_thresh){
+                               site_thresh_percent, tox_list){
   
   EARsum_endpoint <- sum_endpoints(chemicalSummary,
                                    ear_cutoff = EAR_thresh)
   
-  top_mixes <- all_mixes_fn(EARsum_endpoint, EAR_thresh)
+  cas_check <- tox_list$chem_data %>% 
+    group_by(CAS) %>% 
+    summarize(n_sites = length(unique(SiteID)))
   
-  top_mixes <- top_mixes %>% 
-    filter(n_sites >= site_thresh)
-  
+  top_mixes <- all_mixes_fn(EARsum_endpoint, EAR_thresh) %>% 
+    rowwise() %>% 
+    mutate(total_sites = !!cas_check %>% 
+             filter(CAS %in% unlist(strsplit(split = "\\|", x = CASs))) %>% 
+             pull(n_sites) %>% 
+             min()) %>% 
+    ungroup() %>% 
+    mutate(site_percent = 100*n_sites/total_sites) %>% 
+    filter(site_percent >= !!site_thresh_percent)
+
   join_everything <- join_everything_fnx(chemicalSummary)
   
   mix_df <- clean_top_mixes(join_everything, 
